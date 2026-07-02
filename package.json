@@ -1,0 +1,21 @@
+{
+  "name": "tracklore",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Self-hosted tracker for series, movies, anime — and later games, books and more.",
+  "license": "AGPL-3.0-only",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@11.9.0",
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "build": "pnpm --filter \"./packages/*\" build && pnpm --filter \"./apps/*\" build",
+    "test": "pnpm --filter \"./apps/*\" test",
+    "lint": "pnpm --recursive lint",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2"
+  }
+}

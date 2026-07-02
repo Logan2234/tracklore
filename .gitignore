@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Builds
+dist/
+build/
+.svelte-kit/
+
+# Environment — never commit secrets
+.env
+.env.*
+!.env.example
+
+# Logs & caches
+*.log
+.turbo/
+coverage/
+
+# OS / editors
+.DS_Store
+Thumbs.db
