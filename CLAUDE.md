@@ -82,7 +82,7 @@ state via Svelte 5 runes in `src/lib/auth.svelte.ts` (runes mode is forced in
 `svelte.config.js`). API base URL comes from `PUBLIC_API_URL`
 (`$env/dynamic/public`, resolved at server start, Docker-friendly).
 
-**Docker:** both Dockerfiles copy *all* workspace `package.json` manifests plus
+**Docker:** both Dockerfiles copy _all_ workspace `package.json` manifests plus
 `tsconfig.base.json` before `pnpm install --frozen-lockfile` (a frozen install
 validates every importer in the lockfile). The api image runs
 `prisma migrate deploy` at boot; the web runtime image ships only the

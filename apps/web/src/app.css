@@ -1,4 +1,4 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
 /* Tracklore — "Séance" design system.
    Semantic tokens flip between light ("le programme") and dark ("la salle").
@@ -20,9 +20,9 @@
   --color-success: var(--success);
   --color-danger: var(--danger);
 
-  --font-display: 'Bricolage Grotesque Variable', system-ui, sans-serif;
-  --font-sans: 'Hanken Grotesk Variable', system-ui, sans-serif;
-  --font-mono: 'Space Mono', ui-monospace, monospace;
+  --font-display: "Bricolage Grotesque Variable", system-ui, sans-serif;
+  --font-sans: "Hanken Grotesk Variable", system-ui, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, monospace;
 }
 
 /* Make `dark:` utilities respond to the `.dark` class (manual toggle), not the
@@ -83,26 +83,30 @@ body {
     @apply bg-btn text-btn-fg hover:brightness-95;
   }
   .btn-ghost {
-    @apply border border-border text-dim hover:bg-surface-2 hover:text-fg;
+    @apply border-border text-dim hover:bg-surface-2 hover:text-fg border;
   }
   .btn-danger {
-    @apply border border-danger text-danger hover:bg-danger/10;
+    @apply border-danger text-danger hover:bg-danger/10 border;
   }
   .input {
-    @apply w-full rounded-lg border border-border bg-surface px-3 py-2 text-fg placeholder:text-dim;
+    @apply border-border bg-surface text-fg placeholder:text-dim w-full rounded-lg border px-3 py-2;
   }
   .card {
-    @apply overflow-hidden rounded-xl border border-border bg-surface;
+    @apply border-border bg-surface overflow-hidden rounded-xl border;
   }
   /* Timecode/metadata voice: mono, dim, wide-tracked. */
   .timecode {
-    @apply font-mono text-dim tabular-nums;
+    @apply text-dim font-mono tabular-nums;
   }
   .chip {
-    @apply rounded-full border border-border px-3.5 py-1.5 text-sm font-semibold whitespace-nowrap text-dim transition-colors hover:text-fg;
+    @apply border-border text-dim hover:text-fg rounded-full border px-3.5 py-1.5 text-sm font-semibold whitespace-nowrap transition-colors;
   }
   .chip-on {
     @apply border-accent bg-accent text-accent-fg hover:text-accent-fg;
+  }
+  /* Marks placeholder/mock data (dotted underline + help cursor). */
+  .mock {
+    @apply decoration-dim/50 cursor-help underline decoration-dotted underline-offset-4;
   }
 }
 

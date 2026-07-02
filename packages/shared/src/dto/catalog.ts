@@ -1,4 +1,4 @@
-import type { CatalogSource, MediaType } from '../enums';
+import type { CatalogSource, MediaType } from "../enums";
 
 /** A media as returned by a live catalogue search (not persisted). */
 export interface MediaSummaryDto {

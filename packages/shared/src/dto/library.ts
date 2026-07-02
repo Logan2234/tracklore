@@ -1,4 +1,4 @@
-import type { CatalogSource, EntryStatus, MediaType } from '../enums';
+import type { CatalogSource, EntryStatus, MediaType } from "../enums";
 
 /** A persisted media referenced by at least one user (on-demand cache). */
 export interface MediaItemDto {
