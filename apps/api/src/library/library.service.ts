@@ -3,12 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import type {
-  EntryStatus as DbEntryStatus,
-  LibraryEntry,
-  MediaItem,
-  Prisma,
-} from "@prisma/client";
+import type { LibraryEntry, MediaItem, Prisma } from "@prisma/client";
 import type {
   EntryEpisodesResponseDto,
   EntryStatus,
@@ -42,7 +37,7 @@ export class LibraryService {
     );
 
     const changes = {
-      status: dto.status as DbEntryStatus | undefined,
+      status: dto.status,
       rating: dto.rating,
       notes: dto.notes,
       favorite: dto.favorite,
@@ -68,7 +63,7 @@ export class LibraryService {
     const entries = await this.prisma.libraryEntry.findMany({
       where: {
         userId,
-        status: filters.status as DbEntryStatus | undefined,
+        status: filters.status,
         mediaItem: filters.type ? { type: filters.type } : undefined,
       },
       include: { mediaItem: true },
@@ -107,7 +102,7 @@ export class LibraryService {
     const entry = await this.prisma.libraryEntry.update({
       where: { id: entryId },
       data: {
-        status: dto.status as DbEntryStatus | undefined,
+        status: dto.status,
         rating: dto.rating,
         notes: dto.notes,
         favorite: dto.favorite,

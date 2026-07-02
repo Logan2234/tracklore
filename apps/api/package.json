@@ -25,11 +25,13 @@
     "@nestjs/core": "^11.1.27",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/platform-fastify": "^11.1.27",
+    "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@tracklore/shared": "workspace:*",
     "bcryptjs": "^3.0.3",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "fastify": "^5.9.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },
