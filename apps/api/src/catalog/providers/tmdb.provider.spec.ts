@@ -58,6 +58,7 @@ describe("TmdbProvider", () => {
         sourceId: "27205",
         type: MediaType.MOVIE,
         title: "Inception",
+        originalTitle: "Inception",
         year: 2010,
         posterUrl:
           "https://image.tmdb.org/t/p/w500/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg",
@@ -97,6 +98,20 @@ describe("TmdbProvider", () => {
       source: MediaSource.IMDB,
       externalId: "tt1375666",
     });
+  });
+
+  it("resolves a TVDB series id to a TMDB id via /find", async () => {
+    mockFetchByUrl({
+      "/find/81189": { tv_results: [{ id: 1396 }], movie_results: [] },
+    });
+
+    await expect(provider.findSeriesByTvdbId("81189")).resolves.toBe("1396");
+  });
+
+  it("returns null when /find has no TV result for the TVDB id", async () => {
+    mockFetchByUrl({ "/find/999999": { tv_results: [], movie_results: [] } });
+
+    await expect(provider.findSeriesByTvdbId("999999")).resolves.toBeNull();
   });
 
   it("maps series details with TVDB ID and per-season episodes (specials included)", async () => {

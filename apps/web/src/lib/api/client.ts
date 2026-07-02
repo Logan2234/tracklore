@@ -10,6 +10,8 @@ import type {
   MediaType,
   RegisterRequestDto,
   SearchResponseDto,
+  StartTvTimeImportDto,
+  TvTimeImportJobDto,
   UpsertLibraryEntryDto,
   UserDto,
 } from '@tracklore/shared';
@@ -182,4 +184,14 @@ export function watchEpisode(episodeId: string, rating?: number): Promise<Episod
     method: 'POST',
     body: rating === undefined ? {} : { rating },
   });
+}
+
+// --- TV Time import ---
+
+export function startTvTimeImport(body: StartTvTimeImportDto): Promise<TvTimeImportJobDto> {
+  return request('/import/tvtime', { method: 'POST', body });
+}
+
+export function getTvTimeImportJob(jobId: string): Promise<TvTimeImportJobDto> {
+  return request(`/import/tvtime/${jobId}`);
 }

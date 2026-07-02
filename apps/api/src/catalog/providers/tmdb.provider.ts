@@ -23,6 +23,7 @@ const IMG = "https://image.tmdb.org/t/p";
 interface TmdbMovieResult {
   id: number;
   title: string;
+  original_title?: string;
   release_date?: string;
   poster_path?: string | null;
 }
@@ -30,6 +31,7 @@ interface TmdbMovieResult {
 interface TmdbTvResult {
   id: number;
   name: string;
+  original_name?: string;
   first_air_date?: string;
   poster_path?: string | null;
 }
@@ -62,6 +64,11 @@ interface TmdbSeasonDetails {
     name?: string | null;
     air_date?: string | null;
   }[];
+}
+
+interface TmdbFindResult {
+  tv_results?: { id: number }[];
+  movie_results?: { id: number }[];
 }
 
 /** Films and (western) series, from The Movie Database. */
@@ -97,6 +104,19 @@ export class TmdbProvider implements CatalogProvider {
     return type === MediaType.MOVIE
       ? this.getMovieDetails(sourceId)
       : this.getTvDetails(sourceId);
+  }
+
+  /**
+   * Resolve a TheTVDB series id to a TMDB series id. Used by the TV Time
+   * import, whose shows are identified by TVDB ids. Returns null when TMDB
+   * knows no series for that external id.
+   */
+  async findSeriesByTvdbId(tvdbId: string): Promise<string | null> {
+    const found = await this.get<TmdbFindResult>(`/find/${tvdbId}`, {
+      external_source: "tvdb_id",
+    });
+    const tv = found.tv_results?.[0];
+    return tv ? String(tv.id) : null;
   }
 
   private async getMovieDetails(
@@ -162,6 +182,7 @@ export class TmdbProvider implements CatalogProvider {
       sourceId: String(movie.id),
       type: MediaType.MOVIE,
       title: movie.title,
+      originalTitle: movie.original_title ?? null,
       year: movie.release_date ? Number(movie.release_date.slice(0, 4)) : null,
       posterUrl: movie.poster_path ? `${IMG}/w500${movie.poster_path}` : null,
     };
@@ -173,6 +194,7 @@ export class TmdbProvider implements CatalogProvider {
       sourceId: String(tv.id),
       type: MediaType.SERIES,
       title: tv.name,
+      originalTitle: tv.original_name ?? null,
       year: tv.first_air_date ? Number(tv.first_air_date.slice(0, 4)) : null,
       posterUrl: tv.poster_path ? `${IMG}/w500${tv.poster_path}` : null,
     };

@@ -7,6 +7,7 @@ import { TmdbProvider } from "./providers/tmdb.provider";
 @Module({
   controllers: [CatalogController],
   providers: [MediaItemService, TmdbProvider, AnilistProvider],
-  exports: [MediaItemService],
+  // TmdbProvider is exported for the TV Time import (TVDB → TMDB reconciliation).
+  exports: [MediaItemService, TmdbProvider],
 })
 export class CatalogModule {}

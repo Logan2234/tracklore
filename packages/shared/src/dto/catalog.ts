@@ -6,6 +6,12 @@ export interface MediaSummaryDto {
   sourceId: string;
   type: MediaType;
   title: string;
+  /**
+   * Original-language title, when the source provides one (TMDB
+   * `original_title`/`original_name`). Lets title matching succeed against the
+   * original title even when `title` is a localized (e.g. en-US) variant.
+   */
+  originalTitle?: string | null;
   year: number | null;
   posterUrl: string | null;
 }

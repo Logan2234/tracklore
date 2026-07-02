@@ -5,6 +5,7 @@ import { AppController } from "./app.controller";
 import { AuthModule } from "./auth/auth.module";
 import { JwtAuthGuard } from "./auth/guards/jwt-auth.guard";
 import { CatalogModule } from "./catalog/catalog.module";
+import { ImportModule } from "./import/tvtime/import.module";
 import { LibraryModule } from "./library/library.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { UsersModule } from "./users/users.module";
@@ -17,6 +18,7 @@ import { UsersModule } from "./users/users.module";
     UsersModule,
     CatalogModule,
     LibraryModule,
+    ImportModule,
   ],
   controllers: [AppController],
   providers: [

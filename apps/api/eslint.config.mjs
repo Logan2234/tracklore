@@ -1,15 +1,18 @@
-// @ts-check
-import eslint from "@eslint/js";
+import js from "@eslint/js";
 import eslintPluginPrettierRecommended from "eslint-plugin-prettier/recommended";
+import { defineConfig, includeIgnoreFile } from "eslint/config";
 import globals from "globals";
-import tseslint from "typescript-eslint";
+import path from "path";
+import ts from "typescript-eslint";
 
-export default tseslint.config(
-  {
-    ignores: ["eslint.config.mjs"],
-  },
-  eslint.configs.recommended,
-  ...tseslint.configs.recommendedTypeChecked,
+const gitignorePath = path.resolve(import.meta.dirname, "../../.gitignore");
+
+export default defineConfig(
+  includeIgnoreFile(gitignorePath),
+  // Config/build files aren't part of the app tsconfig — keep them out of type-aware linting.
+  { ignores: ["*.config.{js,ts}", "*.config.*.{js,ts}"] },
+  js.configs.recommended,
+  ts.configs.recommended,
   eslintPluginPrettierRecommended,
   {
     languageOptions: {

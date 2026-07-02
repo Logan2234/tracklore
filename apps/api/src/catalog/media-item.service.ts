@@ -68,7 +68,7 @@ export class MediaItemService {
     const existingRef = await this.prisma.mediaExternalId.findUnique({
       where: {
         source_externalId: {
-          source: source as DbExternalSource,
+          source: source,
           externalId: sourceId,
         },
       },
@@ -96,11 +96,11 @@ export class MediaItemService {
     return this.prisma.mediaItem.create({
       data: {
         ...this.baseFields(details),
-        type: type as DbMediaType,
-        canonicalSource: source as DbCatalogSource,
+        type: type,
+        canonicalSource: source,
         externalIds: {
           create: details.externalIds.map((ext) => ({
-            source: ext.source as DbExternalSource,
+            source: ext.source,
             externalId: ext.externalId,
           })),
         },
@@ -134,14 +134,14 @@ export class MediaItemService {
       await this.prisma.mediaExternalId.upsert({
         where: {
           source_externalId: {
-            source: ext.source as DbExternalSource,
+            source: ext.source,
             externalId: ext.externalId,
           },
         },
         update: { mediaItemId },
         create: {
           mediaItemId,
-          source: ext.source as DbExternalSource,
+          source: ext.source,
           externalId: ext.externalId,
         },
       });
