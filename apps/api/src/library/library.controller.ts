@@ -46,6 +46,14 @@ export class LibraryController {
     return this.libraryService.upsertEntry(user.sub, dto);
   }
 
+  @Get('entries/:id')
+  getEntry(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') entryId: string,
+  ): Promise<LibraryEntryDto> {
+    return this.libraryService.getEntry(user.sub, entryId);
+  }
+
   @Patch('entries/:id')
   updateEntry(
     @CurrentUser() user: JwtPayload,

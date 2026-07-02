@@ -72,6 +72,15 @@ export class LibraryService {
     );
   }
 
+  async getEntry(userId: string, entryId: string): Promise<LibraryEntryDto> {
+    await this.assertEntryOwnership(userId, entryId);
+    const entry = await this.prisma.libraryEntry.findUniqueOrThrow({
+      where: { id: entryId },
+      include: { mediaItem: true },
+    });
+    return this.toEntryDto(entry, await this.computeProgress(userId, entry.mediaItemId));
+  }
+
   async updateEntry(userId: string, entryId: string, dto: UpdateEntryDto): Promise<LibraryEntryDto> {
     await this.assertEntryOwnership(userId, entryId);
 
