@@ -3,7 +3,15 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<meta name="theme-color" content="#0e0f13" />
+		<meta name="theme-color" content="#0c0d10" />
+		<script>
+			// Apply the saved (or system) theme before first paint to avoid a flash.
+			try {
+				const saved = localStorage.getItem('tl-theme');
+				const dark = saved ? saved === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+				if (dark) document.documentElement.classList.add('dark');
+			} catch {}
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

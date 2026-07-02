@@ -1,312 +1,94 @@
-/* Tracklore — dark, poster-first theme. */
-:root {
-  --bg: #0e0f13;
-  --bg-raised: #16181f;
-  --bg-hover: #1d2029;
-  --border: #262a35;
-  --text: #e8eaf0;
-  --text-dim: #9aa0ae;
-  --accent: #8b7cf6;
-  --accent-strong: #a595ff;
-  --danger: #f0647c;
-  --success: #4fd08c;
-  --radius: 12px;
+@import 'tailwindcss';
+
+/* Tracklore — "Séance" design system.
+   Semantic tokens flip between light ("le programme") and dark ("la salle").
+   Components use utilities like `bg-surface text-fg border-border`; the raw
+   values below are swapped by the `.dark` class on <html>, so most components
+   need no `dark:` variants. */
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-fg: var(--fg);
+  --color-dim: var(--dim);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-btn: var(--btn);
+  --color-btn-fg: var(--btn-fg);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+
+  --font-display: 'Bricolage Grotesque Variable', system-ui, sans-serif;
+  --font-sans: 'Hanken Grotesk Variable', system-ui, sans-serif;
+  --font-mono: 'Space Mono', ui-monospace, monospace;
 }
 
-* {
-  box-sizing: border-box;
+/* Make `dark:` utilities respond to the `.dark` class (manual toggle), not the
+   OS preference — the preference is resolved to a class in JS at boot. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* Light — "le programme" (warm manila paper, deliberately not cream cliché). */
+  --bg: #edece8;
+  --surface: #fbfaf7;
+  --surface-2: #f3f2ee;
+  --border: #dad8d0;
+  --fg: #17181c;
+  --dim: #6b6e78;
+  --accent: #a56a15;
+  --accent-fg: #ffffff;
+  --btn: #17181c;
+  --btn-fg: #fbfaf7;
+  --success: #2fa070;
+  --danger: #c9445e;
+  color-scheme: light;
+}
+
+.dark {
+  /* Dark — "la salle" (lights off, the poster glows). */
+  --bg: #0c0d10;
+  --surface: #15171c;
+  --surface-2: #1e2128;
+  --border: #2a2e38;
+  --fg: #ececea;
+  --dim: #9aa0ae;
+  --accent: #f5b841;
+  --accent-fg: #1a1406;
+  --btn: #f5b841;
+  --btn-fg: #1a1406;
+  --success: #5bd6a0;
+  --danger: #f0647c;
+  color-scheme: dark;
 }
 
 body {
   margin: 0;
   background: var(--bg);
-  color: var(--text);
-  font-family:
-    'Inter',
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
-  line-height: 1.5;
+  color: var(--fg);
+  font-family: var(--font-sans);
+  line-height: 1.55;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+::selection {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
-h1 {
-  font-size: 1.5rem;
-  margin: 0 0 1rem;
-}
-
-h2 {
-  font-size: 1.1rem;
-  margin: 1.5rem 0 0.75rem;
-}
-
-input,
-select,
-textarea {
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
-  padding: 0.6rem 0.8rem;
-  font: inherit;
-}
-
-input:focus,
-select:focus,
-textarea:focus {
+/* Visible keyboard focus everywhere, keyed to the accent. */
+:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: -1px;
+  outline-offset: 2px;
 }
 
-button {
-  background: var(--accent);
-  border: none;
-  border-radius: 8px;
-  color: #fff;
-  cursor: pointer;
-  font: inherit;
-  font-weight: 600;
-  padding: 0.55rem 1rem;
-  transition: background 0.15s;
-}
-
-button:hover {
-  background: var(--accent-strong);
-}
-
-button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-button.ghost {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-}
-
-button.ghost:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-button.danger {
-  background: transparent;
-  border: 1px solid var(--danger);
-  color: var(--danger);
-}
-
-.container {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 1.25rem;
-}
-
-/* Top navigation */
-.nav {
-  display: flex;
-  align-items: center;
-  gap: 1.25rem;
-  padding: 0.8rem 1.25rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-raised);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.nav .brand {
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  color: var(--accent-strong);
-}
-
-.nav a {
-  color: var(--text-dim);
-  font-weight: 500;
-}
-
-.nav a:hover,
-.nav a.active {
-  color: var(--text);
-}
-
-.nav .spacer {
-  flex: 1;
-}
-
-/* Card grids (search results, library) */
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 1rem;
-}
-
-.card {
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  transition: transform 0.12s, border-color 0.12s;
-}
-
-.card:hover {
-  transform: translateY(-2px);
-  border-color: var(--accent);
-}
-
-.card .poster {
-  aspect-ratio: 2 / 3;
-  width: 100%;
-  object-fit: cover;
-  background: var(--bg-hover);
-  display: block;
-}
-
-.card .poster.placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-dim);
-  font-size: 2rem;
-}
-
-.card .body {
-  padding: 0.6rem 0.7rem 0.8rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  flex: 1;
-}
-
-.card .title {
-  font-weight: 600;
-  font-size: 0.9rem;
-  line-height: 1.25;
-}
-
-.card .meta {
-  color: var(--text-dim);
-  font-size: 0.78rem;
-}
-
-.badge {
-  display: inline-block;
-  background: var(--bg-hover);
-  border-radius: 999px;
-  color: var(--text-dim);
-  font-size: 0.7rem;
-  font-weight: 600;
-  padding: 0.1rem 0.55rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.badge.accent {
-  background: color-mix(in srgb, var(--accent) 25%, transparent);
-  color: var(--accent-strong);
-}
-
-/* Progress bars */
-.progress {
-  background: var(--bg-hover);
-  border-radius: 999px;
-  height: 6px;
-  overflow: hidden;
-}
-
-.progress > div {
-  background: var(--accent);
-  height: 100%;
-  transition: width 0.2s;
-}
-
-/* Forms (login/register) */
-.auth-form {
-  max-width: 360px;
-  margin: 10vh auto 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 2rem;
-}
-
-.error {
-  color: var(--danger);
-  font-size: 0.85rem;
-}
-
-/* Filter tabs */
-.tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1.25rem;
-}
-
-.tabs button {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-  font-weight: 500;
-  padding: 0.35rem 0.9rem;
-}
-
-.tabs button.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-}
-
-/* Episode list */
-.episode {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid var(--border);
-}
-
-.episode:last-child {
-  border-bottom: none;
-}
-
-.episode .num {
-  color: var(--text-dim);
-  font-variant-numeric: tabular-nums;
-  min-width: 2.5rem;
-}
-
-.episode .ep-title {
-  flex: 1;
-}
-
-.episode .watched {
-  color: var(--success);
-  font-size: 0.8rem;
-}
-
-.season-block {
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  margin-bottom: 1rem;
-  overflow: hidden;
-}
-
-.season-block > header {
-  padding: 0.7rem 1rem;
-  font-weight: 600;
-  background: var(--bg-hover);
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
