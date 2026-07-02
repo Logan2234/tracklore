@@ -73,6 +73,39 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Shared component classes — the recurring bits of the Séance system.
+   Keyboard focus is handled globally by the :focus-visible rule below. */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-[filter,background-color,color] disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-btn text-btn-fg hover:brightness-95;
+  }
+  .btn-ghost {
+    @apply border border-border text-dim hover:bg-surface-2 hover:text-fg;
+  }
+  .btn-danger {
+    @apply border border-danger text-danger hover:bg-danger/10;
+  }
+  .input {
+    @apply w-full rounded-lg border border-border bg-surface px-3 py-2 text-fg placeholder:text-dim;
+  }
+  .card {
+    @apply overflow-hidden rounded-xl border border-border bg-surface;
+  }
+  /* Timecode/metadata voice: mono, dim, wide-tracked. */
+  .timecode {
+    @apply font-mono text-dim tabular-nums;
+  }
+  .chip {
+    @apply rounded-full border border-border px-3.5 py-1.5 text-sm font-semibold whitespace-nowrap text-dim transition-colors hover:text-fg;
+  }
+  .chip-on {
+    @apply border-accent bg-accent text-accent-fg hover:text-accent-fg;
+  }
+}
+
 ::selection {
   background: color-mix(in srgb, var(--accent) 30%, transparent);
 }

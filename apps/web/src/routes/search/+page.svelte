@@ -2,6 +2,8 @@
 	import { goto } from '$app/navigation';
 	import type { MediaSummaryDto, MediaType } from '@tracklore/shared';
 	import { searchCatalog, upsertLibraryEntry, ApiError } from '$lib/api/client';
+	import Poster from '$lib/components/Poster.svelte';
+	import Icon from '$lib/components/Icon.svelte';
 
 	const TYPE_TABS: { label: string; value: MediaType | undefined }[] = [
 		{ label: 'Tout', value: undefined },
@@ -10,11 +12,7 @@
 		{ label: 'Animés', value: 'ANIME' }
 	];
 
-	const TYPE_LABELS: Record<MediaType, string> = {
-		MOVIE: 'Film',
-		SERIES: 'Série',
-		ANIME: 'Animé'
-	};
+	const TYPE_LABELS: Record<MediaType, string> = { MOVIE: 'Film', SERIES: 'Série', ANIME: 'Animé' };
 
 	let query = $state('');
 	let type = $state<MediaType | undefined>(undefined);
@@ -63,59 +61,71 @@
 	}
 </script>
 
-<div class="container">
-	<h1>Recherche</h1>
+<div class="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-10">
+	<header class="mb-6">
+		<h1 class="font-display text-3xl font-extrabold tracking-tight md:text-4xl">Recherche</h1>
+		<p class="mt-1 text-sm text-dim">Films, séries et animés — ajoute-les à ta bibliothèque.</p>
+	</header>
 
-	<form onsubmit={submit} style="display: flex; gap: 0.6rem; margin-bottom: 1rem;">
-		<input
-			type="search"
-			placeholder="Titre d'un film, d'une série, d'un animé…"
-			bind:value={query}
-			style="flex: 1"
-		/>
-		<button type="submit" disabled={loading}>Chercher</button>
+	<form onsubmit={submit} class="mb-5 flex gap-2">
+		<div class="relative flex-1">
+			<span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-dim">
+				<Icon name="search" class="h-5 w-5" />
+			</span>
+			<input
+				type="search"
+				placeholder="Titre d'un film, d'une série, d'un animé…"
+				bind:value={query}
+				class="input pl-10"
+			/>
+		</div>
+		<button type="submit" class="btn btn-primary" disabled={loading}>
+			{loading ? 'Recherche…' : 'Chercher'}
+		</button>
 	</form>
 
-	<div class="tabs">
+	<div class="mb-7 flex flex-wrap gap-2">
 		{#each TYPE_TABS as tab (tab.label)}
-			<button class:active={type === tab.value} onclick={() => selectType(tab.value)}>
+			<button class="chip" class:chip-on={type === tab.value} onclick={() => selectType(tab.value)}>
 				{tab.label}
 			</button>
 		{/each}
 	</div>
 
-	{#if error}<p class="error">{error}</p>{/if}
+	{#if error}
+		<p class="mb-4 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+			{error}
+		</p>
+	{/if}
 
 	{#if loading}
-		<p class="meta">Recherche en cours…</p>
+		<p class="timecode text-sm">Recherche en cours…</p>
 	{:else if searched && results.length === 0}
-		<p class="meta">Aucun résultat.</p>
+		<p class="timecode text-sm">Aucun résultat.</p>
+	{:else if !searched}
+		<div class="rounded-xl border border-dashed border-border px-6 py-16 text-center text-dim">
+			Lance une recherche pour commencer.
+		</div>
 	{:else}
-		<div class="grid">
+		<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
 			{#each results as media (`${media.source}:${media.sourceId}`)}
-				<div class="card">
-					{#if media.posterUrl}
-						<img class="poster" src={media.posterUrl} alt={media.title} loading="lazy" />
-					{:else}
-						<div class="poster placeholder">🎬</div>
-					{/if}
-					<div class="body">
-						<span class="title">{media.title}</span>
-						<span class="meta">
-							<span class="badge accent">{TYPE_LABELS[media.type]}</span>
-							{#if media.year}&nbsp;{media.year}{/if}
+				<div class="card flex flex-col">
+					<Poster src={media.posterUrl} title={media.title} />
+					<div class="flex flex-1 flex-col gap-1.5 p-3">
+						<span class="font-display text-sm leading-tight font-semibold">{media.title}</span>
+						<span class="timecode text-xs">
+							{TYPE_LABELS[media.type]}{#if media.year} · {media.year}{/if}
 						</span>
-						<div style="display: flex; gap: 0.4rem; margin-top: auto;">
+						<div class="mt-auto flex gap-2 pt-2">
 							<button
-								style="flex: 1; padding: 0.4rem 0.5rem; font-size: 0.8rem;"
+								class="btn btn-primary flex-1 px-2 py-1.5 text-xs"
 								disabled={addingKey !== null}
 								onclick={() => add(media, 'WATCHING')}
 							>
 								Suivre
 							</button>
 							<button
-								class="ghost"
-								style="flex: 1; padding: 0.4rem 0.5rem; font-size: 0.8rem;"
+								class="btn btn-ghost flex-1 px-2 py-1.5 text-xs"
 								disabled={addingKey !== null}
 								onclick={() => add(media, 'PLANNED')}
 							>
