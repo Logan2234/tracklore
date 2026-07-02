@@ -1,0 +1,20 @@
+{
+  "name": "@tracklore/shared",
+  "version": "0.1.0",
+  "description": "Types, enums and DTOs shared between the Tracklore API and web app",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}
