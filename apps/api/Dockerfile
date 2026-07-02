@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Manifests first for layer caching (all workspace manifests are required
 # for a frozen-lockfile install, even for packages we don't install).
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 COPY packages/shared/package.json packages/shared/
