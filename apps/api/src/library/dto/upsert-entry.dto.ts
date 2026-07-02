@@ -3,7 +3,7 @@ import {
   EntryStatus,
   MediaType,
   UpsertLibraryEntryDto,
-} from '@tracklore/shared';
+} from "@tracklore/shared";
 import {
   IsBoolean,
   IsIn,
@@ -13,7 +13,7 @@ import {
   Max,
   MaxLength,
   Min,
-} from 'class-validator';
+} from "class-validator";
 
 export class UpsertEntryDto implements UpsertLibraryEntryDto {
   @IsIn(Object.values(CatalogSource))

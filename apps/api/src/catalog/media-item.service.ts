@@ -1,15 +1,22 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable } from "@nestjs/common";
 import type {
   CatalogSource as DbCatalogSource,
   ExternalSource as DbExternalSource,
   MediaType as DbMediaType,
   MediaItem,
-} from '@prisma/client';
-import type { CatalogSource, MediaDetailsDto, MediaType } from '@tracklore/shared';
-import { PrismaService } from '../prisma/prisma.service';
-import { AnilistProvider } from './providers/anilist.provider';
-import type { CatalogProvider, ProviderMediaDetails } from './providers/provider.types';
-import { TmdbProvider } from './providers/tmdb.provider';
+} from "@prisma/client";
+import type {
+  CatalogSource,
+  MediaDetailsDto,
+  MediaType,
+} from "@tracklore/shared";
+import { PrismaService } from "../prisma/prisma.service";
+import { AnilistProvider } from "./providers/anilist.provider";
+import type {
+  CatalogProvider,
+  ProviderMediaDetails,
+} from "./providers/provider.types";
+import { TmdbProvider } from "./providers/tmdb.provider";
 
 // A cached media referenced by users is refreshed at most once a day.
 const SYNC_TTL_MS = 24 * 60 * 60 * 1000;
@@ -23,7 +30,7 @@ export class MediaItemService {
   ) {}
 
   providerFor(source: CatalogSource): CatalogProvider {
-    return source === 'TMDB' ? this.tmdbProvider : this.anilistProvider;
+    return source === "TMDB" ? this.tmdbProvider : this.anilistProvider;
   }
 
   /** Live details straight from the provider — nothing is persisted. */
@@ -60,12 +67,18 @@ export class MediaItemService {
   ): Promise<MediaItem> {
     const existingRef = await this.prisma.mediaExternalId.findUnique({
       where: {
-        source_externalId: { source: source as DbExternalSource, externalId: sourceId },
+        source_externalId: {
+          source: source as DbExternalSource,
+          externalId: sourceId,
+        },
       },
       include: { mediaItem: true },
     });
 
-    if (existingRef && Date.now() - existingRef.mediaItem.lastSyncedAt.getTime() < SYNC_TTL_MS) {
+    if (
+      existingRef &&
+      Date.now() - existingRef.mediaItem.lastSyncedAt.getTime() < SYNC_TTL_MS
+    ) {
       return existingRef.mediaItem;
     }
 
@@ -108,7 +121,10 @@ export class MediaItemService {
     });
   }
 
-  private async refresh(mediaItemId: string, details: ProviderMediaDetails): Promise<MediaItem> {
+  private async refresh(
+    mediaItemId: string,
+    details: ProviderMediaDetails,
+  ): Promise<MediaItem> {
     const item = await this.prisma.mediaItem.update({
       where: { id: mediaItemId },
       data: this.baseFields(details),
@@ -123,7 +139,11 @@ export class MediaItemService {
           },
         },
         update: { mediaItemId },
-        create: { mediaItemId, source: ext.source as DbExternalSource, externalId: ext.externalId },
+        create: {
+          mediaItemId,
+          source: ext.source as DbExternalSource,
+          externalId: ext.externalId,
+        },
       });
     }
 
@@ -138,9 +158,19 @@ export class MediaItemService {
       for (const episode of season.episodes) {
         const airDate = episode.airDate ? new Date(episode.airDate) : null;
         await this.prisma.episode.upsert({
-          where: { seasonId_number: { seasonId: storedSeason.id, number: episode.number } },
+          where: {
+            seasonId_number: {
+              seasonId: storedSeason.id,
+              number: episode.number,
+            },
+          },
           update: { title: episode.title, airDate },
-          create: { seasonId: storedSeason.id, number: episode.number, title: episode.title, airDate },
+          create: {
+            seasonId: storedSeason.id,
+            number: episode.number,
+            title: episode.title,
+            airDate,
+          },
         });
       }
     }

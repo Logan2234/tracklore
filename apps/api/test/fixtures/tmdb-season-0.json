@@ -1,0 +1,20 @@
+{
+  "_id": "5254218a760ee31328001aa9",
+  "air_date": "2009-02-17",
+  "episodes": [
+    {
+      "air_date": "2009-02-17",
+      "episode_number": 1,
+      "episode_type": "standard",
+      "id": 62082,
+      "name": "Good Cop / Bad Cop",
+      "overview": "A minisode.",
+      "runtime": 5,
+      "season_number": 0,
+      "show_id": 1396,
+      "vote_average": 7.2
+    }
+  ],
+  "name": "Specials",
+  "season_number": 0
+}

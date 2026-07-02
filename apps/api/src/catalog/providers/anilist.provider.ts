@@ -1,8 +1,21 @@
-import { BadGatewayException, Injectable, NotFoundException } from '@nestjs/common';
-import { CatalogSource, MediaSource, MediaSummaryDto, MediaType } from '@tracklore/shared';
-import type { CatalogProvider, ProviderEpisode, ProviderMediaDetails } from './provider.types';
+import {
+  BadGatewayException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import {
+  CatalogSource,
+  MediaSource,
+  MediaSummaryDto,
+  MediaType,
+} from "@tracklore/shared";
+import type {
+  CatalogProvider,
+  ProviderEpisode,
+  ProviderMediaDetails,
+} from "./provider.types";
 
-const GRAPHQL_URL = 'https://graphql.anilist.co';
+const GRAPHQL_URL = "https://graphql.anilist.co";
 
 const SEARCH_QUERY = `
   query ($search: String) {
@@ -45,7 +58,11 @@ interface AnilistMedia {
   genres?: string[];
   status?: string | null;
   episodes?: number | null;
-  startDate?: { year?: number | null; month?: number | null; day?: number | null };
+  startDate?: {
+    year?: number | null;
+    month?: number | null;
+    day?: number | null;
+  };
   nextAiringEpisode?: { episode: number } | null;
   streamingEpisodes?: { title?: string | null }[];
 }
@@ -56,19 +73,25 @@ export class AnilistProvider implements CatalogProvider {
   readonly source = CatalogSource.ANILIST;
 
   async search(query: string): Promise<MediaSummaryDto[]> {
-    const data = await this.query<{ Page: { media: AnilistMedia[] } }>(SEARCH_QUERY, {
-      search: query,
-    });
+    const data = await this.query<{ Page: { media: AnilistMedia[] } }>(
+      SEARCH_QUERY,
+      {
+        search: query,
+      },
+    );
     return data.Page.media.map((media) => this.toSummary(media));
   }
 
   async getDetails(sourceId: string): Promise<ProviderMediaDetails> {
-    const data = await this.query<{ Media: AnilistMedia | null }>(DETAILS_QUERY, {
-      id: Number(sourceId),
-    });
+    const data = await this.query<{ Media: AnilistMedia | null }>(
+      DETAILS_QUERY,
+      {
+        id: Number(sourceId),
+      },
+    );
     const media = data.Media;
     if (!media) {
-      throw new NotFoundException('Media not found on AniList');
+      throw new NotFoundException("Media not found on AniList");
     }
 
     return {
@@ -78,7 +101,9 @@ export class AnilistProvider implements CatalogProvider {
       genres: media.genres ?? [],
       status: media.status ?? null,
       releaseDate: toIsoDate(media.startDate),
-      externalIds: [{ source: MediaSource.ANILIST, externalId: String(media.id) }],
+      externalIds: [
+        { source: MediaSource.ANILIST, externalId: String(media.id) },
+      ],
       seasons: [{ number: 1, title: null, episodes: buildEpisodes(media) }],
     };
   }
@@ -88,32 +113,49 @@ export class AnilistProvider implements CatalogProvider {
       source: CatalogSource.ANILIST,
       sourceId: String(media.id),
       type: MediaType.ANIME,
-      title: media.title.english ?? media.title.romaji ?? `AniList #${media.id}`,
+      title:
+        media.title.english ?? media.title.romaji ?? `AniList #${media.id}`,
       year: media.seasonYear ?? null,
-      posterUrl: media.coverImage?.extraLarge ?? media.coverImage?.large ?? null,
+      posterUrl:
+        media.coverImage?.extraLarge ?? media.coverImage?.large ?? null,
     };
   }
 
-  private async query<T>(query: string, variables: Record<string, unknown>): Promise<T> {
+  private async query<T>(
+    query: string,
+    variables: Record<string, unknown>,
+  ): Promise<T> {
     const response = await fetch(GRAPHQL_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
       body: JSON.stringify({ query, variables }),
     });
     if (response.status === 404) {
-      throw new NotFoundException('Media not found on AniList');
+      throw new NotFoundException("Media not found on AniList");
     }
     if (!response.ok) {
-      throw new BadGatewayException(`AniList request failed with status ${response.status}`);
+      throw new BadGatewayException(
+        `AniList request failed with status ${response.status}`,
+      );
     }
 
-    const body = (await response.json()) as { data?: T; errors?: { message: string }[] };
+    const body = (await response.json()) as {
+      data?: T;
+      errors?: { message: string }[];
+    };
     if (body.errors?.length || !body.data) {
       // AniList returns 200 with an errors array for "not found" on some queries.
-      if (body.errors?.some((e) => e.message.toLowerCase().includes('not found'))) {
-        throw new NotFoundException('Media not found on AniList');
+      if (
+        body.errors?.some((e) => e.message.toLowerCase().includes("not found"))
+      ) {
+        throw new NotFoundException("Media not found on AniList");
       }
-      throw new BadGatewayException(body.errors?.[0]?.message ?? 'AniList returned no data');
+      throw new BadGatewayException(
+        body.errors?.[0]?.message ?? "AniList returned no data",
+      );
     }
     return body.data;
   }
@@ -125,7 +167,9 @@ export class AnilistProvider implements CatalogProvider {
  * single season, with names when available.
  */
 function buildEpisodes(media: AnilistMedia): ProviderEpisode[] {
-  const aired = media.nextAiringEpisode ? media.nextAiringEpisode.episode - 1 : null;
+  const aired = media.nextAiringEpisode
+    ? media.nextAiringEpisode.episode - 1
+    : null;
   const count = media.episodes ?? aired ?? media.streamingEpisodes?.length ?? 0;
 
   return Array.from({ length: count }, (_, index) => ({
@@ -137,16 +181,20 @@ function buildEpisodes(media: AnilistMedia): ProviderEpisode[] {
 
 function stripHtml(text: string): string {
   return text
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
     .trim();
 }
 
-function toIsoDate(date?: { year?: number | null; month?: number | null; day?: number | null }) {
+function toIsoDate(date?: {
+  year?: number | null;
+  month?: number | null;
+  day?: number | null;
+}) {
   if (!date?.year) {
     return null;
   }
-  const month = String(date.month ?? 1).padStart(2, '0');
-  const day = String(date.day ?? 1).padStart(2, '0');
+  const month = String(date.month ?? 1).padStart(2, "0");
+  const day = String(date.day ?? 1).padStart(2, "0");
   return `${date.year}-${month}-${day}`;
 }

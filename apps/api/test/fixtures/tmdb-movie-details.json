@@ -1,0 +1,26 @@
+{
+  "adult": false,
+  "backdrop_path": "/8ZTVqvKDQ8emSGUEMjsS4yHAwrp.jpg",
+  "budget": 160000000,
+  "genres": [
+    { "id": 28, "name": "Action" },
+    { "id": 878, "name": "Science Fiction" },
+    { "id": 12, "name": "Adventure" }
+  ],
+  "id": 27205,
+  "imdb_id": "tt1375666",
+  "original_title": "Inception",
+  "overview": "Cobb, a skilled thief who commits corporate espionage by infiltrating the subconscious of his targets is offered a chance to regain his old life as payment for a task considered to be impossible: \"inception\".",
+  "poster_path": "/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg",
+  "release_date": "2010-07-15",
+  "runtime": 148,
+  "status": "Released",
+  "title": "Inception",
+  "external_ids": {
+    "imdb_id": "tt1375666",
+    "wikidata_id": "Q25188",
+    "facebook_id": "inceptionmovie",
+    "instagram_id": null,
+    "twitter_id": "inceptionmovie"
+  }
+}

@@ -1,4 +1,4 @@
-import { EntryStatus } from '@tracklore/shared';
+import { EntryStatus } from "@tracklore/shared";
 import {
   IsBoolean,
   IsDateString,
@@ -9,7 +9,7 @@ import {
   Max,
   MaxLength,
   Min,
-} from 'class-validator';
+} from "class-validator";
 
 export class UpdateEntryDto {
   @IsOptional()

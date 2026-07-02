@@ -1,0 +1,48 @@
+{
+  "adult": false,
+  "backdrop_path": "/tsRy63Mu5cu8etL1X7ZLyf7UP1M.jpg",
+  "first_air_date": "2008-01-20",
+  "genres": [
+    { "id": 18, "name": "Drama" },
+    { "id": 80, "name": "Crime" }
+  ],
+  "id": 1396,
+  "in_production": false,
+  "name": "Breaking Bad",
+  "number_of_episodes": 62,
+  "number_of_seasons": 5,
+  "overview": "When Walter White, a New Mexico chemistry teacher, is diagnosed with Stage III cancer and given a prognosis of only two years left to live, he becomes filled with a sense of fearlessness and an unrelenting desire to secure his family's financial future at any cost as he enters the dangerous world of drugs and crime.",
+  "poster_path": "/ztkUQFLlC19CCMYHW9o1zWhJRNq.jpg",
+  "seasons": [
+    {
+      "air_date": "2009-02-17",
+      "episode_count": 3,
+      "id": 3577,
+      "name": "Specials",
+      "overview": "",
+      "poster_path": "/40dT79mDEZwXkQiZNBgSaydQFDP.jpg",
+      "season_number": 0
+    },
+    {
+      "air_date": "2008-01-20",
+      "episode_count": 2,
+      "id": 3572,
+      "name": "Season 1",
+      "overview": "The first season.",
+      "poster_path": "/1BP4xYv9ZG4ZVHkL7ocOziBbSYH.jpg",
+      "season_number": 1
+    }
+  ],
+  "status": "Ended",
+  "external_ids": {
+    "imdb_id": "tt0903747",
+    "freebase_mid": "/m/03d34x8",
+    "freebase_id": null,
+    "tvdb_id": 81189,
+    "tvrage_id": 18164,
+    "wikidata_id": "Q1079",
+    "facebook_id": "BreakingBad",
+    "instagram_id": "breakingbad",
+    "twitter_id": "BreakingBad"
+  }
+}

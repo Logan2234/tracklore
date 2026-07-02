@@ -2,19 +2,19 @@ import {
   ConflictException,
   Injectable,
   UnauthorizedException,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
-import type { User } from '@prisma/client';
-import type { AuthTokensDto, UserDto } from '@tracklore/shared';
-import * as bcrypt from 'bcryptjs';
-import { createHash, randomUUID } from 'node:crypto';
-import { PrismaService } from '../prisma/prisma.service';
-import type { JwtPayload } from './decorators/current-user.decorator';
-import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { JwtService } from "@nestjs/jwt";
+import type { User } from "@prisma/client";
+import type { AuthTokensDto, UserDto } from "@tracklore/shared";
+import * as bcrypt from "bcryptjs";
+import { createHash, randomUUID } from "node:crypto";
+import { PrismaService } from "../prisma/prisma.service";
+import type { JwtPayload } from "./decorators/current-user.decorator";
+import { LoginDto } from "./dto/login.dto";
+import { RegisterDto } from "./dto/register.dto";
 
-const ACCESS_TOKEN_TTL = '15m';
+const ACCESS_TOKEN_TTL = "15m";
 const REFRESH_TOKEN_TTL_DAYS = 30;
 const BCRYPT_ROUNDS = 12;
 
@@ -32,9 +32,11 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthResult> {
-    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const existing = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
     if (existing) {
-      throw new ConflictException('An account with this email already exists');
+      throw new ConflictException("An account with this email already exists");
     }
 
     const user = await this.prisma.user.create({
@@ -48,9 +50,11 @@ export class AuthService {
   }
 
   async login(dto: LoginDto): Promise<AuthResult> {
-    const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
     if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException("Invalid credentials");
     }
     return { user: toUserDto(user), tokens: await this.issueTokens(user) };
   }
@@ -59,10 +63,10 @@ export class AuthService {
   async refresh(refreshToken: string): Promise<AuthTokensDto> {
     try {
       await this.jwtService.verifyAsync(refreshToken, {
-        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+        secret: this.configService.getOrThrow<string>("JWT_REFRESH_SECRET"),
       });
     } catch {
-      throw new UnauthorizedException('Invalid or expired refresh token');
+      throw new UnauthorizedException("Invalid or expired refresh token");
     }
 
     const tokenHash = hashToken(refreshToken);
@@ -71,7 +75,7 @@ export class AuthService {
       include: { user: true },
     });
     if (!stored || stored.expiresAt < new Date()) {
-      throw new UnauthorizedException('Unknown or expired refresh token');
+      throw new UnauthorizedException("Unknown or expired refresh token");
     }
 
     await this.prisma.refreshToken.delete({ where: { id: stored.id } });
@@ -80,26 +84,30 @@ export class AuthService {
 
   /** Invalidates one refresh token (logout on the current device). */
   async logout(refreshToken: string): Promise<void> {
-    await this.prisma.refreshToken.deleteMany({ where: { tokenHash: hashToken(refreshToken) } });
+    await this.prisma.refreshToken.deleteMany({
+      where: { tokenHash: hashToken(refreshToken) },
+    });
   }
 
   private async issueTokens(user: User): Promise<AuthTokensDto> {
     const payload: JwtPayload = { sub: user.id, email: user.email };
 
     const accessToken = await this.jwtService.signAsync(payload, {
-      secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
+      secret: this.configService.getOrThrow<string>("JWT_ACCESS_SECRET"),
       expiresIn: ACCESS_TOKEN_TTL,
     });
     // jti makes each refresh token unique even when issued within the same second.
     const refreshToken = await this.jwtService.signAsync(
       { sub: user.id, jti: randomUUID() },
       {
-        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+        secret: this.configService.getOrThrow<string>("JWT_REFRESH_SECRET"),
         expiresIn: `${REFRESH_TOKEN_TTL_DAYS}d`,
       },
     );
 
-    const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
+    const expiresAt = new Date(
+      Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
+    );
     await this.prisma.refreshToken.create({
       data: { userId: user.id, tokenHash: hashToken(refreshToken), expiresAt },
     });
@@ -109,7 +117,7 @@ export class AuthService {
 }
 
 function hashToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
+  return createHash("sha256").update(token).digest("hex");
 }
 
 export function toUserDto(user: User): UserDto {
@@ -117,6 +125,8 @@ export function toUserDto(user: User): UserDto {
     id: user.id,
     email: user.email,
     displayName: user.displayName,
-    entitlements: Array.isArray(user.entitlements) ? (user.entitlements as string[]) : [],
+    entitlements: Array.isArray(user.entitlements)
+      ? (user.entitlements as string[])
+      : [],
   };
 }

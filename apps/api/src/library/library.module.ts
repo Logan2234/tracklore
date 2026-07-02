@@ -1,7 +1,7 @@
-import { Module } from '@nestjs/common';
-import { CatalogModule } from '../catalog/catalog.module';
-import { LibraryController } from './library.controller';
-import { LibraryService } from './library.service';
+import { Module } from "@nestjs/common";
+import { CatalogModule } from "../catalog/catalog.module";
+import { LibraryController } from "./library.controller";
+import { LibraryService } from "./library.service";
 
 @Module({
   imports: [CatalogModule],

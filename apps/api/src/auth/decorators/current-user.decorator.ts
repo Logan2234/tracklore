@@ -1,4 +1,5 @@
-import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import { createParamDecorator, ExecutionContext } from "@nestjs/common";
+import type { FastifyRequest } from "fastify";
 
 export interface JwtPayload {
   /** User ID. */
@@ -6,10 +7,14 @@ export interface JwtPayload {
   email: string;
 }
 
+export interface AuthenticatedRequest extends FastifyRequest {
+  user?: JwtPayload;
+}
+
 /** Injects the JWT payload of the authenticated user into a handler parameter. */
 export const CurrentUser = createParamDecorator(
   (_data: unknown, context: ExecutionContext): JwtPayload => {
-    const request = context.switchToHttp().getRequest<{ user: JwtPayload }>();
-    return request.user;
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    return request.user as JwtPayload;
   },
 );

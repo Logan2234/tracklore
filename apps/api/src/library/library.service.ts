@@ -1,10 +1,14 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import type {
   EntryStatus as DbEntryStatus,
   LibraryEntry,
   MediaItem,
   Prisma,
-} from '@prisma/client';
+} from "@prisma/client";
 import type {
   EntryEpisodesResponseDto,
   EntryStatus,
@@ -12,12 +16,12 @@ import type {
   LibraryEntryDto,
   MediaType,
   ProgressDto,
-} from '@tracklore/shared';
-import { MediaItemService } from '../catalog/media-item.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { UpdateEntryDto } from './dto/update-entry.dto';
-import { UpsertEntryDto } from './dto/upsert-entry.dto';
-import { WatchEpisodeDto } from './dto/watch-episode.dto';
+} from "@tracklore/shared";
+import { MediaItemService } from "../catalog/media-item.service";
+import { PrismaService } from "../prisma/prisma.service";
+import { UpdateEntryDto } from "./dto/update-entry.dto";
+import { UpsertEntryDto } from "./dto/upsert-entry.dto";
+import { WatchEpisodeDto } from "./dto/watch-episode.dto";
 
 @Injectable()
 export class LibraryService {
@@ -27,7 +31,10 @@ export class LibraryService {
   ) {}
 
   /** First touch of a media persists it (on-demand cache), then upserts the entry. */
-  async upsertEntry(userId: string, dto: UpsertEntryDto): Promise<LibraryEntryDto> {
+  async upsertEntry(
+    userId: string,
+    dto: UpsertEntryDto,
+  ): Promise<LibraryEntryDto> {
     const mediaItem = await this.mediaItemService.upsertFromSource(
       dto.source,
       dto.sourceId,
@@ -48,7 +55,10 @@ export class LibraryService {
       include: { mediaItem: true },
     });
 
-    return this.toEntryDto(entry, await this.computeProgress(userId, mediaItem.id));
+    return this.toEntryDto(
+      entry,
+      await this.computeProgress(userId, mediaItem.id),
+    );
   }
 
   async listEntries(
@@ -62,12 +72,15 @@ export class LibraryService {
         mediaItem: filters.type ? { type: filters.type } : undefined,
       },
       include: { mediaItem: true },
-      orderBy: { updatedAt: 'desc' },
+      orderBy: { updatedAt: "desc" },
     });
 
     return Promise.all(
       entries.map(async (entry) =>
-        this.toEntryDto(entry, await this.computeProgress(userId, entry.mediaItemId)),
+        this.toEntryDto(
+          entry,
+          await this.computeProgress(userId, entry.mediaItemId),
+        ),
       ),
     );
   }
@@ -78,10 +91,17 @@ export class LibraryService {
       where: { id: entryId },
       include: { mediaItem: true },
     });
-    return this.toEntryDto(entry, await this.computeProgress(userId, entry.mediaItemId));
+    return this.toEntryDto(
+      entry,
+      await this.computeProgress(userId, entry.mediaItemId),
+    );
   }
 
-  async updateEntry(userId: string, entryId: string, dto: UpdateEntryDto): Promise<LibraryEntryDto> {
+  async updateEntry(
+    userId: string,
+    entryId: string,
+    dto: UpdateEntryDto,
+  ): Promise<LibraryEntryDto> {
     await this.assertEntryOwnership(userId, entryId);
 
     const entry = await this.prisma.libraryEntry.update({
@@ -92,13 +112,20 @@ export class LibraryService {
         notes: dto.notes,
         favorite: dto.favorite,
         archived: dto.archived,
-        startedAt: dto.startedAt === undefined ? undefined : toDateOrNull(dto.startedAt),
-        finishedAt: dto.finishedAt === undefined ? undefined : toDateOrNull(dto.finishedAt),
+        startedAt:
+          dto.startedAt === undefined ? undefined : toDateOrNull(dto.startedAt),
+        finishedAt:
+          dto.finishedAt === undefined
+            ? undefined
+            : toDateOrNull(dto.finishedAt),
       },
       include: { mediaItem: true },
     });
 
-    return this.toEntryDto(entry, await this.computeProgress(userId, entry.mediaItemId));
+    return this.toEntryDto(
+      entry,
+      await this.computeProgress(userId, entry.mediaItemId),
+    );
   }
 
   async deleteEntry(userId: string, entryId: string): Promise<void> {
@@ -107,15 +134,18 @@ export class LibraryService {
   }
 
   /** Persisted seasons/episodes of an entry's media, with the user's watch counts. */
-  async getEntryEpisodes(userId: string, entryId: string): Promise<EntryEpisodesResponseDto> {
+  async getEntryEpisodes(
+    userId: string,
+    entryId: string,
+  ): Promise<EntryEpisodesResponseDto> {
     const entry = await this.assertEntryOwnership(userId, entryId);
 
     const seasons = await this.prisma.season.findMany({
       where: { mediaItemId: entry.mediaItemId },
-      orderBy: { number: 'asc' },
+      orderBy: { number: "asc" },
       include: {
         episodes: {
-          orderBy: { number: 'asc' },
+          orderBy: { number: "asc" },
           include: { watches: { where: { userId }, select: { id: true } } },
         },
       },
@@ -142,9 +172,11 @@ export class LibraryService {
     episodeId: string,
     dto: WatchEpisodeDto,
   ): Promise<EpisodeWatchDto> {
-    const episode = await this.prisma.episode.findUnique({ where: { id: episodeId } });
+    const episode = await this.prisma.episode.findUnique({
+      where: { id: episodeId },
+    });
     if (!episode) {
-      throw new NotFoundException('Episode not found');
+      throw new NotFoundException("Episode not found");
     }
 
     const watch = await this.prisma.episodeWatch.create({
@@ -164,23 +196,30 @@ export class LibraryService {
   }
 
   async deleteWatch(userId: string, watchId: string): Promise<void> {
-    const watch = await this.prisma.episodeWatch.findUnique({ where: { id: watchId } });
+    const watch = await this.prisma.episodeWatch.findUnique({
+      where: { id: watchId },
+    });
     if (!watch) {
-      throw new NotFoundException('Watch not found');
+      throw new NotFoundException("Watch not found");
     }
     if (watch.userId !== userId) {
-      throw new ForbiddenException('This watch belongs to another user');
+      throw new ForbiddenException("This watch belongs to another user");
     }
     await this.prisma.episodeWatch.delete({ where: { id: watchId } });
   }
 
-  private async assertEntryOwnership(userId: string, entryId: string): Promise<LibraryEntry> {
-    const entry = await this.prisma.libraryEntry.findUnique({ where: { id: entryId } });
+  private async assertEntryOwnership(
+    userId: string,
+    entryId: string,
+  ): Promise<LibraryEntry> {
+    const entry = await this.prisma.libraryEntry.findUnique({
+      where: { id: entryId },
+    });
     if (!entry) {
-      throw new NotFoundException('Library entry not found');
+      throw new NotFoundException("Library entry not found");
     }
     if (entry.userId !== userId) {
-      throw new ForbiddenException('This entry belongs to another user');
+      throw new ForbiddenException("This entry belongs to another user");
     }
     return entry;
   }
@@ -189,19 +228,24 @@ export class LibraryService {
    * Season 0 holds specials on TMDB: they are watchable but excluded from the
    * watched/total progress so "100%" means the regular run is complete.
    */
-  private async computeProgress(userId: string, mediaItemId: string): Promise<ProgressDto | null> {
+  private async computeProgress(
+    userId: string,
+    mediaItemId: string,
+  ): Promise<ProgressDto | null> {
     const regularEpisodes: Prisma.EpisodeWhereInput = {
       season: { mediaItemId, number: { gt: 0 } },
     };
 
-    const totalEpisodes = await this.prisma.episode.count({ where: regularEpisodes });
+    const totalEpisodes = await this.prisma.episode.count({
+      where: regularEpisodes,
+    });
     if (totalEpisodes === 0) {
       return null; // Movies (or media without any episode listing).
     }
 
     const watched = await this.prisma.episodeWatch.findMany({
       where: { userId, episode: regularEpisodes },
-      distinct: ['episodeId'],
+      distinct: ["episodeId"],
       select: { episodeId: true },
     });
 

@@ -1,5 +1,5 @@
-import { MediaType } from '@tracklore/shared';
-import { IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import { MediaType } from "@tracklore/shared";
+import { IsIn, IsOptional, IsString, MinLength } from "class-validator";
 
 export class SearchQueryDto {
   @IsString()

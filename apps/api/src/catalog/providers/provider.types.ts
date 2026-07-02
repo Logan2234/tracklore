@@ -1,4 +1,9 @@
-import type { CatalogSource, MediaSource, MediaSummaryDto, MediaType } from '@tracklore/shared';
+import type {
+  CatalogSource,
+  MediaSource,
+  MediaSummaryDto,
+  MediaType,
+} from "@tracklore/shared";
 
 export interface ProviderExternalId {
   source: MediaSource;

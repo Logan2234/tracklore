@@ -1,10 +1,17 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Reflector } from '@nestjs/core';
-import { JwtService } from '@nestjs/jwt';
-import type { Request } from 'express';
-import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
-import type { JwtPayload } from '../decorators/current-user.decorator';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { Reflector } from "@nestjs/core";
+import { JwtService } from "@nestjs/jwt";
+import type {
+  AuthenticatedRequest,
+  JwtPayload,
+} from "../decorators/current-user.decorator";
+import { IS_PUBLIC_KEY } from "../decorators/public.decorator";
 
 /** Global guard: every route requires a Bearer access token unless marked @Public(). */
 @Injectable()
@@ -24,19 +31,22 @@ export class JwtAuthGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<Request & { user?: JwtPayload }>();
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const authHeader = request.headers.authorization;
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : null;
+    const token =
+      typeof authHeader === "string" && authHeader.startsWith("Bearer ")
+        ? authHeader.slice("Bearer ".length)
+        : null;
     if (!token) {
-      throw new UnauthorizedException('Missing access token');
+      throw new UnauthorizedException("Missing access token");
     }
 
     try {
       request.user = await this.jwtService.verifyAsync<JwtPayload>(token, {
-        secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
+        secret: this.configService.getOrThrow<string>("JWT_ACCESS_SECRET"),
       });
     } catch {
-      throw new UnauthorizedException('Invalid or expired access token');
+      throw new UnauthorizedException("Invalid or expired access token");
     }
     return true;
   }

@@ -1,15 +1,24 @@
-import { BadGatewayException, Injectable, NotFoundException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { CatalogSource, MediaSource, MediaSummaryDto, MediaType } from '@tracklore/shared';
+import {
+  BadGatewayException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import {
+  CatalogSource,
+  MediaSource,
+  MediaSummaryDto,
+  MediaType,
+} from "@tracklore/shared";
 import type {
   CatalogProvider,
   ProviderExternalId,
   ProviderMediaDetails,
   ProviderSeason,
-} from './provider.types';
+} from "./provider.types";
 
-const BASE_URL = 'https://api.themoviedb.org/3';
-const IMG = 'https://image.tmdb.org/t/p';
+const BASE_URL = "https://api.themoviedb.org/3";
+const IMG = "https://image.tmdb.org/t/p";
 
 interface TmdbMovieResult {
   id: number;
@@ -48,7 +57,11 @@ interface TmdbTvDetails extends TmdbTvResult {
 }
 
 interface TmdbSeasonDetails {
-  episodes?: { episode_number: number; name?: string | null; air_date?: string | null }[];
+  episodes?: {
+    episode_number: number;
+    name?: string | null;
+    air_date?: string | null;
+  }[];
 }
 
 /** Films and (western) series, from The Movie Database. */
@@ -64,10 +77,10 @@ export class TmdbProvider implements CatalogProvider {
 
     const [movies, series] = await Promise.all([
       wantMovies
-        ? this.get<{ results: TmdbMovieResult[] }>('/search/movie', { query })
+        ? this.get<{ results: TmdbMovieResult[] }>("/search/movie", { query })
         : Promise.resolve({ results: [] }),
       wantSeries
-        ? this.get<{ results: TmdbTvResult[] }>('/search/tv', { query })
+        ? this.get<{ results: TmdbTvResult[] }>("/search/tv", { query })
         : Promise.resolve({ results: [] }),
     ]);
 
@@ -77,19 +90,28 @@ export class TmdbProvider implements CatalogProvider {
     ];
   }
 
-  async getDetails(sourceId: string, type: MediaType): Promise<ProviderMediaDetails> {
-    return type === MediaType.MOVIE ? this.getMovieDetails(sourceId) : this.getTvDetails(sourceId);
+  async getDetails(
+    sourceId: string,
+    type: MediaType,
+  ): Promise<ProviderMediaDetails> {
+    return type === MediaType.MOVIE
+      ? this.getMovieDetails(sourceId)
+      : this.getTvDetails(sourceId);
   }
 
-  private async getMovieDetails(sourceId: string): Promise<ProviderMediaDetails> {
+  private async getMovieDetails(
+    sourceId: string,
+  ): Promise<ProviderMediaDetails> {
     const movie = await this.get<TmdbMovieDetails>(`/movie/${sourceId}`, {
-      append_to_response: 'external_ids',
+      append_to_response: "external_ids",
     });
 
     return {
       summary: this.toMovieSummary(movie),
       overview: movie.overview ?? null,
-      backdropUrl: movie.backdrop_path ? `${IMG}/w1280${movie.backdrop_path}` : null,
+      backdropUrl: movie.backdrop_path
+        ? `${IMG}/w1280${movie.backdrop_path}`
+        : null,
       genres: movie.genres?.map((g) => g.name) ?? [],
       status: movie.status ?? null,
       releaseDate: movie.release_date || null,
@@ -100,7 +122,7 @@ export class TmdbProvider implements CatalogProvider {
 
   private async getTvDetails(sourceId: string): Promise<ProviderMediaDetails> {
     const tv = await this.get<TmdbTvDetails>(`/tv/${sourceId}`, {
-      append_to_response: 'external_ids',
+      append_to_response: "external_ids",
     });
 
     // Episode lists live on per-season endpoints.
@@ -164,12 +186,18 @@ export class TmdbProvider implements CatalogProvider {
       externalIds.push({ source: MediaSource.IMDB, externalId: ids.imdb_id });
     }
     if (ids?.tvdb_id) {
-      externalIds.push({ source: MediaSource.TVDB, externalId: String(ids.tvdb_id) });
+      externalIds.push({
+        source: MediaSource.TVDB,
+        externalId: String(ids.tvdb_id),
+      });
     }
     return externalIds;
   }
 
-  private async get<T>(path: string, params: Record<string, string>): Promise<T> {
+  private async get<T>(
+    path: string,
+    params: Record<string, string>,
+  ): Promise<T> {
     const url = new URL(`${BASE_URL}${path}`);
     for (const [key, value] of Object.entries(params)) {
       url.searchParams.set(key, value);
@@ -177,15 +205,17 @@ export class TmdbProvider implements CatalogProvider {
 
     const response = await fetch(url, {
       headers: {
-        Authorization: `Bearer ${this.configService.getOrThrow<string>('TMDB_API_TOKEN')}`,
-        Accept: 'application/json',
+        Authorization: `Bearer ${this.configService.getOrThrow<string>("TMDB_API_TOKEN")}`,
+        Accept: "application/json",
       },
     });
     if (response.status === 404) {
-      throw new NotFoundException('Media not found on TMDB');
+      throw new NotFoundException("Media not found on TMDB");
     }
     if (!response.ok) {
-      throw new BadGatewayException(`TMDB request failed with status ${response.status}`);
+      throw new BadGatewayException(
+        `TMDB request failed with status ${response.status}`,
+      );
     }
     return (await response.json()) as T;
   }
