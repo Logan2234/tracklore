@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MediaType {
+  MOVIE
+  SERIES
+  ANIME
+}
+
+// Sources we actually fetch from (canonical).
+enum CatalogSource {
+  TMDB
+  ANILIST
+}
+
+// All sources an external ID can come from. TVDB/IMDB are secondary
+// identifiers kept for reconciliation (e.g. TV Time import) and deduplication.
+enum ExternalSource {
+  TMDB
+  ANILIST
+  TVDB
+  IMDB
+}
+
+enum EntryStatus {
+  WATCHING
+  COMPLETED
+  PLANNED
+  DROPPED
+  PAUSED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  displayName  String
+  // Open-core seam: feature flags granted to this user (empty in self-host MVP).
+  entitlements Json     @default("[]")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  entries        LibraryEntry[]
+  episodeWatches EpisodeWatch[]
+  refreshTokens  RefreshToken[]
+}
+
+// One row per device/session, so refreshing on the phone does not log out the desktop.
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// On-demand cache: a media exists here only once at least one user references it.
+// Search results are served live from TMDB/AniList and never persisted.
+model MediaItem {
+  id              String        @id @default(cuid())
+  type            MediaType
+  canonicalSource CatalogSource
+  title           String
+  posterUrl       String?
+  backdropUrl     String?
+  overview        String?
+  releaseDate     DateTime?
+  // Airing status as reported by the source (free-form: "Returning Series", "FINISHED"…).
+  status          String?
+  genres          String[]
+  metadata        Json          @default("{}")
+  lastSyncedAt    DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  externalIds MediaExternalId[]
+  seasons     Season[]
+  entries     LibraryEntry[]
+}
+
+model MediaExternalId {
+  id          String         @id @default(cuid())
+  mediaItemId String
+  source      ExternalSource
+  externalId  String
+
+  mediaItem MediaItem @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
+
+  @@unique([source, externalId])
+  @@index([mediaItemId])
+}
+
+model Season {
+  id          String  @id @default(cuid())
+  mediaItemId String
+  number      Int
+  title       String?
+
+  mediaItem MediaItem @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
+  episodes  Episode[]
+
+  @@unique([mediaItemId, number])
+}
+
+model Episode {
+  id       String    @id @default(cuid())
+  seasonId String
+  number   Int
+  title    String?
+  airDate  DateTime?
+
+  season  Season         @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  watches EpisodeWatch[]
+
+  @@unique([seasonId, number])
+}
+
+model LibraryEntry {
+  id          String      @id @default(cuid())
+  userId      String
+  mediaItemId String
+  status      EntryStatus @default(PLANNED)
+  // 0–10, half-points allowed.
+  rating      Float?
+  notes       String?
+  favorite    Boolean     @default(false)
+  archived    Boolean     @default(false)
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaItem MediaItem @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mediaItemId])
+}
+
+// One row per viewing: watching the same episode twice = two rows (rewatch).
+model EpisodeWatch {
+  id        String   @id @default(cuid())
+  userId    String
+  episodeId String
+  watchedAt DateTime @default(now())
+  // Per-episode rating (TV Time has these); optional.
+  rating    Float?
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@index([userId, episodeId])
+}
