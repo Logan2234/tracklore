@@ -33,6 +33,8 @@ export interface ProgressDto {
 export interface UpsertLibraryEntryDto {
   source: CatalogSource;
   sourceId: string;
+  /** Required because TMDB movie and TV IDs live in separate namespaces. */
+  type: MediaType;
   status?: EntryStatus;
   rating?: number | null;
   notes?: string | null;
@@ -46,4 +48,24 @@ export interface EpisodeWatchDto {
   episodeId: string;
   watchedAt: string;
   rating: number | null;
+}
+
+/** Persisted episode enriched with the current user's watch count. */
+export interface EpisodeWithWatchesDto {
+  id: string;
+  number: number;
+  title: string | null;
+  airDate: string | null;
+  watchCount: number;
+}
+
+export interface SeasonWithWatchesDto {
+  id: string;
+  number: number;
+  title: string | null;
+  episodes: EpisodeWithWatchesDto[];
+}
+
+export interface EntryEpisodesResponseDto {
+  seasons: SeasonWithWatchesDto[];
 }
