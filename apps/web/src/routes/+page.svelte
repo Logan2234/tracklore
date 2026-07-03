@@ -162,4 +162,38 @@
     </div>
     <span class="text-dim">→</span>
   </a>
+
+  <!-- Bientôt : autres domaines -->
+  <section class="mt-10">
+    <div class="mb-4 flex items-baseline gap-3">
+      <h2 class="font-display text-xl font-bold">Bientôt</h2>
+      <span class="rounded-full bg-surface-2 px-2 py-0.5 text-xs font-semibold text-dim">
+        Aperçu
+      </span>
+    </div>
+    <div class="grid gap-3 sm:grid-cols-2">
+      <a
+        href="/games"
+        class="card flex items-center gap-3 p-5 transition-[border-color] hover:border-accent">
+        <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-2 text-accent">
+          <Icon name="gamepad" class="h-6 w-6" />
+        </span>
+        <div>
+          <p class="font-display font-bold">Jeux</p>
+          <p class="text-sm text-dim">Backlog, heures de jeu, platines.</p>
+        </div>
+      </a>
+      <a
+        href="/books"
+        class="card flex items-center gap-3 p-5 transition-[border-color] hover:border-accent">
+        <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-2 text-accent">
+          <Icon name="book" class="h-6 w-6" />
+        </span>
+        <div>
+          <p class="font-display font-bold">Livres</p>
+          <p class="text-sm text-dim">Lectures en cours, sagas, à lire.</p>
+        </div>
+      </a>
+    </div>
+  </section>
 </div>
