@@ -1,11 +1,11 @@
 import { env } from "$env/dynamic/public";
 import type {
   AuthTokensDto,
-  EntryEpisodesResponseDto,
   EntryStatus,
   EpisodeWatchDto,
   LibraryEntryDto,
   LoginRequestDto,
+  MediaDetailDto,
   MediaDetailsDto,
   MediaType,
   RegisterRequestDto,
@@ -172,6 +172,18 @@ export function getCatalogDetails(
   return request(`/catalog/${source.toLowerCase()}/${sourceId}?type=${type}`);
 }
 
+/**
+ * Unified media page: metadata + the user's library state (`entry` null when
+ * not in the library). Addressed by catalogue identity — `type` implies the
+ * source, so no source segment is needed.
+ */
+export function getMediaDetail(
+  type: MediaType,
+  sourceId: string,
+): Promise<MediaDetailDto> {
+  return request(`/media/${type.toLowerCase()}/${sourceId}`);
+}
+
 // --- Library ---
 
 export function listLibrary(
@@ -193,10 +205,6 @@ export function upsertLibraryEntry(
   return request("/library", { method: "PUT", body });
 }
 
-export function getLibraryEntry(entryId: string): Promise<LibraryEntryDto> {
-  return request(`/library/entries/${entryId}`);
-}
-
 export function updateLibraryEntry(
   entryId: string,
   body: Partial<
@@ -211,12 +219,6 @@ export function updateLibraryEntry(
 
 export function deleteLibraryEntry(entryId: string): Promise<void> {
   return request(`/library/entries/${entryId}`, { method: "DELETE" });
-}
-
-export function getEntryEpisodes(
-  entryId: string,
-): Promise<EntryEpisodesResponseDto> {
-  return request(`/library/entries/${entryId}/episodes`);
 }
 
 export function watchEpisode(

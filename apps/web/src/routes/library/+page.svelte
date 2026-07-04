@@ -62,7 +62,7 @@
 <div class="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-10">
   <header class="mb-6">
     <h1 class="font-display text-3xl font-extrabold tracking-tight md:text-4xl">
-      Ma bibliothèque
+      Écrans
     </h1>
     <p class="timecode mt-1 text-sm">
       {entries.length} titre{entries.length > 1 ? "s" : ""}
@@ -110,7 +110,7 @@
       class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
       {#each entries as entry (entry.id)}
         <a
-          href={`/library/${entry.id}`}
+          href={`/media/${entry.mediaItem.type.toLowerCase()}/${entry.mediaItem.sourceId}`}
           class="card group transition-[transform,border-color] duration-150 hover:-translate-y-0.5 hover:border-accent">
           <Poster
             src={entry.mediaItem.posterUrl}

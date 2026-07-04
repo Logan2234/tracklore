@@ -1,7 +1,6 @@
 <script lang="ts">
-  import { goto } from "$app/navigation";
   import type { MediaSummaryDto, MediaType } from "@tracklore/shared";
-  import { searchCatalog, upsertLibraryEntry, ApiError } from "$lib/api/client";
+  import { searchCatalog, ApiError } from "$lib/api/client";
   import Poster from "$lib/components/Poster.svelte";
   import Icon from "$lib/components/Icon.svelte";
 
@@ -24,7 +23,6 @@
   let searched = $state(false);
   let loading = $state(false);
   let error = $state<string | null>(null);
-  let addingKey = $state<string | null>(null);
 
   async function submit(event?: SubmitEvent) {
     event?.preventDefault();
@@ -44,25 +42,6 @@
   function selectType(value: MediaType | undefined) {
     type = value;
     if (searched) void submit();
-  }
-
-  async function add(media: MediaSummaryDto, status: "WATCHING" | "PLANNED") {
-    addingKey = `${media.source}:${media.sourceId}`;
-    error = null;
-    try {
-      const entry = await upsertLibraryEntry({
-        source: media.source,
-        sourceId: media.sourceId,
-        type: media.type,
-        status,
-      });
-      await goto(`/library/${entry.id}`);
-    } catch (err) {
-      error =
-        err instanceof ApiError ? err.message : "Impossible d'ajouter ce média";
-    } finally {
-      addingKey = null;
-    }
   }
 </script>
 
@@ -124,7 +103,9 @@
     <div
       class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
       {#each results as media (`${media.source}:${media.sourceId}`)}
-        <div class="card flex flex-col">
+        <a
+          href={`/media/${media.type.toLowerCase()}/${media.sourceId}`}
+          class="card group flex flex-col transition-[transform,border-color] duration-150 hover:-translate-y-0.5 hover:border-accent">
           <Poster src={media.posterUrl} title={media.title} />
           <div class="flex flex-1 flex-col gap-1.5 p-3">
             <span class="font-display text-sm leading-tight font-semibold"
@@ -133,22 +114,8 @@
               {TYPE_LABELS[media.type]}{#if media.year}
                 · {media.year}{/if}
             </span>
-            <div class="mt-auto flex gap-2 pt-2">
-              <button
-                class="btn btn-primary flex-1 px-2 py-1.5 text-xs"
-                disabled={addingKey !== null}
-                onclick={() => add(media, "WATCHING")}>
-                Suivre
-              </button>
-              <button
-                class="btn btn-ghost flex-1 px-2 py-1.5 text-xs"
-                disabled={addingKey !== null}
-                onclick={() => add(media, "PLANNED")}>
-                À voir
-              </button>
-            </div>
           </div>
-        </div>
+        </a>
       {/each}
     </div>
   {/if}
