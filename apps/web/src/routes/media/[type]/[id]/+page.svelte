@@ -40,7 +40,10 @@
   let error = $state<string | null>(null);
   let busyEpisodeId = $state<string | null>(null);
   let busySeasonId = $state<string | null>(null);
-  let openMenuEpisodeId = $state<string | null>(null);
+  // Episode-row dropdown, positioned fixed (the season card clips overflow).
+  let menu = $state<{ episodeId: string; top: number; right: number } | null>(
+    null,
+  );
   let saving = $state(false);
 
   const seasonWatched = (season: MediaDetailSeasonDto) =>
@@ -152,12 +155,21 @@
     }
   }
 
+  function openMenu(event: MouseEvent, episodeId: string) {
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    menu = {
+      episodeId,
+      top: rect.bottom + 4,
+      right: window.innerWidth - rect.right,
+    };
+  }
+
   async function markThrough(episodeId: string) {
+    menu = null;
     busyEpisodeId = episodeId;
     error = null;
     try {
       await watchThrough(episodeId);
-      openMenuEpisodeId = null;
       await reload();
     } catch (err) {
       error =
@@ -414,41 +426,33 @@
                     </span>
                   {/if}
                   {#if entry && episode.id}
-                    <button
-                      class="btn {episode.watchCount > 0
-                        ? 'btn-ghost'
-                        : 'btn-primary'} px-2.5 py-1 text-xs"
-                      disabled={busyEpisodeId === episode.id}
-                      onclick={() => markWatched(episode.id!)}>
-                      {episode.watchCount > 0 ? "Revoir" : "Marquer vu"}
-                    </button>
-                    {#if season.number > 0}
-                      <!-- Split action: the chevron reveals "mark through here"
-                           (all regular episodes up to this one). -->
-                      {#if openMenuEpisodeId === episode.id}
+                    {@const watched = episode.watchCount > 0}
+                    <!-- Split-button: primary marks this episode; the attached
+                         chevron opens a dropdown (e.g. "mark through here"). -->
+                    <div
+                      class="inline-flex shrink-0 items-stretch overflow-hidden rounded-lg text-xs font-semibold {watched
+                        ? 'border border-border text-dim'
+                        : 'bg-btn text-btn-fg'}">
+                      <button
+                        class="px-2.5 py-1 transition-[filter,background-color,color] disabled:opacity-50 {watched
+                          ? 'hover:bg-surface-2 hover:text-fg'
+                          : 'hover:brightness-95'}"
+                        disabled={busyEpisodeId === episode.id}
+                        onclick={() => markWatched(episode.id!)}>
+                        {watched ? "Revoir" : "Marquer vu"}
+                      </button>
+                      {#if season.number > 0}
                         <button
-                          class="btn btn-ghost px-2.5 py-1 text-xs"
-                          disabled={busyEpisodeId === episode.id}
-                          onclick={() => markThrough(episode.id!)}>
-                          Jusqu'ici
+                          class="border-l px-1.5 transition-[filter,background-color,color] {watched
+                            ? 'border-border hover:bg-surface-2 hover:text-fg'
+                            : 'border-btn-fg/25 hover:brightness-95'}"
+                          aria-label="Plus d'actions"
+                          aria-haspopup="menu"
+                          onclick={(e) => openMenu(e, episode.id!)}>
+                          ▾
                         </button>
                       {/if}
-                      <button
-                        class="btn btn-ghost px-1.5 py-1 text-xs"
-                        aria-label="Marquer vu jusqu'ici"
-                        aria-expanded={openMenuEpisodeId === episode.id}
-                        onclick={() =>
-                          (openMenuEpisodeId =
-                            openMenuEpisodeId === episode.id
-                              ? null
-                              : episode.id)}>
-                        <span
-                          class="inline-block transition-transform {openMenuEpisodeId ===
-                          episode.id
-                            ? 'rotate-180'
-                            : ''}">▾</span>
-                      </button>
-                    {/if}
+                    </div>
                   {/if}
                 </li>
               {/each}
@@ -458,6 +462,25 @@
       </div>
     {/if}
   </div>
+
+  <!-- Episode-row dropdown (fixed so it escapes the season card's clipping). -->
+  {#if menu}
+    {@const active = menu}
+    <button
+      class="fixed inset-0 z-30 cursor-default"
+      aria-label="Fermer le menu"
+      onclick={() => (menu = null)}></button>
+    <div
+      role="menu"
+      class="fixed z-40 min-w-44 overflow-hidden rounded-lg border border-border bg-surface shadow-lg"
+      style={`top: ${active.top}px; right: ${active.right}px`}>
+      <button
+        class="block w-full px-3 py-2 text-left text-sm hover:bg-surface-2"
+        onclick={() => markThrough(active.episodeId)}>
+        Marquer vu jusqu'ici
+      </button>
+    </div>
+  {/if}
 {:else if !error}
   <div class="mx-auto max-w-4xl px-4 py-6 md:px-8">
     <p class="timecode text-sm">Chargement…</p>
