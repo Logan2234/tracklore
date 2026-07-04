@@ -74,3 +74,13 @@ export interface SeasonWithWatchesDto {
 export interface EntryEpisodesResponseDto {
   seasons: SeasonWithWatchesDto[];
 }
+
+/** An upcoming episode of a tracked series/anime (release calendar). */
+export interface CalendarEntryDto {
+  mediaItem: MediaItemDto;
+  seasonNumber: number;
+  episodeNumber: number;
+  episodeTitle: string | null;
+  /** ISO air date (always in the future for the calendar feed). */
+  airDate: string;
+}

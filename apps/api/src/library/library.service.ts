@@ -11,12 +11,14 @@ import type {
   Prisma,
 } from "@prisma/client";
 import type {
+  CalendarEntryDto,
   CatalogSource,
   EntryEpisodesResponseDto,
   EntryStatus,
   EpisodeWatchDto,
   LibraryEntryDto,
   MediaDetailDto,
+  MediaItemDto,
   MediaType,
   ProgressDto,
 } from "@tracklore/shared";
@@ -215,6 +217,70 @@ export class LibraryService {
     };
   }
 
+  /**
+   * Mark every not-yet-watched episode of a season as watched in one go.
+   * Already-watched episodes are skipped so this never inflates rewatch counts.
+   */
+  async watchSeason(userId: string, seasonId: string): Promise<void> {
+    const episodes = await this.prisma.episode.findMany({
+      where: { seasonId },
+      select: { id: true },
+    });
+    if (episodes.length === 0) {
+      throw new NotFoundException("Season not found or has no episodes");
+    }
+
+    const watched = await this.prisma.episodeWatch.findMany({
+      where: { userId, episodeId: { in: episodes.map((e) => e.id) } },
+      distinct: ["episodeId"],
+      select: { episodeId: true },
+    });
+    const watchedIds = new Set(watched.map((w) => w.episodeId));
+
+    const toCreate = episodes
+      .filter((e) => !watchedIds.has(e.id))
+      .map((e) => ({ userId, episodeId: e.id }));
+    if (toCreate.length > 0) {
+      await this.prisma.episodeWatch.createMany({ data: toCreate });
+    }
+  }
+
+  /**
+   * Upcoming episodes (air date today or later) of the series/anime the user
+   * tracks, excluding dropped ones — the release calendar.
+   */
+  async getCalendar(userId: string): Promise<CalendarEntryDto[]> {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const episodes = await this.prisma.episode.findMany({
+      where: {
+        airDate: { gte: startOfToday },
+        season: {
+          mediaItem: {
+            entries: { some: { userId, status: { not: "DROPPED" } } },
+          },
+        },
+      },
+      orderBy: { airDate: "asc" },
+      take: 60,
+      include: {
+        season: {
+          include: { mediaItem: { include: { externalIds: true } } },
+        },
+      },
+    });
+
+    return episodes.map((episode) => ({
+      mediaItem: toMediaItemDto(episode.season.mediaItem),
+      seasonNumber: episode.season.number,
+      episodeNumber: episode.number,
+      episodeTitle: episode.title,
+      // airDate is guaranteed non-null by the `gte` filter above.
+      airDate: episode.airDate!.toISOString(),
+    }));
+  }
+
   async deleteWatch(userId: string, watchId: string): Promise<void> {
     const watch = await this.prisma.episodeWatch.findUnique({
       where: { id: watchId },
@@ -285,14 +351,7 @@ export class LibraryService {
     );
     return {
       id: entry.id,
-      mediaItem: {
-        id: media.id,
-        type: media.type,
-        title: media.title,
-        posterUrl: media.posterUrl,
-        canonicalSource: media.canonicalSource,
-        sourceId: canonicalSourceId(media),
-      },
+      mediaItem: toMediaItemDto(media),
       status,
       rating: entry.rating,
       notes: entry.notes,
@@ -432,6 +491,19 @@ function canonicalSourceId(
     media.externalIds.find((ext) => ext.source === media.canonicalSource)
       ?.externalId ?? ""
   );
+}
+
+function toMediaItemDto(
+  media: MediaItem & { externalIds: MediaExternalId[] },
+): MediaItemDto {
+  return {
+    id: media.id,
+    type: media.type,
+    title: media.title,
+    posterUrl: media.posterUrl,
+    canonicalSource: media.canonicalSource,
+    sourceId: canonicalSourceId(media),
+  };
 }
 
 function toDateOrNull(value: string | null): Date | null {

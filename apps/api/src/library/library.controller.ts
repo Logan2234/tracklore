@@ -12,6 +12,7 @@ import {
   Query,
 } from "@nestjs/common";
 import type {
+  CalendarEntryDto,
   EntryEpisodesResponseDto,
   EntryStatus,
   EpisodeWatchDto,
@@ -44,6 +45,11 @@ export class LibraryController {
     @Body() dto: UpsertEntryDto,
   ): Promise<LibraryEntryDto> {
     return this.libraryService.upsertEntry(user.sub, dto);
+  }
+
+  @Get("calendar")
+  getCalendar(@CurrentUser() user: JwtPayload): Promise<CalendarEntryDto[]> {
+    return this.libraryService.getCalendar(user.sub);
   }
 
   @Get("entries/:id")
@@ -87,6 +93,15 @@ export class LibraryController {
     @Body() dto: WatchEpisodeDto,
   ): Promise<EpisodeWatchDto> {
     return this.libraryService.watchEpisode(user.sub, episodeId, dto);
+  }
+
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Post("seasons/:seasonId/watches")
+  async watchSeason(
+    @CurrentUser() user: JwtPayload,
+    @Param("seasonId") seasonId: string,
+  ): Promise<void> {
+    await this.libraryService.watchSeason(user.sub, seasonId);
   }
 
   @HttpCode(HttpStatus.NO_CONTENT)

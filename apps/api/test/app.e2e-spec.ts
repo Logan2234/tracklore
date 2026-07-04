@@ -18,6 +18,10 @@ const ANIME_SUMMARY = {
   posterUrl: "https://example.com/poster.jpg",
 };
 
+const FUTURE_AIR_DATE = new Date(
+  Date.now() + 30 * 24 * 60 * 60 * 1000,
+).toISOString();
+
 const ANIME_DETAILS: ProviderMediaDetails = {
   summary: ANIME_SUMMARY,
   overview: "An anime used by the e2e suite.",
@@ -33,7 +37,8 @@ const ANIME_DETAILS: ProviderMediaDetails = {
       episodes: [
         { number: 1, title: "Episode 1", airDate: null },
         { number: 2, title: "Episode 2", airDate: null },
-        { number: 3, title: "Episode 3", airDate: null },
+        // A future air date so the release calendar has something to return.
+        { number: 3, title: "Episode 3", airDate: FUTURE_AIR_DATE },
       ],
     },
   ],
@@ -64,6 +69,7 @@ describe("Tracklore API (e2e)", () => {
   let refreshToken: string;
   let entryId: string;
   let firstEpisodeId: string;
+  let firstSeasonId: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -188,6 +194,7 @@ describe("Tracklore API (e2e)", () => {
 
     expect(response.body.seasons).toHaveLength(1);
     expect(response.body.seasons[0].episodes).toHaveLength(3);
+    firstSeasonId = response.body.seasons[0].id;
     firstEpisodeId = response.body.seasons[0].episodes[0].id;
     expect(response.body.seasons[0].episodes[0].watchCount).toBe(0);
   });
@@ -233,20 +240,20 @@ describe("Tracklore API (e2e)", () => {
     });
   });
 
-  it("completes a finished show once every episode is watched", async () => {
+  it("marks a whole season without inflating already-watched episodes", async () => {
+    // Episode 1 is already watched (twice); watchSeason fills only 2 and 3.
+    await request(http)
+      .post(`/api/library/seasons/${firstSeasonId}/watches`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(204);
+
     const episodes = await request(http)
       .get(`/api/library/entries/${entryId}/episodes`)
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
-    // Episode 1 is already watched; watch the remaining two.
-    const [, ep2, ep3] = episodes.body.seasons[0].episodes;
-    for (const ep of [ep2, ep3]) {
-      await request(http)
-        .post(`/api/library/episodes/${ep.id}/watches`)
-        .set("Authorization", `Bearer ${accessToken}`)
-        .send({})
-        .expect(201);
-    }
+    const eps = episodes.body.seasons[0].episodes;
+    expect(eps.every((e: { watchCount: number }) => e.watchCount > 0)).toBe(true);
+    expect(eps[0].watchCount).toBe(2); // episode 1 not re-watched by the bulk mark
 
     const entry = await request(http)
       .get(`/api/library/entries/${entryId}`)
@@ -254,6 +261,22 @@ describe("Tracklore API (e2e)", () => {
       .expect(200);
     // All episodes watched + FINISHED airing → COMPLETED (not UP_TO_DATE).
     expect(entry.body.status).toBe("COMPLETED");
+  });
+
+  it("returns upcoming episodes of tracked series in the calendar", async () => {
+    const response = await request(http)
+      .get("/api/library/calendar")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+
+    // Only episode 3 has a future air date.
+    expect(response.body).toHaveLength(1);
+    expect(response.body[0]).toMatchObject({
+      seasonNumber: 1,
+      episodeNumber: 3,
+      episodeTitle: "Episode 3",
+    });
+    expect(response.body[0].mediaItem.title).toBe("Test Anime");
   });
 
   it("serves the unified media page with metadata + the user's state", async () => {
