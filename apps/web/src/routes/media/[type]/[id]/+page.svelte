@@ -8,8 +8,10 @@
     updateLibraryEntry,
     upsertLibraryEntry,
     watchEpisode,
+    watchSeason,
     ApiError,
   } from "$lib/api/client";
+  import type { MediaDetailSeasonDto } from "@tracklore/shared";
   import Poster from "$lib/components/Poster.svelte";
   import Icon from "$lib/components/Icon.svelte";
 
@@ -36,7 +38,12 @@
   let detail = $state<MediaDetailDto | null>(null);
   let error = $state<string | null>(null);
   let busyEpisodeId = $state<string | null>(null);
+  let busySeasonId = $state<string | null>(null);
   let saving = $state(false);
+
+  const seasonWatched = (season: MediaDetailSeasonDto) =>
+    season.episodes.length > 0 &&
+    season.episodes.every((ep) => ep.watchCount > 0);
 
   const type = $derived((page.params.type ?? "").toUpperCase() as MediaType);
   const id = $derived(page.params.id ?? "");
@@ -126,6 +133,20 @@
         err instanceof ApiError ? err.message : "Impossible de marquer comme vu";
     } finally {
       busyEpisodeId = null;
+    }
+  }
+
+  async function markSeason(seasonId: string) {
+    busySeasonId = seasonId;
+    error = null;
+    try {
+      await watchSeason(seasonId);
+      await reload();
+    } catch (err) {
+      error =
+        err instanceof ApiError ? err.message : "Impossible de marquer la saison";
+    } finally {
+      busySeasonId = null;
     }
   }
 
@@ -334,8 +355,25 @@
         {#each orderedSeasons as season (season.number)}
           <div class="card">
             <header
-              class="border-b border-border bg-surface-2 px-4 py-2.5 font-display font-semibold">
-              {season.title ?? `Saison ${season.number}`}
+              class="flex items-center gap-3 border-b border-border bg-surface-2 px-4 py-2.5 font-display font-semibold">
+              <span class="min-w-0 flex-1 truncate">
+                {season.title ?? `Saison ${season.number}`}
+              </span>
+              {#if entry && season.id}
+                {#if seasonWatched(season)}
+                  <span
+                    class="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-success">
+                    <Icon name="check" class="h-4 w-4" /> Saison vue
+                  </span>
+                {:else}
+                  <button
+                    class="btn btn-ghost shrink-0 px-2.5 py-1 text-xs"
+                    disabled={busySeasonId === season.id}
+                    onclick={() => markSeason(season.id!)}>
+                    Marquer la saison vue
+                  </button>
+                {/if}
+              {/if}
             </header>
             <ul>
               {#each season.episodes as episode (episode.number)}

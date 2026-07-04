@@ -1,22 +1,25 @@
 <script lang="ts">
-  import type { LibraryEntryDto } from "@tracklore/shared";
-  import { listLibrary } from "$lib/api/client";
+  import type { CalendarEntryDto, LibraryEntryDto } from "@tracklore/shared";
+  import { getCalendar, listLibrary } from "$lib/api/client";
   import { auth } from "$lib/auth.svelte";
   import Poster from "$lib/components/Poster.svelte";
   import Icon from "$lib/components/Icon.svelte";
 
   let watching = $state<LibraryEntryDto[]>([]);
   let planned = $state<LibraryEntryDto[]>([]);
+  let upcoming = $state<CalendarEntryDto[]>([]);
   let loading = $state(true);
 
   $effect(() => {
     Promise.all([
       listLibrary({ status: "WATCHING" }),
       listLibrary({ status: "PLANNED" }),
+      getCalendar(),
     ])
-      .then(([w, p]) => {
+      .then(([w, p, c]) => {
         watching = w;
         planned = p;
+        upcoming = c;
       })
       .catch(() => {})
       .finally(() => (loading = false));
@@ -36,12 +39,22 @@
     );
   }
 
-  // "Cette semaine" is a preview until the release calendar is wired to air dates.
-  const thisWeek = [
-    { title: "Severance", code: "S02E05", day: "Aujourd’hui" },
-    { title: "Shōgun", code: "S01E05", day: "Demain" },
-    { title: "Frieren", code: "S01E29", day: "Ven." },
-  ];
+  const weekdayShort = new Intl.DateTimeFormat("fr-FR", { weekday: "short" });
+  function dayShort(iso: string): string {
+    const d = new Date(iso);
+    d.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diff = Math.round((d.getTime() - today.getTime()) / 86_400_000);
+    if (diff === 0) return "Auj.";
+    if (diff === 1) return "Demain";
+    return weekdayShort.format(new Date(iso));
+  }
+  const epCode = (e: CalendarEntryDto) =>
+    `S${String(e.seasonNumber).padStart(2, "0")}E${String(e.episodeNumber).padStart(2, "0")}`;
+  const mediaHref = (e: CalendarEntryDto) =>
+    `/media/${e.mediaItem.type.toLowerCase()}/${e.mediaItem.sourceId}`;
+  const week = $derived(upcoming.slice(0, 3));
 </script>
 
 <div class="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-10">
@@ -97,34 +110,33 @@
     {/if}
   </section>
 
-  <!-- Cette semaine (preview) -->
-  <section class="mb-10">
-    <div class="mb-4 flex items-baseline justify-between">
-      <div class="flex items-baseline gap-3">
-        <h2 class="font-display text-xl font-bold">Cette semaine</h2>
-        <span
-          class="rounded-full bg-surface-2 px-2 py-0.5 text-xs font-semibold text-dim"
-          >Aperçu</span>
+  <!-- Prochains épisodes (real) -->
+  {#if week.length > 0}
+    <section class="mb-10">
+      <div class="mb-4 flex items-baseline justify-between">
+        <h2 class="font-display text-xl font-bold">À venir</h2>
+        <a href="/calendar" class="text-sm font-semibold text-dim hover:text-fg"
+          >Calendrier →</a>
       </div>
-      <a href="/calendar" class="text-sm font-semibold text-dim hover:text-fg"
-        >Calendrier →</a>
-    </div>
-    <div class="grid gap-3 sm:grid-cols-3">
-      {#each thisWeek as ep (ep.title + ep.code)}
-        <div class="card flex items-center gap-3 p-3">
-          <div class="w-10 shrink-0 overflow-hidden rounded-md">
-            <Poster src={null} title={ep.title} />
-          </div>
-          <div class="min-w-0">
-            <p class="truncate font-display text-sm font-semibold">
-              {ep.title}
-            </p>
-            <p class="timecode text-xs">{ep.code} · {ep.day}</p>
-          </div>
-        </div>
-      {/each}
-    </div>
-  </section>
+      <div class="grid gap-3 sm:grid-cols-3">
+        {#each week as e (e.mediaItem.id + epCode(e))}
+          <a
+            href={mediaHref(e)}
+            class="card flex items-center gap-3 p-3 transition-[border-color] hover:border-accent">
+            <div class="w-10 shrink-0 overflow-hidden rounded-md">
+              <Poster src={e.mediaItem.posterUrl} title={e.mediaItem.title} />
+            </div>
+            <div class="min-w-0">
+              <p class="truncate font-display text-sm font-semibold">
+                {e.mediaItem.title}
+              </p>
+              <p class="timecode text-xs">{epCode(e)} · {dayShort(e.airDate)}</p>
+            </div>
+          </a>
+        {/each}
+      </div>
+    </section>
+  {/if}
 
   <!-- À voir (real) -->
   {#if planned.length > 0}

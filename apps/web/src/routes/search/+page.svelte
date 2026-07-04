@@ -1,6 +1,10 @@
 <script lang="ts">
-  import type { MediaSummaryDto, MediaType } from "@tracklore/shared";
-  import { searchCatalog, ApiError } from "$lib/api/client";
+  import type {
+    EntryStatus,
+    MediaSummaryDto,
+    MediaType,
+  } from "@tracklore/shared";
+  import { listLibrary, searchCatalog, ApiError } from "$lib/api/client";
   import Poster from "$lib/components/Poster.svelte";
   import Icon from "$lib/components/Icon.svelte";
 
@@ -17,12 +21,41 @@
     ANIME: "Animé",
   };
 
+  const STATUS_LABELS: Record<EntryStatus, string> = {
+    PLANNED: "À voir",
+    WATCHING: "En cours",
+    UP_TO_DATE: "À jour",
+    COMPLETED: "Terminé",
+    PAUSED: "En pause",
+    DROPPED: "Abandonné",
+  };
+
   let query = $state("");
   let type = $state<MediaType | undefined>(undefined);
   let results = $state<MediaSummaryDto[]>([]);
   let searched = $state(false);
   let loading = $state(false);
   let error = $state<string | null>(null);
+
+  // Titles already in the library, keyed by catalogue identity, so results can
+  // be flagged (and their current status shown) instead of looking already-new.
+  let tracked = $state<Map<string, EntryStatus>>(new Map());
+  const key = (type: MediaType, sourceId: string) => `${type}:${sourceId}`;
+  const trackedStatus = (m: MediaSummaryDto) =>
+    tracked.get(key(m.type, m.sourceId));
+
+  $effect(() => {
+    listLibrary()
+      .then((entries) => {
+        tracked = new Map(
+          entries.map((e) => [
+            key(e.mediaItem.type, e.mediaItem.sourceId),
+            e.status,
+          ]),
+        );
+      })
+      .catch(() => {});
+  });
 
   async function submit(event?: SubmitEvent) {
     event?.preventDefault();
@@ -106,7 +139,16 @@
         <a
           href={`/media/${media.type.toLowerCase()}/${media.sourceId}`}
           class="card group flex flex-col transition-[transform,border-color] duration-150 hover:-translate-y-0.5 hover:border-accent">
-          <Poster src={media.posterUrl} title={media.title} />
+          <div class="relative">
+            <Poster src={media.posterUrl} title={media.title} />
+            {#if trackedStatus(media)}
+              <span
+                class="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[0.6rem] font-bold text-accent-fg shadow">
+                <Icon name="check" class="h-3 w-3" />
+                {STATUS_LABELS[trackedStatus(media)!]}
+              </span>
+            {/if}
+          </div>
           <div class="flex flex-1 flex-col gap-1.5 p-3">
             <span class="font-display text-sm leading-tight font-semibold"
               >{media.title}</span>

@@ -1,6 +1,7 @@
 import { env } from "$env/dynamic/public";
 import type {
   AuthTokensDto,
+  CalendarEntryDto,
   EntryStatus,
   EpisodeWatchDto,
   LibraryEntryDto,
@@ -229,6 +230,15 @@ export function watchEpisode(
     method: "POST",
     body: rating === undefined ? {} : { rating },
   });
+}
+
+/** Mark every not-yet-watched episode of a season as watched. */
+export function watchSeason(seasonId: string): Promise<void> {
+  return request(`/library/seasons/${seasonId}/watches`, { method: "POST" });
+}
+
+export function getCalendar(): Promise<CalendarEntryDto[]> {
+  return request("/library/calendar");
 }
 
 // --- TV Time import ---
