@@ -105,6 +105,15 @@ export class LibraryController {
   }
 
   @HttpCode(HttpStatus.NO_CONTENT)
+  @Post("episodes/:episodeId/watch-through")
+  async watchThrough(
+    @CurrentUser() user: JwtPayload,
+    @Param("episodeId") episodeId: string,
+  ): Promise<void> {
+    await this.libraryService.watchThrough(user.sub, episodeId);
+  }
+
+  @HttpCode(HttpStatus.NO_CONTENT)
   @Delete("watches/:id")
   async deleteWatch(
     @CurrentUser() user: JwtPayload,

@@ -45,10 +45,17 @@ const ANIME_DETAILS: ProviderMediaDetails = {
 };
 
 // External catalogues are stubbed: e2e exercises our API + database, not TMDB/AniList.
+// getDetails echoes the requested id so different sourceIds yield distinct media.
 const anilistStub = {
   source: CatalogSource.ANILIST,
   search: jest.fn().mockResolvedValue([ANIME_SUMMARY]),
-  getDetails: jest.fn().mockResolvedValue(ANIME_DETAILS),
+  getDetails: jest.fn().mockImplementation((sourceId: string) =>
+    Promise.resolve({
+      ...ANIME_DETAILS,
+      summary: { ...ANIME_SUMMARY, sourceId },
+      externalIds: [{ source: MediaSource.ANILIST, externalId: sourceId }],
+    }),
+  ),
 };
 const tmdbStub = {
   source: CatalogSource.TMDB,
@@ -319,6 +326,47 @@ describe("Tracklore API (e2e)", () => {
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
     expect(resumed.body.status).toBe("COMPLETED");
+  });
+
+  it("marks episodes through a chosen one, excluding specials", async () => {
+    // A fresh media so earlier watches don't interfere.
+    const created = await request(http)
+      .put("/api/library")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ source: "ANILIST", sourceId: "5555", type: "ANIME" })
+      .expect(200);
+    const newEntryId = created.body.id;
+
+    const before = await request(http)
+      .get(`/api/library/entries/${newEntryId}/episodes`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+    const eps = before.body.seasons[0].episodes;
+
+    // Watch through episode 2 → episodes 1 and 2, not 3.
+    await request(http)
+      .post(`/api/library/episodes/${eps[1].id}/watch-through`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(204);
+
+    const after = await request(http)
+      .get(`/api/library/entries/${newEntryId}/episodes`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+    const counts = after.body.seasons[0].episodes.map(
+      (e: { watchCount: number }) => e.watchCount,
+    );
+    expect(counts).toEqual([1, 1, 0]);
+
+    const entry = await request(http)
+      .get(`/api/library/entries/${newEntryId}`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+    expect(entry.body.progress).toEqual({
+      watchedEpisodes: 2,
+      totalEpisodes: 3,
+    });
+    expect(entry.body.status).toBe("WATCHING");
   });
 
   it("rotates refresh tokens: the old one is consumed", async () => {

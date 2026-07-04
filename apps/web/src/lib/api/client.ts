@@ -237,6 +237,13 @@ export function watchSeason(seasonId: string): Promise<void> {
   return request(`/library/seasons/${seasonId}/watches`, { method: "POST" });
 }
 
+/** Mark all regular episodes up to and including this one (specials excluded). */
+export function watchThrough(episodeId: string): Promise<void> {
+  return request(`/library/episodes/${episodeId}/watch-through`, {
+    method: "POST",
+  });
+}
+
 export function getCalendar(): Promise<CalendarEntryDto[]> {
   return request("/library/calendar");
 }

@@ -229,17 +229,63 @@ export class LibraryService {
     if (episodes.length === 0) {
       throw new NotFoundException("Season not found or has no episodes");
     }
+    await this.markUnwatched(
+      userId,
+      episodes.map((e) => e.id),
+    );
+  }
 
+  /**
+   * "Watch up to here": mark every regular episode of the series from the start
+   * up to and including the given one (specials excluded — they are not part of
+   * the linear run). If the target itself is a special, only it is marked.
+   */
+  async watchThrough(userId: string, episodeId: string): Promise<void> {
+    const target = await this.prisma.episode.findUnique({
+      where: { id: episodeId },
+      include: { season: true },
+    });
+    if (!target) {
+      throw new NotFoundException("Episode not found");
+    }
+
+    if (target.season.number === 0) {
+      await this.markUnwatched(userId, [episodeId]);
+      return;
+    }
+
+    const episodes = await this.prisma.episode.findMany({
+      where: {
+        season: { mediaItemId: target.season.mediaItemId, number: { gt: 0 } },
+      },
+      select: { id: true, number: true, season: { select: { number: true } } },
+    });
+    const throughIds = episodes
+      .filter(
+        (e) =>
+          e.season.number < target.season.number ||
+          (e.season.number === target.season.number &&
+            e.number <= target.number),
+      )
+      .map((e) => e.id);
+    await this.markUnwatched(userId, throughIds);
+  }
+
+  /** Create a watch for each of the given episodes the user hasn't watched yet. */
+  private async markUnwatched(
+    userId: string,
+    episodeIds: string[],
+  ): Promise<void> {
+    if (episodeIds.length === 0) return;
     const watched = await this.prisma.episodeWatch.findMany({
-      where: { userId, episodeId: { in: episodes.map((e) => e.id) } },
+      where: { userId, episodeId: { in: episodeIds } },
       distinct: ["episodeId"],
       select: { episodeId: true },
     });
     const watchedIds = new Set(watched.map((w) => w.episodeId));
-
-    const toCreate = episodes
-      .filter((e) => !watchedIds.has(e.id))
-      .map((e) => ({ userId, episodeId: e.id }));
+    const toCreate = episodeIds
+      .filter((id) => !watchedIds.has(id))
+      .map((id) => ({ userId, episodeId: id }));
     if (toCreate.length > 0) {
       await this.prisma.episodeWatch.createMany({ data: toCreate });
     }

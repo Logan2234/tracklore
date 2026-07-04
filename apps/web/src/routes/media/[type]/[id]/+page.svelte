@@ -9,6 +9,7 @@
     upsertLibraryEntry,
     watchEpisode,
     watchSeason,
+    watchThrough,
     ApiError,
   } from "$lib/api/client";
   import type { MediaDetailSeasonDto } from "@tracklore/shared";
@@ -39,6 +40,7 @@
   let error = $state<string | null>(null);
   let busyEpisodeId = $state<string | null>(null);
   let busySeasonId = $state<string | null>(null);
+  let openMenuEpisodeId = $state<string | null>(null);
   let saving = $state(false);
 
   const seasonWatched = (season: MediaDetailSeasonDto) =>
@@ -147,6 +149,21 @@
         err instanceof ApiError ? err.message : "Impossible de marquer la saison";
     } finally {
       busySeasonId = null;
+    }
+  }
+
+  async function markThrough(episodeId: string) {
+    busyEpisodeId = episodeId;
+    error = null;
+    try {
+      await watchThrough(episodeId);
+      openMenuEpisodeId = null;
+      await reload();
+    } catch (err) {
+      error =
+        err instanceof ApiError ? err.message : "Impossible de marquer les épisodes";
+    } finally {
+      busyEpisodeId = null;
     }
   }
 
@@ -405,6 +422,33 @@
                       onclick={() => markWatched(episode.id!)}>
                       {episode.watchCount > 0 ? "Revoir" : "Marquer vu"}
                     </button>
+                    {#if season.number > 0}
+                      <!-- Split action: the chevron reveals "mark through here"
+                           (all regular episodes up to this one). -->
+                      {#if openMenuEpisodeId === episode.id}
+                        <button
+                          class="btn btn-ghost px-2.5 py-1 text-xs"
+                          disabled={busyEpisodeId === episode.id}
+                          onclick={() => markThrough(episode.id!)}>
+                          Jusqu'ici
+                        </button>
+                      {/if}
+                      <button
+                        class="btn btn-ghost px-1.5 py-1 text-xs"
+                        aria-label="Marquer vu jusqu'ici"
+                        aria-expanded={openMenuEpisodeId === episode.id}
+                        onclick={() =>
+                          (openMenuEpisodeId =
+                            openMenuEpisodeId === episode.id
+                              ? null
+                              : episode.id)}>
+                        <span
+                          class="inline-block transition-transform {openMenuEpisodeId ===
+                          episode.id
+                            ? 'rotate-180'
+                            : ''}">▾</span>
+                      </button>
+                    {/if}
                   {/if}
                 </li>
               {/each}
