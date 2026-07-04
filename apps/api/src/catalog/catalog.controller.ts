@@ -12,6 +12,7 @@ import {
   SearchResponseDto,
 } from "@tracklore/shared";
 import { MediaItemService } from "./media-item.service";
+import { rankBySearchRelevance } from "./search-ranking";
 import { SearchQueryDto } from "./dto/search-query.dto";
 
 @Controller("catalog")
@@ -41,7 +42,15 @@ export class CatalogController {
         : Promise.resolve([]),
     ]);
 
-    return { results: [...anilistResults, ...tmdbResults] };
+    // Each source returns its own popularity order, but concatenating movies +
+    // series + anime buries the searched title. Re-rank by title relevance so
+    // the actual match floats to the top (ties keep the source order).
+    return {
+      results: rankBySearchRelevance(
+        [...anilistResults, ...tmdbResults],
+        query.q,
+      ),
+    };
   }
 
   /** Live details (seasons/episodes included) — nothing is persisted. */
