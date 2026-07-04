@@ -25,39 +25,78 @@
   type NavItem = {
     href: string;
     label: string;
-    icon: "home" | "library" | "search" | "calendar" | "stats";
+    icon: "home" | "library" | "search" | "calendar" | "stats" | "gamepad" | "book";
     match: (p: string) => boolean;
+    /** Placeholder domain (P3): dimmed + "Bientôt" badge, still reachable. */
+    soon?: boolean;
+  };
+  type NavSection = { label?: string; items: NavItem[] };
+
+  const HOME: NavItem = {
+    href: "/",
+    label: "Accueil",
+    icon: "home",
+    match: (p) => p === "/",
+  };
+  const SEARCH: NavItem = {
+    href: "/search",
+    label: "Recherche",
+    icon: "search",
+    match: (p) => p.startsWith("/search"),
+  };
+  const SCREENS: NavItem = {
+    href: "/library",
+    label: "Écrans",
+    icon: "library",
+    match: (p) => p.startsWith("/library"),
+  };
+  const CALENDAR: NavItem = {
+    href: "/calendar",
+    label: "Calendrier",
+    icon: "calendar",
+    match: (p) => p.startsWith("/calendar"),
   };
 
-  const NAV: NavItem[] = [
-    { href: "/", label: "Accueil", icon: "home", match: (p) => p === "/" },
+  // Grouped rail: global entries (no header), then the collection domains, then
+  // time-based views. Games/Books are P3 placeholders (soon).
+  const SECTIONS: NavSection[] = [
+    { items: [HOME, SEARCH] },
     {
-      href: "/library",
-      label: "Bibliothèque",
-      icon: "library",
-      match: (p) => p.startsWith("/library"),
+      label: "Ma bibliothèque",
+      items: [
+        SCREENS,
+        {
+          href: "/games",
+          label: "Jeux",
+          icon: "gamepad",
+          match: (p) => p.startsWith("/games"),
+          soon: true,
+        },
+        {
+          href: "/books",
+          label: "Livres",
+          icon: "book",
+          match: (p) => p.startsWith("/books"),
+          soon: true,
+        },
+      ],
     },
     {
-      href: "/search",
-      label: "Recherche",
-      icon: "search",
-      match: (p) => p.startsWith("/search"),
-    },
-    {
-      href: "/calendar",
-      label: "Calendrier",
-      icon: "calendar",
-      match: (p) => p.startsWith("/calendar"),
-    },
-    {
-      href: "/stats",
-      label: "Statistiques",
-      icon: "stats",
-      match: (p) => p.startsWith("/stats"),
+      label: "Suivi",
+      items: [
+        CALENDAR,
+        {
+          href: "/stats",
+          label: "Statistiques",
+          icon: "stats",
+          match: (p) => p.startsWith("/stats"),
+        },
+      ],
     },
   ];
-  // Mobile bottom bar keeps to five thumb targets; Stats lives in the desktop rail.
-  const BOTTOM = NAV.filter((n) => n.icon !== "stats");
+  // Mobile bottom bar keeps to five thumb targets (Compte is added in markup);
+  // Games/Books and Stats live only in the desktop rail.
+  const BOTTOM: NavItem[] = [HOME, SCREENS, SEARCH, CALENDAR];
 
   $effect(() => {
     initAuth().finally(() => {
@@ -135,26 +174,49 @@
           </span>
         </a>
 
-        <nav class="flex flex-1 flex-col gap-1 py-2">
-          {#each NAV as item (item.href)}
-            {@const active = item.match(page.url.pathname)}
-            <a
-              href={item.href}
-              aria-current={active ? "page" : undefined}
-              title={expanded ? undefined : item.label}
-              class="flex w-full items-center overflow-hidden rounded-xl transition-colors {active
-                ? 'bg-accent/15 text-accent'
-                : 'text-dim hover:bg-surface-2 hover:text-fg'}">
-              <span class="grid h-10 w-10 shrink-0 place-items-center">
-                <Icon name={item.icon} class="h-5 w-5" />
-              </span>
-              <span
-                class="whitespace-nowrap text-sm font-semibold transition-opacity duration-150 {expanded
-                  ? 'opacity-100'
-                  : 'opacity-0'}">
-                {item.label}
-              </span>
-            </a>
+        <nav class="flex flex-1 flex-col gap-0.5 py-2">
+          {#each SECTIONS as section, i (i)}
+            {#if section.label}
+              {#if expanded}
+                <div
+                  class="px-3 pt-3 pb-1 text-[0.6rem] font-bold tracking-[0.13em] text-dim uppercase">
+                  {section.label}
+                </div>
+              {:else}
+                <div class="mx-3 my-2 border-t border-border" aria-hidden="true">
+                </div>
+              {/if}
+            {/if}
+            {#each section.items as item (item.href)}
+              {@const active = item.match(page.url.pathname)}
+              <a
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                title={expanded ? undefined : item.label}
+                class="flex w-full items-center overflow-hidden rounded-xl transition-colors {active
+                  ? 'bg-accent/15 text-accent'
+                  : 'text-dim hover:bg-surface-2 hover:text-fg'} {item.soon
+                  ? 'opacity-60'
+                  : ''}">
+                <span class="grid h-10 w-10 shrink-0 place-items-center">
+                  <Icon name={item.icon} class="h-5 w-5" />
+                </span>
+                <span
+                  class="whitespace-nowrap text-sm font-semibold transition-opacity duration-150 {expanded
+                    ? 'opacity-100'
+                    : 'opacity-0'}">
+                  {item.label}
+                </span>
+                {#if item.soon}
+                  <span
+                    class="mr-2 ml-auto rounded-full border border-border px-1.5 py-0.5 text-[0.55rem] font-bold whitespace-nowrap text-dim transition-opacity duration-150 {expanded
+                      ? 'opacity-100'
+                      : 'opacity-0'}">
+                    Bientôt
+                  </span>
+                {/if}
+              </a>
+            {/each}
           {/each}
         </nav>
 
