@@ -3,12 +3,20 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import type { LibraryEntry, MediaItem, Prisma } from "@prisma/client";
 import type {
+  ExternalSource as DbExternalSource,
+  LibraryEntry,
+  MediaExternalId,
+  MediaItem,
+  Prisma,
+} from "@prisma/client";
+import type {
+  CatalogSource,
   EntryEpisodesResponseDto,
   EntryStatus,
   EpisodeWatchDto,
   LibraryEntryDto,
+  MediaDetailDto,
   MediaType,
   ProgressDto,
 } from "@tracklore/shared";
@@ -17,6 +25,19 @@ import { PrismaService } from "../prisma/prisma.service";
 import { UpdateEntryDto } from "./dto/update-entry.dto";
 import { UpsertEntryDto } from "./dto/upsert-entry.dto";
 import { WatchEpisodeDto } from "./dto/watch-episode.dto";
+import { deriveStatus, normalizeAiringFinished } from "./status.util";
+
+/** Reused include: entries always need the media + its external IDs (sourceId).
+ * `satisfies` (not a type annotation) keeps the literal shape so Prisma can
+ * still infer the joined payload type from it. */
+const ENTRY_INCLUDE = {
+  mediaItem: { include: { externalIds: true } },
+} satisfies Prisma.LibraryEntryInclude;
+
+/** LibraryEntry joined with its media and the media's external IDs. */
+type EntryWithMedia = Prisma.LibraryEntryGetPayload<{
+  include: typeof ENTRY_INCLUDE;
+}>;
 
 @Injectable()
 export class LibraryService {
@@ -47,7 +68,7 @@ export class LibraryService {
       where: { userId_mediaItemId: { userId, mediaItemId: mediaItem.id } },
       update: changes,
       create: { userId, mediaItemId: mediaItem.id, ...changes },
-      include: { mediaItem: true },
+      include: ENTRY_INCLUDE,
     });
 
     return this.toEntryDto(
@@ -63,14 +84,13 @@ export class LibraryService {
     const entries = await this.prisma.libraryEntry.findMany({
       where: {
         userId,
-        status: filters.status,
         mediaItem: filters.type ? { type: filters.type } : undefined,
       },
-      include: { mediaItem: true },
+      include: ENTRY_INCLUDE,
       orderBy: { updatedAt: "desc" },
     });
 
-    return Promise.all(
+    const dtos = await Promise.all(
       entries.map(async (entry) =>
         this.toEntryDto(
           entry,
@@ -78,13 +98,18 @@ export class LibraryService {
         ),
       ),
     );
+
+    // Status is derived, so filter on the effective status, not the stored one.
+    return filters.status
+      ? dtos.filter((dto) => dto.status === filters.status)
+      : dtos;
   }
 
   async getEntry(userId: string, entryId: string): Promise<LibraryEntryDto> {
     await this.assertEntryOwnership(userId, entryId);
     const entry = await this.prisma.libraryEntry.findUniqueOrThrow({
       where: { id: entryId },
-      include: { mediaItem: true },
+      include: ENTRY_INCLUDE,
     });
     return this.toEntryDto(
       entry,
@@ -114,7 +139,7 @@ export class LibraryService {
             ? undefined
             : toDateOrNull(dto.finishedAt),
       },
-      include: { mediaItem: true },
+      include: ENTRY_INCLUDE,
     });
 
     return this.toEntryDto(
@@ -248,19 +273,27 @@ export class LibraryService {
   }
 
   private toEntryDto(
-    entry: LibraryEntry & { mediaItem: MediaItem },
+    entry: EntryWithMedia,
     progress: ProgressDto | null,
   ): LibraryEntryDto {
+    const media = entry.mediaItem;
+    const status = deriveStatus(
+      media.type,
+      progress,
+      normalizeAiringFinished(media.status),
+      entry.status,
+    );
     return {
       id: entry.id,
       mediaItem: {
-        id: entry.mediaItem.id,
-        type: entry.mediaItem.type,
-        title: entry.mediaItem.title,
-        posterUrl: entry.mediaItem.posterUrl,
-        canonicalSource: entry.mediaItem.canonicalSource,
+        id: media.id,
+        type: media.type,
+        title: media.title,
+        posterUrl: media.posterUrl,
+        canonicalSource: media.canonicalSource,
+        sourceId: canonicalSourceId(media),
       },
-      status: entry.status,
+      status,
       rating: entry.rating,
       notes: entry.notes,
       favorite: entry.favorite,
@@ -270,6 +303,135 @@ export class LibraryService {
       progress,
     };
   }
+
+  /**
+   * Unified media page (`/media/{type}/{id}`): metadata + the current user's
+   * library state in one call. Served from the cache when the media is already
+   * persisted, otherwise fetched live (persisting nothing — an unreferenced
+   * media must not enter the on-demand cache just because it was previewed).
+   */
+  async getMediaDetail(
+    userId: string,
+    type: MediaType,
+    sourceId: string,
+  ): Promise<MediaDetailDto> {
+    const source: CatalogSource = type === "ANIME" ? "ANILIST" : "TMDB";
+
+    const ref = await this.prisma.mediaExternalId.findUnique({
+      where: {
+        source_externalId: {
+          source: source as DbExternalSource,
+          externalId: sourceId,
+        },
+      },
+      include: { mediaItem: true },
+    });
+
+    if (ref) {
+      return this.mediaDetailFromCache(userId, source, sourceId, ref.mediaItem);
+    }
+
+    const details = await this.mediaItemService.getLiveDetails(
+      source,
+      sourceId,
+      type,
+    );
+    return {
+      source,
+      sourceId,
+      type,
+      title: details.title,
+      originalTitle: details.originalTitle ?? null,
+      year: details.year,
+      posterUrl: details.posterUrl,
+      backdropUrl: details.backdropUrl,
+      overview: details.overview,
+      genres: details.genres,
+      airingStatus: details.status,
+      airingFinished: normalizeAiringFinished(details.status),
+      seasons: details.seasons.map((season) => ({
+        id: null,
+        number: season.number,
+        title: season.title,
+        episodes: season.episodes.map((episode) => ({
+          id: null,
+          number: episode.number,
+          title: episode.title,
+          airDate: episode.airDate,
+          watchCount: 0,
+        })),
+      })),
+      entry: null,
+    };
+  }
+
+  private async mediaDetailFromCache(
+    userId: string,
+    source: CatalogSource,
+    sourceId: string,
+    media: MediaItem,
+  ): Promise<MediaDetailDto> {
+    const seasons = await this.prisma.season.findMany({
+      where: { mediaItemId: media.id },
+      orderBy: { number: "asc" },
+      include: {
+        episodes: {
+          orderBy: { number: "asc" },
+          include: { watches: { where: { userId }, select: { id: true } } },
+        },
+      },
+    });
+
+    const entryRow = await this.prisma.libraryEntry.findUnique({
+      where: { userId_mediaItemId: { userId, mediaItemId: media.id } },
+      include: ENTRY_INCLUDE,
+    });
+    const entry = entryRow
+      ? this.toEntryDto(
+          entryRow,
+          await this.computeProgress(userId, media.id),
+        )
+      : null;
+
+    return {
+      source,
+      sourceId,
+      type: media.type,
+      title: media.title,
+      // Original title is not persisted separately; only used for matching.
+      originalTitle: null,
+      year: media.releaseDate ? media.releaseDate.getFullYear() : null,
+      posterUrl: media.posterUrl,
+      backdropUrl: media.backdropUrl,
+      overview: media.overview,
+      genres: media.genres,
+      airingStatus: media.status,
+      airingFinished: normalizeAiringFinished(media.status),
+      seasons: seasons.map((season) => ({
+        id: season.id,
+        number: season.number,
+        title: season.title,
+        episodes: season.episodes.map((episode) => ({
+          id: episode.id,
+          number: episode.number,
+          title: episode.title,
+          airDate: episode.airDate?.toISOString() ?? null,
+          watchCount: episode.watches.length,
+        })),
+      })),
+      entry,
+    };
+  }
+}
+
+/** External ID of a media in its own canonical source (always present). */
+function canonicalSourceId(
+  media: MediaItem & { externalIds: MediaExternalId[] },
+): string {
+  return (
+    media.externalIds.find((ext) => ext.source === media.canonicalSource)
+      ?.externalId ?? ""
+  );
 }
 
 function toDateOrNull(value: string | null): Date | null {

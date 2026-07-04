@@ -160,7 +160,10 @@ describe("Tracklore API (e2e)", () => {
 
     entryId = response.body.id;
     expect(response.body.mediaItem.title).toBe("Test Anime");
-    expect(response.body.status).toBe("WATCHING");
+    expect(response.body.mediaItem.sourceId).toBe("4242");
+    // Status is derived: nothing watched yet → PLANNED, regardless of the
+    // WATCHING sent in the request.
+    expect(response.body.status).toBe("PLANNED");
     expect(response.body.progress).toEqual({
       watchedEpisodes: 0,
       totalEpisodes: 3,
@@ -204,6 +207,7 @@ describe("Tracklore API (e2e)", () => {
       watchedEpisodes: 1,
       totalEpisodes: 3,
     });
+    expect(entry.body.status).toBe("WATCHING"); // 1 of 3 → in progress
   });
 
   it("supports rewatches: same episode again bumps the count, not the progress", async () => {
@@ -227,6 +231,71 @@ describe("Tracklore API (e2e)", () => {
       watchedEpisodes: 1,
       totalEpisodes: 3,
     });
+  });
+
+  it("completes a finished show once every episode is watched", async () => {
+    const episodes = await request(http)
+      .get(`/api/library/entries/${entryId}/episodes`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+    // Episode 1 is already watched; watch the remaining two.
+    const [, ep2, ep3] = episodes.body.seasons[0].episodes;
+    for (const ep of [ep2, ep3]) {
+      await request(http)
+        .post(`/api/library/episodes/${ep.id}/watches`)
+        .set("Authorization", `Bearer ${accessToken}`)
+        .send({})
+        .expect(201);
+    }
+
+    const entry = await request(http)
+      .get(`/api/library/entries/${entryId}`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+    // All episodes watched + FINISHED airing → COMPLETED (not UP_TO_DATE).
+    expect(entry.body.status).toBe("COMPLETED");
+  });
+
+  it("serves the unified media page with metadata + the user's state", async () => {
+    await request(http).get("/api/media/anime/4242").expect(401);
+
+    const response = await request(http)
+      .get("/api/media/anime/4242")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+
+    expect(response.body.title).toBe("Test Anime");
+    expect(response.body.airingFinished).toBe(true);
+    expect(response.body.seasons[0].episodes[0].watchCount).toBeGreaterThan(0);
+    expect(response.body.entry).not.toBeNull();
+    expect(response.body.entry.status).toBe("COMPLETED");
+  });
+
+  it("keeps a manual pause override until the user resumes", async () => {
+    await request(http)
+      .patch(`/api/library/entries/${entryId}`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ status: "PAUSED" })
+      .expect(200);
+
+    const paused = await request(http)
+      .get(`/api/library/entries/${entryId}`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+    // Override wins even though every episode is watched.
+    expect(paused.body.status).toBe("PAUSED");
+
+    // Resume → back to the derived status.
+    await request(http)
+      .patch(`/api/library/entries/${entryId}`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ status: "WATCHING" })
+      .expect(200);
+    const resumed = await request(http)
+      .get(`/api/library/entries/${entryId}`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+    expect(resumed.body.status).toBe("COMPLETED");
   });
 
   it("rotates refresh tokens: the old one is consumed", async () => {

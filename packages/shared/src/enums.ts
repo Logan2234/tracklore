@@ -29,12 +29,20 @@ export const CatalogSource = {
 } as const;
 export type CatalogSource = (typeof CatalogSource)[keyof typeof CatalogSource];
 
-/** Status of a media in a user's library. PLANNED doubles as the watchlist. */
+/**
+ * Status of a media in a user's library. PLANNED doubles as the watchlist.
+ *
+ * Only PAUSED and DROPPED are user-set (manual overrides); the others are
+ * derived at read time from watch progress + airing status (see
+ * `LibraryService.deriveStatus`). UP_TO_DATE ("caught up") applies to
+ * series/anime that are fully watched but still airing — it is never persisted.
+ */
 export const EntryStatus = {
   WATCHING: "WATCHING",
   COMPLETED: "COMPLETED",
   PLANNED: "PLANNED",
   DROPPED: "DROPPED",
   PAUSED: "PAUSED",
+  UP_TO_DATE: "UP_TO_DATE",
 } as const;
 export type EntryStatus = (typeof EntryStatus)[keyof typeof EntryStatus];

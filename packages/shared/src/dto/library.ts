@@ -7,6 +7,11 @@ export interface MediaItemDto {
   title: string;
   posterUrl: string | null;
   canonicalSource: CatalogSource;
+  /**
+   * External ID in `canonicalSource`. With `type` it forms the catalogue
+   * identity used to address the media page (`/media/{type}/{sourceId}`).
+   */
+  sourceId: string;
 }
 
 export interface LibraryEntryDto {
