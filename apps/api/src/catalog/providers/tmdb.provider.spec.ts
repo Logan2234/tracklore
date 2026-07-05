@@ -100,18 +100,37 @@ describe("TmdbProvider", () => {
     });
   });
 
-  it("resolves a TVDB series id to a TMDB id via /find", async () => {
+  it("resolves a TVDB series id to a TMDB summary via /find", async () => {
     mockFetchByUrl({
-      "/find/81189": { tv_results: [{ id: 1396 }], movie_results: [] },
+      "/find/81189": {
+        tv_results: [
+          {
+            id: 1396,
+            name: "Breaking Bad",
+            first_air_date: "2008-01-20",
+            poster_path: "/bb.jpg",
+          },
+        ],
+        movie_results: [],
+      },
     });
 
-    await expect(provider.findSeriesByTvdbId("81189")).resolves.toBe("1396");
+    const summary = await provider.findSeriesSummaryByTvdbId("81189");
+    expect(summary).toMatchObject({
+      source: "TMDB",
+      sourceId: "1396",
+      type: MediaType.SERIES,
+      title: "Breaking Bad",
+      year: 2008,
+    });
   });
 
   it("returns null when /find has no TV result for the TVDB id", async () => {
     mockFetchByUrl({ "/find/999999": { tv_results: [], movie_results: [] } });
 
-    await expect(provider.findSeriesByTvdbId("999999")).resolves.toBeNull();
+    await expect(
+      provider.findSeriesSummaryByTvdbId("999999"),
+    ).resolves.toBeNull();
   });
 
   it("maps series details with TVDB ID and per-season episodes (specials included)", async () => {

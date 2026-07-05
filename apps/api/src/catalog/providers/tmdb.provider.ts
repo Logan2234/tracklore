@@ -46,6 +46,7 @@ interface TmdbMovieDetails extends TmdbMovieResult {
   backdrop_path?: string | null;
   genres?: { name: string }[];
   status?: string | null;
+  runtime?: number | null;
   external_ids?: TmdbExternalIds;
 }
 
@@ -54,6 +55,8 @@ interface TmdbTvDetails extends TmdbTvResult {
   backdrop_path?: string | null;
   genres?: { name: string }[];
   status?: string | null;
+  // TMDB reports per-episode runtimes as an array (usually one value).
+  episode_run_time?: number[];
   external_ids?: TmdbExternalIds;
   seasons?: { season_number: number; name?: string | null }[];
 }
@@ -67,7 +70,9 @@ interface TmdbSeasonDetails {
 }
 
 interface TmdbFindResult {
-  tv_results?: { id: number }[];
+  // `/find` returns full objects, so a TVDB lookup already carries the metadata
+  // needed to display the match — no extra details call.
+  tv_results?: TmdbTvResult[];
   movie_results?: { id: number }[];
 }
 
@@ -78,16 +83,21 @@ export class TmdbProvider implements CatalogProvider {
 
   constructor(private readonly configService: ConfigService) {}
 
-  async search(query: string, type?: MediaType): Promise<MediaSummaryDto[]> {
+  async search(
+    query: string,
+    type?: MediaType,
+    page = 1,
+  ): Promise<MediaSummaryDto[]> {
     const wantMovies = type === undefined || type === MediaType.MOVIE;
     const wantSeries = type === undefined || type === MediaType.SERIES;
+    const params = { query, page: String(page) };
 
     const [movies, series] = await Promise.all([
       wantMovies
-        ? this.get<{ results: TmdbMovieResult[] }>("/search/movie", { query })
+        ? this.get<{ results: TmdbMovieResult[] }>("/search/movie", params)
         : Promise.resolve({ results: [] }),
       wantSeries
-        ? this.get<{ results: TmdbTvResult[] }>("/search/tv", { query })
+        ? this.get<{ results: TmdbTvResult[] }>("/search/tv", params)
         : Promise.resolve({ results: [] }),
     ]);
 
@@ -107,16 +117,18 @@ export class TmdbProvider implements CatalogProvider {
   }
 
   /**
-   * Resolve a TheTVDB series id to a TMDB series id. Used by the TV Time
-   * import, whose shows are identified by TVDB ids. Returns null when TMDB
-   * knows no series for that external id.
+   * Resolve a TheTVDB series id to its TMDB series summary (title, year,
+   * poster). Used by the TV Time import, whose shows are identified by TVDB
+   * ids. Returns null when TMDB knows no series for that external id.
    */
-  async findSeriesByTvdbId(tvdbId: string): Promise<string | null> {
+  async findSeriesSummaryByTvdbId(
+    tvdbId: string,
+  ): Promise<MediaSummaryDto | null> {
     const found = await this.get<TmdbFindResult>(`/find/${tvdbId}`, {
       external_source: "tvdb_id",
     });
     const tv = found.tv_results?.[0];
-    return tv ? String(tv.id) : null;
+    return tv ? this.toTvSummary(tv) : null;
   }
 
   private async getMovieDetails(
@@ -135,6 +147,7 @@ export class TmdbProvider implements CatalogProvider {
       genres: movie.genres?.map((g) => g.name) ?? [],
       status: movie.status ?? null,
       releaseDate: movie.release_date || null,
+      runtimeMin: movie.runtime ?? null,
       externalIds: this.toExternalIds(String(movie.id), movie.external_ids),
       seasons: [],
     };
@@ -171,6 +184,7 @@ export class TmdbProvider implements CatalogProvider {
       genres: tv.genres?.map((g) => g.name) ?? [],
       status: tv.status ?? null,
       releaseDate: tv.first_air_date || null,
+      runtimeMin: tv.episode_run_time?.[0] ?? null,
       externalIds: this.toExternalIds(String(tv.id), tv.external_ids),
       seasons,
     };

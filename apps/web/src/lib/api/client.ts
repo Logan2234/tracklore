@@ -5,12 +5,14 @@ import type {
   EntryStatus,
   EpisodeWatchDto,
   LibraryEntryDto,
+  ImportCommitRequest,
   LoginRequestDto,
   MediaDetailDto,
   MediaDetailsDto,
   MediaType,
   RegisterRequestDto,
   SearchResponseDto,
+  StatsDto,
   StartTvTimeImportDto,
   TvTimeImportJobDto,
   UpsertLibraryEntryDto,
@@ -159,9 +161,11 @@ export async function logout(): Promise<void> {
 export function searchCatalog(
   query: string,
   type?: MediaType,
+  page = 1,
 ): Promise<SearchResponseDto> {
   const params = new URLSearchParams({ q: query });
   if (type) params.set("type", type);
+  if (page > 1) params.set("page", String(page));
   return request(`/catalog/search?${params}`);
 }
 
@@ -244,16 +248,34 @@ export function watchThrough(episodeId: string): Promise<void> {
   });
 }
 
+/** Undo the most recent watch of an episode (unwatches it at a single watch). */
+export function unwatchEpisode(episodeId: string): Promise<void> {
+  return request(`/library/episodes/${episodeId}/watches`, { method: "DELETE" });
+}
+
 export function getCalendar(): Promise<CalendarEntryDto[]> {
   return request("/library/calendar");
 }
 
+export function getStats(): Promise<StatsDto> {
+  return request("/library/stats");
+}
+
 // --- TV Time import ---
 
-export function startTvTimeImport(
+/** Analyse an export → reconciliation plan (writes nothing). Poll the job. */
+export function analyzeTvTimeImport(
   body: StartTvTimeImportDto,
 ): Promise<TvTimeImportJobDto> {
-  return request("/import/tvtime", { method: "POST", body });
+  return request("/import/tvtime/analyze", { method: "POST", body });
+}
+
+/** Commit an analysed import with the user's reconciliation decisions. */
+export function commitTvTimeImport(
+  jobId: string,
+  body: ImportCommitRequest,
+): Promise<TvTimeImportJobDto> {
+  return request(`/import/tvtime/${jobId}/commit`, { method: "POST", body });
 }
 
 export function getTvTimeImportJob(jobId: string): Promise<TvTimeImportJobDto> {

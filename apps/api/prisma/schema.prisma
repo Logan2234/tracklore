@@ -80,6 +80,9 @@ model MediaItem {
   // Airing status as reported by the source (free-form: "Returning Series", "FINISHED"…).
   status          String?
   genres          String[]
+  // Average minutes per episode (series/anime) or the film's runtime; null until
+  // captured from the source. Used by the stats aggregation for watch time.
+  runtimeMin      Int?
   metadata        Json          @default("{}")
   lastSyncedAt    DateTime      @default(now())
   createdAt       DateTime      @default(now())

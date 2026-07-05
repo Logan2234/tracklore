@@ -7,6 +7,7 @@
     getMediaDetail,
     updateLibraryEntry,
     upsertLibraryEntry,
+    unwatchEpisode,
     watchEpisode,
     watchSeason,
     watchThrough,
@@ -49,6 +50,34 @@
   const seasonWatched = (season: MediaDetailSeasonDto) =>
     season.episodes.length > 0 &&
     season.episodes.every((ep) => ep.watchCount > 0);
+
+  // True when every regular episode *before* this one is watched — then "mark
+  // through here" would only mark this episode (same as "Marquer vu"), so it's
+  // hidden. Specials are not part of the linear run.
+  function allPreviousWatched(seasonNumber: number, episodeNumber: number): boolean {
+    if (!detail) return false;
+    for (const s of detail.seasons) {
+      if (s.number === 0) continue;
+      for (const ep of s.episodes) {
+        const before =
+          s.number < seasonNumber ||
+          (s.number === seasonNumber && ep.number < episodeNumber);
+        if (before && ep.watchCount === 0) return false;
+      }
+    }
+    return true;
+  }
+
+  // The episode the open dropdown belongs to (with its season number).
+  const menuCtx = $derived.by(() => {
+    const m = menu;
+    if (!m || !detail) return null;
+    for (const s of detail.seasons) {
+      const ep = s.episodes.find((e) => e.id === m.episodeId);
+      if (ep) return { seasonNumber: s.number, episode: ep };
+    }
+    return null;
+  });
 
   const type = $derived((page.params.type ?? "").toUpperCase() as MediaType);
   const id = $derived(page.params.id ?? "");
@@ -174,6 +203,21 @@
     } catch (err) {
       error =
         err instanceof ApiError ? err.message : "Impossible de marquer les épisodes";
+    } finally {
+      busyEpisodeId = null;
+    }
+  }
+
+  async function markUnwatch(episodeId: string) {
+    menu = null;
+    busyEpisodeId = episodeId;
+    error = null;
+    try {
+      await unwatchEpisode(episodeId);
+      await reload();
+    } catch (err) {
+      error =
+        err instanceof ApiError ? err.message : "Impossible d'annuler le visionnage";
     } finally {
       busyEpisodeId = null;
     }
@@ -427,6 +471,9 @@
                   {/if}
                   {#if entry && episode.id}
                     {@const watched = episode.watchCount > 0}
+                    {@const canThrough =
+                      season.number > 0 &&
+                      !allPreviousWatched(season.number, episode.number)}
                     <!-- Split-button: primary marks this episode; the attached
                          chevron opens a dropdown (e.g. "mark through here"). -->
                     <div
@@ -441,7 +488,7 @@
                         onclick={() => markWatched(episode.id!)}>
                         {watched ? "Revoir" : "Marquer vu"}
                       </button>
-                      {#if season.number > 0}
+                      {#if canThrough || watched}
                         <button
                           class="border-l px-1.5 transition-[filter,background-color,color] {watched
                             ? 'border-border hover:bg-surface-2 hover:text-fg'
@@ -464,8 +511,12 @@
   </div>
 
   <!-- Episode-row dropdown (fixed so it escapes the season card's clipping). -->
-  {#if menu}
+  {#if menu && menuCtx}
     {@const active = menu}
+    {@const showThrough =
+      menuCtx.seasonNumber > 0 &&
+      !allPreviousWatched(menuCtx.seasonNumber, menuCtx.episode.number)}
+    {@const showUnwatch = menuCtx.episode.watchCount > 0}
     <button
       class="fixed inset-0 z-30 cursor-default"
       aria-label="Fermer le menu"
@@ -474,11 +525,24 @@
       role="menu"
       class="fixed z-40 min-w-44 overflow-hidden rounded-lg border border-border bg-surface shadow-lg"
       style={`top: ${active.top}px; right: ${active.right}px`}>
-      <button
-        class="block w-full px-3 py-2 text-left text-sm hover:bg-surface-2"
-        onclick={() => markThrough(active.episodeId)}>
-        Marquer vu jusqu'ici
-      </button>
+      {#if showThrough}
+        <button
+          class="block w-full px-3 py-2 text-left text-sm hover:bg-surface-2"
+          onclick={() => markThrough(active.episodeId)}>
+          Marquer vu jusqu'ici
+        </button>
+      {/if}
+      {#if showUnwatch}
+        <button
+          class="block w-full px-3 py-2 text-left text-sm hover:bg-surface-2 {showThrough
+            ? 'border-t border-border'
+            : ''}"
+          onclick={() => markUnwatch(active.episodeId)}>
+          {menuCtx.episode.watchCount > 1
+            ? "Retirer un visionnage"
+            : "Marquer non vu"}
+        </button>
+      {/if}
     </div>
   {/if}
 {:else if !error}

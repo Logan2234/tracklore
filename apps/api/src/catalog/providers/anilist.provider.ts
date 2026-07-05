@@ -18,8 +18,8 @@ import type {
 const GRAPHQL_URL = "https://graphql.anilist.co";
 
 const SEARCH_QUERY = `
-  query ($search: String) {
-    Page(perPage: 20) {
+  query ($search: String, $page: Int) {
+    Page(page: $page, perPage: 20) {
       media(search: $search, type: ANIME) {
         id
         title { romaji english }
@@ -41,6 +41,7 @@ const DETAILS_QUERY = `
       genres
       status
       episodes
+      duration
       startDate { year month day }
       nextAiringEpisode { episode }
       streamingEpisodes { title }
@@ -58,6 +59,8 @@ interface AnilistMedia {
   genres?: string[];
   status?: string | null;
   episodes?: number | null;
+  /** Average minutes per episode. */
+  duration?: number | null;
   startDate?: {
     year?: number | null;
     month?: number | null;
@@ -72,11 +75,17 @@ interface AnilistMedia {
 export class AnilistProvider implements CatalogProvider {
   readonly source = CatalogSource.ANILIST;
 
-  async search(query: string): Promise<MediaSummaryDto[]> {
+  // AniList only serves anime, so the `type` filter is irrelevant here.
+  async search(
+    query: string,
+    _type?: MediaType,
+    page = 1,
+  ): Promise<MediaSummaryDto[]> {
     const data = await this.query<{ Page: { media: AnilistMedia[] } }>(
       SEARCH_QUERY,
       {
         search: query,
+        page,
       },
     );
     return data.Page.media.map((media) => this.toSummary(media));
@@ -101,6 +110,7 @@ export class AnilistProvider implements CatalogProvider {
       genres: media.genres ?? [],
       status: media.status ?? null,
       releaseDate: toIsoDate(media.startDate),
+      runtimeMin: media.duration ?? null,
       externalIds: [
         { source: MediaSource.ANILIST, externalId: String(media.id) },
       ],

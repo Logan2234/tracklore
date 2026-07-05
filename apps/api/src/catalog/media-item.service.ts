@@ -187,6 +187,7 @@ export class MediaItemService {
       releaseDate: details.releaseDate ? new Date(details.releaseDate) : null,
       status: details.status,
       genres: details.genres,
+      runtimeMin: details.runtimeMin,
       lastSyncedAt: new Date(),
     };
   }

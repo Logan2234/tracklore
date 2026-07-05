@@ -367,6 +367,20 @@ describe("Tracklore API (e2e)", () => {
       totalEpisodes: 3,
     });
     expect(entry.body.status).toBe("WATCHING");
+
+    // Undo watching episode 2 → back to 1 watched.
+    await request(http)
+      .delete(`/api/library/episodes/${eps[1].id}/watches`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(204);
+
+    const undone = await request(http)
+      .get(`/api/library/entries/${newEntryId}/episodes`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+    expect(
+      undone.body.seasons[0].episodes.map((e: { watchCount: number }) => e.watchCount),
+    ).toEqual([1, 0, 0]);
   });
 
   it("rotates refresh tokens: the old one is consumed", async () => {

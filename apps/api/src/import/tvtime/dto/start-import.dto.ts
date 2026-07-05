@@ -9,13 +9,5 @@ export class StartImportDto implements StartTvTimeImportDto {
 
   @IsOptional()
   @IsBoolean()
-  dryRun?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
   importMovies?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
-  overwrite?: boolean;
 }

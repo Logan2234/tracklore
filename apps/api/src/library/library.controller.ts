@@ -18,6 +18,7 @@ import type {
   EpisodeWatchDto,
   LibraryEntryDto,
   MediaType,
+  StatsDto,
 } from "@tracklore/shared";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { JwtPayload } from "../auth/decorators/current-user.decorator";
@@ -50,6 +51,11 @@ export class LibraryController {
   @Get("calendar")
   getCalendar(@CurrentUser() user: JwtPayload): Promise<CalendarEntryDto[]> {
     return this.libraryService.getCalendar(user.sub);
+  }
+
+  @Get("stats")
+  getStats(@CurrentUser() user: JwtPayload): Promise<StatsDto> {
+    return this.libraryService.getStats(user.sub);
   }
 
   @Get("entries/:id")
@@ -111,6 +117,15 @@ export class LibraryController {
     @Param("episodeId") episodeId: string,
   ): Promise<void> {
     await this.libraryService.watchThrough(user.sub, episodeId);
+  }
+
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Delete("episodes/:episodeId/watches")
+  async unwatchEpisode(
+    @CurrentUser() user: JwtPayload,
+    @Param("episodeId") episodeId: string,
+  ): Promise<void> {
+    await this.libraryService.unwatchEpisode(user.sub, episodeId);
   }
 
   @HttpCode(HttpStatus.NO_CONTENT)

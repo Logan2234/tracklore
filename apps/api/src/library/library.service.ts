@@ -21,6 +21,7 @@ import type {
   MediaItemDto,
   MediaType,
   ProgressDto,
+  StatsDto,
 } from "@tracklore/shared";
 import { MediaItemService } from "../catalog/media-item.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -28,6 +29,7 @@ import { UpdateEntryDto } from "./dto/update-entry.dto";
 import { UpsertEntryDto } from "./dto/upsert-entry.dto";
 import { WatchEpisodeDto } from "./dto/watch-episode.dto";
 import { deriveStatus, normalizeAiringFinished } from "./status.util";
+import { aggregateStats } from "./stats.util";
 
 /** Reused include: entries always need the media + its external IDs (sourceId).
  * `satisfies` (not a type annotation) keeps the literal shape so Prisma can
@@ -325,6 +327,66 @@ export class LibraryService {
       // airDate is guaranteed non-null by the `gte` filter above.
       airDate: episode.airDate!.toISOString(),
     }));
+  }
+
+  /** Aggregated viewing statistics for the profile's stats page. */
+  async getStats(userId: string): Promise<StatsDto> {
+    const [watches, entries] = await Promise.all([
+      this.prisma.episodeWatch.findMany({
+        where: { userId },
+        select: {
+          episode: {
+            select: {
+              season: {
+                select: {
+                  number: true,
+                  mediaItem: {
+                    select: { type: true, genres: true, runtimeMin: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.libraryEntry.findMany({
+        where: { userId },
+        select: {
+          status: true,
+          mediaItem: { select: { type: true, genres: true, runtimeMin: true } },
+        },
+      }),
+    ]);
+
+    return aggregateStats(
+      watches.map((w) => ({
+        seasonNumber: w.episode.season.number,
+        type: w.episode.season.mediaItem.type as MediaType,
+        genres: w.episode.season.mediaItem.genres,
+        runtimeMin: w.episode.season.mediaItem.runtimeMin,
+      })),
+      entries.map((e) => ({
+        type: e.mediaItem.type as MediaType,
+        status: e.status as EntryStatus,
+        genres: e.mediaItem.genres,
+        runtimeMin: e.mediaItem.runtimeMin,
+      })),
+    );
+  }
+
+  /**
+   * Undo watching an episode: removes the user's most recent watch for it
+   * (so it decrements a rewatch count, and unwatches the episode at one watch).
+   */
+  async unwatchEpisode(userId: string, episodeId: string): Promise<void> {
+    const latest = await this.prisma.episodeWatch.findFirst({
+      where: { userId, episodeId },
+      orderBy: { watchedAt: "desc" },
+    });
+    if (!latest) {
+      throw new NotFoundException("No watch to undo for this episode");
+    }
+    await this.prisma.episodeWatch.delete({ where: { id: latest.id } });
   }
 
   async deleteWatch(userId: string, watchId: string): Promise<void> {

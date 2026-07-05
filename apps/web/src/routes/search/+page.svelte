@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { onMount } from "svelte";
+  import { fly } from "svelte/transition";
   import type {
     EntryStatus,
     MediaSummaryDto,
@@ -30,26 +32,41 @@
     DROPPED: "Abandonné",
   };
 
+  const DEBOUNCE_MS = 300;
+
   let query = $state("");
   let type = $state<MediaType | undefined>(undefined);
   let results = $state<MediaSummaryDto[]>([]);
   let searched = $state(false);
-  let loading = $state(false);
+  let loading = $state(false); // fetching the first page of a new search
+  let loadingMore = $state(false); // fetching a follow-up page (infinite scroll)
+  let done = $state(false); // no more pages for the current search
   let error = $state<string | null>(null);
+
+  let sentinel = $state<HTMLElement | null>(null);
+  let reduced = $state(false); // prefers-reduced-motion: skip enter animation
+
+  // Non-reactive search bookkeeping.
+  let lastPage = 0; // last page number fetched for the current search
+  let searchId = 0; // bumped on every reset; stale responses are discarded
+  let seen = new Set<string>(); // catalogue keys already shown (cross-page dedup)
+  let debounceTimer: ReturnType<typeof setTimeout>;
+
+  const keyOf = (m: MediaSummaryDto) => `${m.source}:${m.sourceId}`;
 
   // Titles already in the library, keyed by catalogue identity, so results can
   // be flagged (and their current status shown) instead of looking already-new.
   let tracked = $state<Map<string, EntryStatus>>(new Map());
-  const key = (type: MediaType, sourceId: string) => `${type}:${sourceId}`;
+  const trackKey = (t: MediaType, sourceId: string) => `${t}:${sourceId}`;
   const trackedStatus = (m: MediaSummaryDto) =>
-    tracked.get(key(m.type, m.sourceId));
+    tracked.get(trackKey(m.type, m.sourceId));
 
   $effect(() => {
     listLibrary()
       .then((entries) => {
         tracked = new Map(
           entries.map((e) => [
-            key(e.mediaItem.type, e.mediaItem.sourceId),
+            trackKey(e.mediaItem.type, e.mediaItem.sourceId),
             e.status,
           ]),
         );
@@ -57,24 +74,108 @@
       .catch(() => {});
   });
 
-  async function submit(event?: SubmitEvent) {
-    event?.preventDefault();
-    if (!query.trim()) return;
-    loading = true;
+  onMount(() => {
+    reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  });
+
+  function clearResults() {
+    searchId++; // invalidate any in-flight request
+    lastPage = 0;
+    done = false;
+    seen = new Set();
+    results = [];
+    searched = false;
     error = null;
+    loading = false;
+    loadingMore = false;
+  }
+
+  /**
+   * Runs the search. `reset` starts a fresh search from page 1 (new query or
+   * type); otherwise it appends the next page for the infinite scroll.
+   */
+  async function runSearch(reset: boolean) {
+    const q = query.trim();
+    if (!q) {
+      clearResults();
+      return;
+    }
+    if (!reset && (loading || loadingMore || done)) return;
+
+    if (reset) {
+      searchId++;
+      lastPage = 0;
+      done = false;
+      seen = new Set();
+      results = [];
+    }
+    const mine = searchId;
+    const next = lastPage + 1;
+    if (reset) loading = true;
+    else loadingMore = true;
+    error = null;
+
     try {
-      results = (await searchCatalog(query.trim(), type)).results;
+      const batch = (await searchCatalog(q, type, next)).results;
+      if (mine !== searchId) return; // a newer search superseded this one
+      lastPage = next;
       searched = true;
+      if (batch.length === 0) {
+        done = true;
+      } else {
+        const fresh = batch.filter((m) => !seen.has(keyOf(m)));
+        for (const m of fresh) seen.add(keyOf(m));
+        results = [...results, ...fresh];
+      }
     } catch (err) {
+      if (mine !== searchId) return;
       error = err instanceof ApiError ? err.message : "Recherche impossible";
     } finally {
-      loading = false;
+      if (mine === searchId) {
+        loading = false;
+        loadingMore = false;
+      }
     }
   }
 
+  // Debounced live search: refetch page 1 whenever the query changes.
+  $effect(() => {
+    const q = query; // track the query only (type is handled eagerly below)
+    clearTimeout(debounceTimer);
+    if (!q.trim()) {
+      clearResults();
+      return;
+    }
+    debounceTimer = setTimeout(() => void runSearch(true), DEBOUNCE_MS);
+    return () => clearTimeout(debounceTimer);
+  });
+
+  // Infinite scroll: load the next page when the sentinel nears the viewport.
+  $effect(() => {
+    const el = sentinel;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) void runSearch(false);
+      },
+      { rootMargin: "400px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  });
+
+  function submitNow(event: SubmitEvent) {
+    event.preventDefault();
+    clearTimeout(debounceTimer);
+    if (query.trim()) void runSearch(true);
+  }
+
   function selectType(value: MediaType | undefined) {
+    if (value === type) return;
     type = value;
-    if (searched) void submit();
+    clearTimeout(debounceTimer);
+    if (query.trim()) void runSearch(true); // eager, no debounce
+    else clearResults();
   }
 </script>
 
@@ -88,8 +189,8 @@
     </p>
   </header>
 
-  <form onsubmit={submit} class="mb-5 flex gap-2">
-    <div class="relative flex-1">
+  <form onsubmit={submitNow} class="mb-5">
+    <div class="relative">
       <span
         class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-dim">
         <Icon name="search" class="h-5 w-5" />
@@ -100,9 +201,6 @@
         bind:value={query}
         class="input pl-10" />
     </div>
-    <button type="submit" class="btn btn-primary" disabled={loading}>
-      {loading ? "Recherche…" : "Chercher"}
-    </button>
   </form>
 
   <div class="mb-7 flex flex-wrap gap-2">
@@ -123,20 +221,25 @@
     </p>
   {/if}
 
-  {#if loading}
-    <p class="timecode text-sm">Recherche en cours…</p>
-  {:else if searched && results.length === 0}
-    <p class="timecode text-sm">Aucun résultat.</p>
-  {:else if !searched}
-    <div
-      class="rounded-xl border border-dashed border-border px-6 py-16 text-center text-dim">
-      Lance une recherche pour commencer.
-    </div>
-  {:else}
+  {#if loading && results.length === 0}
     <div
       class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-      {#each results as media (`${media.source}:${media.sourceId}`)}
+      {#each { length: 10 } as _, i (i)}
+        <div class="card flex flex-col">
+          <div class="aspect-2/3 w-full animate-pulse bg-surface-2"></div>
+          <div class="flex flex-col gap-2 p-3">
+            <div class="h-3.5 w-4/5 animate-pulse rounded bg-surface-2"></div>
+            <div class="h-3 w-1/2 animate-pulse rounded bg-surface-2"></div>
+          </div>
+        </div>
+      {/each}
+    </div>
+  {:else if results.length > 0}
+    <div
+      class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+      {#each results as media (keyOf(media))}
         <a
+          in:fly={{ y: 8, duration: reduced ? 0 : 220 }}
           href={`/media/${media.type.toLowerCase()}/${media.sourceId}`}
           class="card group flex flex-col transition-[transform,border-color] duration-150 hover:-translate-y-0.5 hover:border-accent">
           <div class="relative">
@@ -159,6 +262,21 @@
           </div>
         </a>
       {/each}
+    </div>
+
+    {#if !done}
+      <!-- Sentinel: entering the viewport triggers the next page. -->
+      <div bind:this={sentinel} class="h-10"></div>
+    {/if}
+    {#if loadingMore}
+      <p class="timecode mt-4 text-center text-sm">Chargement…</p>
+    {/if}
+  {:else if searched}
+    <p class="timecode text-sm">Aucun résultat.</p>
+  {:else}
+    <div
+      class="rounded-xl border border-dashed border-border px-6 py-16 text-center text-dim">
+      Lance une recherche pour commencer.
     </div>
   {/if}
 </div>

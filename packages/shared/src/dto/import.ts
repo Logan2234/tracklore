@@ -1,4 +1,4 @@
-import type { EntryStatus } from "../enums";
+import type { CatalogSource, EntryStatus, MediaType } from "../enums";
 
 /**
  * Raw CSV text extracted from a TV Time GDPR export, one field per relevant
@@ -25,16 +25,8 @@ export interface StartTvTimeImportDto {
    * the existing JSON transport (no multipart, no new server dependency).
    */
   zipBase64: string;
-  /** When true, reconcile against TMDB and produce a report but write nothing. */
-  dryRun?: boolean;
   /** Import the ~hundreds of tracked movies (default true). */
   importMovies?: boolean;
-  /**
-   * When true, wipe the user's library and watch history before importing
-   * (destructive replace); otherwise the import is additive. Ignored on a
-   * dry run, which writes nothing.
-   */
-  overwrite?: boolean;
 }
 
 /** One watched episode of a show, identified by its season/episode numbers. */
@@ -111,9 +103,82 @@ export interface TvTimeImportJobDto {
     movies: number;
     totalMovies: number;
   };
-  /** Populated once the job leaves the `running` state. */
+  /** Populated once an analysis job completes (reconciliation plan to review). */
+  plan: ImportPlan | null;
+  /** Populated once a commit (or legacy dry-run) job completes. */
   report: TvTimeImportReport | null;
   error: string | null;
+}
+
+// --- Interactive reconciliation (analyze → review → commit) ---
+
+/** A catalogue title a source item resolved to during analysis. */
+export interface ImportMatch {
+  source: CatalogSource;
+  sourceId: string;
+  type: MediaType;
+  title: string;
+  year: number | null;
+  posterUrl: string | null;
+}
+
+/** A show in the reconciliation plan, with its resolution outcome. */
+export interface ImportPlanShow {
+  /** Stable id used to carry the user's decision back to `commit`. */
+  key: string;
+  title: string;
+  /** Distinct watched episodes from the export; 0 ⇒ watchlist. */
+  episodesWatched: number;
+  /** Resolved catalogue match, or null when it needs a manual search. */
+  match: ImportMatch | null;
+  /** Default inclusion — true when confidently resolved, false otherwise. */
+  include: boolean;
+}
+
+/** A movie in the reconciliation plan. */
+export interface ImportPlanMovie {
+  key: string;
+  title: string;
+  year: number | null;
+  /** true ⇒ would import as COMPLETED; false ⇒ watchlist (PLANNED). */
+  watched: boolean;
+  match: ImportMatch | null;
+  include: boolean;
+}
+
+/**
+ * The full analysis result, grouped into the collections the UI reconciles
+ * one by one. Items with `match === null` are the "needs review" set (filtered
+ * across collections client-side), where the user searches for the right title.
+ */
+export interface ImportPlan {
+  seriesTracked: ImportPlanShow[];
+  seriesWatchlist: ImportPlanShow[];
+  moviesWatched: ImportPlanMovie[];
+  moviesWatchlist: ImportPlanMovie[];
+  counts: {
+    shows: number;
+    movies: number;
+    /** Shows + movies with no automatic match. */
+    unresolved: number;
+  };
+}
+
+/** A catalogue target chosen manually for an unresolved item, at commit time. */
+export interface ImportCommitOverride {
+  source: CatalogSource;
+  sourceId: string;
+  type: MediaType;
+}
+
+/** The user's reconciliation decisions, sent to commit an analysed import. */
+export interface ImportCommitRequest {
+  /** Keys (from the plan) the user chose to import. */
+  include: string[];
+  /** Manual matches for items the analysis left unresolved, keyed by plan key. */
+  overrides?: Record<string, ImportCommitOverride>;
+  /** Wipe the library/history before writing (destructive replace). */
+  overwrite?: boolean;
 }
 
 /** Cap on how many sample items each report array holds. */

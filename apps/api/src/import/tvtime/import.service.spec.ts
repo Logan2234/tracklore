@@ -1,5 +1,6 @@
 import type { StartTvTimeImportDto } from "@tracklore/shared";
 import { ImportService } from "./import.service";
+import { TvTimeImportSource } from "./tvtime.source";
 import { makeZip } from "./make-zip";
 
 // Two watched episodes of one show (TVDB 100), plus a never-started show (200).
@@ -13,7 +14,6 @@ const SHOWS_CSV = [
   "My Show,100,2",
   "Planned Show,200,0",
 ].join("\n");
-// Header-only files, so importMovies runs can supply the required movies file.
 const EMPTY_SHOWS = "tv_show_name,tv_show_id,nb_episodes_seen";
 const EMPTY_EPISODES =
   "series_name,episode_id,season_number,episode_number,s_id,bulk_type,created_at";
@@ -37,13 +37,6 @@ function zipBase64(files: {
   return makeZip(entries).toString("base64");
 }
 
-function seriesDetails() {
-  // Season 1 has exactly the two episodes above → fully watched → COMPLETED.
-  return {
-    seasons: [{ number: 1, episodes: [{ number: 1 }, { number: 2 }] }],
-  };
-}
-
 function makeMocks() {
   const prisma = {
     season: { findMany: jest.fn() },
@@ -61,17 +54,17 @@ function makeMocks() {
     $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
   };
   const mediaItemService = {
-    getLiveDetails: jest.fn().mockResolvedValue(seriesDetails()),
     upsertFromSource: jest.fn().mockResolvedValue({ id: "media-100" }),
   };
   const tmdb = {
-    findSeriesByTvdbId: jest.fn(),
+    findSeriesSummaryByTvdbId: jest.fn().mockResolvedValue(null),
     search: jest.fn().mockResolvedValue([]),
   };
   const service = new ImportService(
     prisma as never,
     mediaItemService as never,
     tmdb as never,
+    new TvTimeImportSource(),
   );
   return { prisma, mediaItemService, tmdb, service };
 }
@@ -85,34 +78,117 @@ async function runToEnd(service: ImportService, userId: string, jobId: string) {
 }
 
 describe("ImportService", () => {
-  it("dry-run reconciles and reports without writing anything", async () => {
+  it("analyze builds a reconciliation plan without writing anything", async () => {
     const { prisma, tmdb, service } = makeMocks();
-    tmdb.findSeriesByTvdbId.mockResolvedValue("500");
+    // Only TVDB 100 resolves; the watchlist show (200) stays unresolved.
+    tmdb.findSeriesSummaryByTvdbId.mockImplementation((tvdbId: string) =>
+      Promise.resolve(
+        tvdbId === "100"
+          ? {
+              source: "TMDB",
+              sourceId: "500",
+              type: "SERIES",
+              title: "My Show",
+              year: 2024,
+              posterUrl: null,
+            }
+          : null,
+      ),
+    );
 
     const dto: StartTvTimeImportDto = {
       zipBase64: zipBase64({ episodesCsv: EPISODES_CSV, showsCsv: SHOWS_CSV }),
-      dryRun: true,
       importMovies: false,
     };
-    const { id } = service.startImport("u1", dto);
+    const { id } = service.startAnalyze("u1", dto);
     const job = await runToEnd(service, "u1", id);
 
     expect(job.status).toBe("completed");
-    expect(job.report!.shows).toMatchObject({
-      total: 2,
-      imported: 1, // My Show → COMPLETED
-      watchlist: 1, // Planned Show → PLANNED
+    expect(job.plan).not.toBeNull();
+    expect(job.plan!.seriesTracked).toHaveLength(1);
+    expect(job.plan!.seriesTracked[0]).toMatchObject({
+      key: "tvdb:100",
+      title: "My Show",
+      episodesWatched: 2,
+      include: true,
+      match: { sourceId: "500", source: "TMDB" },
     });
-    expect(job.report!.episodes.watched).toBe(2);
-    expect(job.report!.episodes.watchesCreated).toBe(0);
-    // Nothing persisted in a dry run.
-    expect(prisma.episodeWatch.createMany).not.toHaveBeenCalled();
+    expect(job.plan!.seriesWatchlist).toHaveLength(1);
+    expect(job.plan!.seriesWatchlist[0]).toMatchObject({
+      key: "tvdb:200",
+      match: null,
+      include: false,
+    });
+    expect(job.plan!.counts).toEqual({ shows: 2, movies: 0, unresolved: 1 });
     expect(prisma.libraryEntry.upsert).not.toHaveBeenCalled();
+    expect(prisma.episodeWatch.createMany).not.toHaveBeenCalled();
   });
 
-  it("real run creates watches and a COMPLETED entry for a fully-watched show", async () => {
+  it("analyze resolves movies and flags the unmatched ones", async () => {
+    const { tmdb, service } = makeMocks();
+    tmdb.search.mockImplementation((title: string) =>
+      Promise.resolve(
+        title === "Seen Film"
+          ? [
+              {
+                source: "TMDB",
+                sourceId: "m1",
+                type: "MOVIE",
+                title: "Seen Film",
+                year: 2020,
+                posterUrl: null,
+              },
+            ]
+          : [],
+      ),
+    );
+
+    const recordsCsv = [
+      "type,entity_type,movie_name,release_date",
+      "watch,movie,Seen Film,2020-01-01 00:00:00",
+      "towatch,movie,Later Film,2021-01-01 00:00:00",
+    ].join("\n");
+
+    const dto: StartTvTimeImportDto = {
+      zipBase64: zipBase64({
+        episodesCsv: EMPTY_EPISODES,
+        showsCsv: EMPTY_SHOWS,
+        recordsCsv,
+      }),
+    };
+    const { id } = service.startAnalyze("u1", dto);
+    const job = await runToEnd(service, "u1", id);
+
+    expect(job.plan!.moviesWatched).toHaveLength(1);
+    expect(job.plan!.moviesWatched[0]).toMatchObject({
+      title: "Seen Film",
+      include: true,
+      match: { sourceId: "m1" },
+    });
+    expect(job.plan!.moviesWatchlist[0]).toMatchObject({
+      title: "Later Film",
+      match: null,
+      include: false,
+    });
+    expect(job.plan!.counts).toMatchObject({ movies: 2, unresolved: 1 });
+  });
+
+  it("commit writes only the included items", async () => {
     const { prisma, mediaItemService, tmdb, service } = makeMocks();
-    tmdb.findSeriesByTvdbId.mockResolvedValue("500");
+    tmdb.findSeriesSummaryByTvdbId.mockImplementation((tvdbId: string) =>
+      Promise.resolve(
+        tvdbId === "100"
+          ? {
+              source: "TMDB",
+              sourceId: "500",
+              type: "SERIES",
+              title: "My Show",
+              year: 2024,
+              posterUrl: null,
+            }
+          : null,
+      ),
+    );
     prisma.season.findMany.mockResolvedValue([
       {
         number: 1,
@@ -130,8 +206,13 @@ describe("ImportService", () => {
       zipBase64: zipBase64({ episodesCsv: EPISODES_CSV, showsCsv: SHOWS_CSV }),
       importMovies: false,
     };
-    const { id } = service.startImport("u1", dto);
-    const job = await runToEnd(service, "u1", id);
+    const analyze = service.startAnalyze("u1", dto);
+    await runToEnd(service, "u1", analyze.id);
+
+    // Keep only the resolved tracked show; the unresolved watchlist one (200)
+    // is left out, so nothing is written for it.
+    const commit = service.commit("u1", analyze.id, { include: ["tvdb:100"] });
+    const job = await runToEnd(service, "u1", commit.id);
 
     expect(job.status).toBe("completed");
     expect(mediaItemService.upsertFromSource).toHaveBeenCalledWith(
@@ -140,65 +221,17 @@ describe("ImportService", () => {
       "SERIES",
     );
     expect(prisma.episodeWatch.createMany).toHaveBeenCalledTimes(2);
+    expect(job.report!.shows).toMatchObject({ total: 1, imported: 1 });
     expect(job.report!.episodes.watchesCreated).toBe(2);
-    expect(prisma.libraryEntry.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        create: expect.objectContaining({ status: "COMPLETED" }),
-      }),
-    );
   });
 
-  it("reports a show whose TVDB id does not resolve", async () => {
-    const { tmdb, service } = makeMocks();
-    tmdb.findSeriesByTvdbId.mockResolvedValue(null);
-
-    const dto: StartTvTimeImportDto = {
-      zipBase64: zipBase64({
-        episodesCsv: EPISODES_CSV,
-        showsCsv: "tv_show_name,tv_show_id,nb_episodes_seen\nMy Show,100,2",
-      }),
-      importMovies: false,
-    };
-    const { id } = service.startImport("u1", dto);
-    const job = await runToEnd(service, "u1", id);
-
-    expect(job.report!.shows.imported).toBe(0);
-    expect(job.report!.shows.unresolved).toEqual([
-      {
-        title: "My Show",
-        tvdbId: "100",
-        episodes: [
-          { season: 1, episode: 1 },
-          { season: 1, episode: 2 },
-        ],
-      },
-    ]);
-  });
-
-  it("classifies movies as watched (COMPLETED) or watchlist (PLANNED)", async () => {
-    const { prisma, mediaItemService, tmdb, service } = makeMocks();
-    tmdb.search.mockImplementation((title: string) =>
-      Promise.resolve([
-        {
-          source: "TMDB",
-          sourceId: `id-${title}`,
-          type: "MOVIE",
-          title,
-          year: 2020,
-          posterUrl: null,
-        },
-      ]),
-    );
-    mediaItemService.upsertFromSource.mockImplementation((_s, sourceId) =>
-      Promise.resolve({ id: `media-${sourceId}` }),
-    );
+  it("commit applies a manual override for an unresolved movie", async () => {
+    const { mediaItemService, service } = makeMocks(); // tmdb.search → [] (all unresolved)
 
     const recordsCsv = [
       "type,entity_type,movie_name,release_date",
-      "watch,movie,Seen Film,2020-01-01 00:00:00",
-      "towatch,movie,Later Film,2020-01-01 00:00:00",
+      "towatch,movie,Later Film,2021-01-01 00:00:00",
     ].join("\n");
-
     const dto: StartTvTimeImportDto = {
       zipBase64: zipBase64({
         episodesCsv: EMPTY_EPISODES,
@@ -206,99 +239,54 @@ describe("ImportService", () => {
         recordsCsv,
       }),
     };
-    const { id } = service.startImport("u1", dto);
-    const job = await runToEnd(service, "u1", id);
+    const analyze = service.startAnalyze("u1", dto);
+    await runToEnd(service, "u1", analyze.id);
 
-    expect(job.report!.movies).toMatchObject({
-      total: 2,
-      imported: 1,
-      watchlist: 1,
+    const key = "movie:later film:2021";
+    const commit = service.commit("u1", analyze.id, {
+      include: [key],
+      overrides: { [key]: { source: "TMDB", sourceId: "m2", type: "MOVIE" } },
     });
-    const statuses = prisma.libraryEntry.upsert.mock.calls.map(
-      (c) => c[0].create.status,
-    );
-    expect(statuses.sort()).toEqual(["COMPLETED", "PLANNED"]);
-  });
+    const job = await runToEnd(service, "u1", commit.id);
 
-  it("matches a movie on its original title when TMDB returns a localized title", async () => {
-    const { prisma, mediaItemService, tmdb, service } = makeMocks();
-    // TV Time exports "君の名は。"; TMDB's en-US title is "Your Name.".
-    tmdb.search.mockResolvedValue([
-      {
-        source: "TMDB",
-        sourceId: "372058",
-        type: "MOVIE",
-        title: "Your Name.",
-        originalTitle: "君の名は。",
-        year: 2016,
-        posterUrl: null,
-      },
-    ]);
-    mediaItemService.upsertFromSource.mockResolvedValue({ id: "media-372058" });
-
-    const recordsCsv = [
-      "type,entity_type,movie_name,release_date",
-      "watch,movie,君の名は。,2016-08-26 00:00:00",
-    ].join("\n");
-
-    const dto: StartTvTimeImportDto = {
-      zipBase64: zipBase64({
-        episodesCsv: EMPTY_EPISODES,
-        showsCsv: EMPTY_SHOWS,
-        recordsCsv,
-      }),
-    };
-    const { id } = service.startImport("u1", dto);
-    const job = await runToEnd(service, "u1", id);
-
-    expect(job.report!.movies.imported).toBe(1);
-    expect(job.report!.movies.unresolved).toEqual([]);
+    expect(job.status).toBe("completed");
     expect(mediaItemService.upsertFromSource).toHaveBeenCalledWith(
       "TMDB",
-      "372058",
+      "m2",
       "MOVIE",
     );
+    expect(job.report!.movies).toMatchObject({ total: 1, watchlist: 1 });
   });
 
-  it("reports unresolved movies with their watched/watchlist flag", async () => {
-    const { tmdb, service } = makeMocks();
-    tmdb.search.mockResolvedValue([]); // nothing matches → both unresolved
-
-    const recordsCsv = [
-      "type,entity_type,movie_name,release_date",
-      "watch,movie,Seen Film,2020-01-01 00:00:00",
-      "towatch,movie,Later Film,",
-    ].join("\n");
-
-    const dto: StartTvTimeImportDto = {
-      zipBase64: zipBase64({
-        episodesCsv: EMPTY_EPISODES,
-        showsCsv: EMPTY_SHOWS,
-        recordsCsv,
-      }),
-    };
-    const { id } = service.startImport("u1", dto);
-    const job = await runToEnd(service, "u1", id);
-
-    expect(job.report!.movies.unresolved).toEqual(
-      expect.arrayContaining([
-        { title: "Seen Film", year: 2020, watched: true },
-        { title: "Later Film", year: null, watched: false },
-      ]),
-    );
-  });
-
-  it("overwrite wipes the user's history and library before a real import", async () => {
+  it("commit with overwrite wipes history and library first", async () => {
     const { prisma, tmdb, service } = makeMocks();
-    tmdb.findSeriesByTvdbId.mockResolvedValue(null); // resolution outcome is irrelevant here
+    tmdb.findSeriesSummaryByTvdbId.mockResolvedValue({
+      source: "TMDB",
+      sourceId: "500",
+      type: "SERIES",
+      title: "My Show",
+      year: 2024,
+      posterUrl: null,
+    });
+    prisma.season.findMany.mockResolvedValue([
+      { number: 1, episodes: [{ id: "e1", number: 1 }] },
+    ]);
+    prisma.mediaExternalId.findUnique.mockResolvedValue({
+      mediaItemId: "media-100",
+    });
 
     const dto: StartTvTimeImportDto = {
       zipBase64: zipBase64({ episodesCsv: EPISODES_CSV, showsCsv: SHOWS_CSV }),
       importMovies: false,
-      overwrite: true,
     };
-    const { id } = service.startImport("u1", dto);
-    const job = await runToEnd(service, "u1", id);
+    const analyze = service.startAnalyze("u1", dto);
+    await runToEnd(service, "u1", analyze.id);
+
+    const commit = service.commit("u1", analyze.id, {
+      include: ["tvdb:100"],
+      overwrite: true,
+    });
+    const job = await runToEnd(service, "u1", commit.id);
 
     expect(job.status).toBe("completed");
     expect(job.report!.overwrite).toBe(true);
@@ -310,23 +298,6 @@ describe("ImportService", () => {
     });
   });
 
-  it("does not wipe anything on a dry run, even with overwrite", async () => {
-    const { prisma, tmdb, service } = makeMocks();
-    tmdb.findSeriesByTvdbId.mockResolvedValue(null);
-
-    const dto: StartTvTimeImportDto = {
-      zipBase64: zipBase64({ episodesCsv: EPISODES_CSV, showsCsv: SHOWS_CSV }),
-      importMovies: false,
-      dryRun: true,
-      overwrite: true,
-    };
-    const { id } = service.startImport("u1", dto);
-    await runToEnd(service, "u1", id);
-
-    expect(prisma.episodeWatch.deleteMany).not.toHaveBeenCalled();
-    expect(prisma.libraryEntry.deleteMany).not.toHaveBeenCalled();
-  });
-
   it("rejects an archive missing a required file", () => {
     const { service } = makeMocks();
     // No user_tv_show_data.csv → required file absent.
@@ -334,7 +305,7 @@ describe("ImportService", () => {
       zipBase64: zipBase64({ episodesCsv: EPISODES_CSV }),
       importMovies: false,
     };
-    expect(() => service.startImport("u1", dto)).toThrow(
+    expect(() => service.startAnalyze("u1", dto)).toThrow(
       /user_tv_show_data\.csv/,
     );
   });

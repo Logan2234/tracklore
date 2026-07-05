@@ -13,7 +13,10 @@
     | "check"
     | "star"
     | "gamepad"
-    | "book";
+    | "book"
+    | "chevron-left"
+    | "chevron-right"
+    | "download";
 
   let { name, class: cls = "h-5 w-5" }: { name: IconName; class?: string } =
     $props();
@@ -68,5 +71,11 @@
   {:else if name === "book"}
     <path d="M6 3h10a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
     <path d="M4 18h13" />
+  {:else if name === "chevron-left"}
+    <path d="M15 6l-6 6 6 6" />
+  {:else if name === "chevron-right"}
+    <path d="M9 6l6 6-6 6" />
+  {:else if name === "download"}
+    <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
   {/if}
 </svg>

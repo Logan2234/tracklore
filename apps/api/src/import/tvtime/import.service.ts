@@ -4,12 +4,19 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import type { ExternalSource as DbExternalSource } from "@prisma/client";
 import type {
+  CatalogSource,
   EntryStatus,
-  MediaDetailsDto,
+  ImportCommitOverride,
+  ImportCommitRequest,
+  ImportMatch,
+  ImportPlan,
+  ImportPlanMovie,
+  ImportPlanShow,
   MediaSummaryDto,
+  MediaType,
   StartTvTimeImportDto,
-  TvTimeImportFilesDto,
   TvTimeImportJobDto,
   TvTimeImportReport,
 } from "@tracklore/shared";
@@ -21,27 +28,21 @@ import { randomUUID } from "node:crypto";
 import { MediaItemService } from "../../catalog/media-item.service";
 import { TmdbProvider } from "../../catalog/providers/tmdb.provider";
 import { PrismaService } from "../../prisma/prisma.service";
-import {
-  parseTvTimeExport,
-  type ParsedMovie,
-  type ParsedShow,
-} from "./parse-export";
-import { readZipEntries } from "./zip";
+import type {
+  ImportMovie,
+  ImportShow,
+  ParsedImport,
+} from "../import-source";
+import { TvTimeImportSource } from "./tvtime.source";
 
 /** Completed jobs are dropped from memory after this delay. */
 const JOB_RETENTION_MS = 60 * 60 * 1000;
 
-/** Each import field → its file name in the TV Time GDPR export. */
-const FILE_NAMES: Record<keyof TvTimeImportFilesDto, string> = {
-  episodesCsv: "tracking-prod-records-v2.csv",
-  showsCsv: "user_tv_show_data.csv",
-  recordsCsv: "tracking-prod-records.csv",
-  rewatchedCsv: "rewatched_episode.csv",
-};
-
 interface JobRecord extends TvTimeImportJobDto {
   userId: string;
   finishedAt: number | null;
+  /** Canonical parse, kept between an analysis and its later commit. */
+  parsed: ParsedImport | null;
 }
 
 /** Season/episode listing reduced to what episode matching needs. */
@@ -60,88 +61,323 @@ export class ImportService {
     private readonly prisma: PrismaService,
     private readonly mediaItemService: MediaItemService,
     private readonly tmdb: TmdbProvider,
+    private readonly tvtimeSource: TvTimeImportSource,
   ) {}
 
-  /** Unzip + validate the export, start the import in the background, return the pending job. */
-  startImport(userId: string, dto: StartTvTimeImportDto): TvTimeImportJobDto {
+  /**
+   * Analyse an export: parse + resolve every title against the catalogue and
+   * build a reconciliation {@link ImportPlan} — writing nothing. The plan (and
+   * the canonical parse it came from) is kept on the job so a later `commit`
+   * can act on the user's decisions.
+   */
+  startAnalyze(userId: string, dto: StartTvTimeImportDto): TvTimeImportJobDto {
     this.pruneOldJobs();
 
     const importMovies = dto.importMovies ?? true;
-    const dryRun = dto.dryRun ?? false;
-    const overwrite = dto.overwrite ?? false;
-
-    const files = this.extractFiles(dto.zipBase64, importMovies);
-    const parsed = parseTvTimeExport(files);
+    const parsed = this.tvtimeSource.parse(
+      Buffer.from(dto.zipBase64, "base64"),
+    );
+    const movies = importMovies ? parsed.movies : [];
 
     const job: JobRecord = {
       id: randomUUID(),
       userId,
-      dryRun,
+      dryRun: true, // analysis never writes
       status: "running",
       progress: {
         shows: 0,
         totalShows: parsed.shows.length,
         movies: 0,
-        totalMovies: importMovies ? parsed.movies.length : 0,
+        totalMovies: movies.length,
       },
+      plan: null,
       report: null,
       error: null,
       finishedAt: null,
+      parsed: { ...parsed, movies },
     };
     this.jobs.set(job.id, job);
 
-    // Fire and forget: the client polls getJob for progress and the report.
-    void this.run(
-      job,
-      userId,
-      parsed.shows,
-      importMovies ? parsed.movies : [],
-      overwrite,
-    );
-
+    void this.buildPlan(job);
     return toDto(job);
   }
 
-  /**
-   * Decode the base64 archive, extract the CSVs we need and check the required
-   * ones are present. Throws {@link BadRequestException} on a bad or incomplete
-   * archive so the caller gets an immediate 400 (before any job is created).
-   */
-  private extractFiles(
-    zipBase64: string,
-    importMovies: boolean,
-  ): TvTimeImportFilesDto {
-    const buf = Buffer.from(zipBase64, "base64");
-    if (buf.length === 0) {
-      throw new BadRequestException("The uploaded archive is empty");
-    }
-
-    let entries: Map<string, string>;
+  private async buildPlan(job: JobRecord): Promise<void> {
     try {
-      entries = readZipEntries(buf, new Set(Object.values(FILE_NAMES)));
+      const parsed = job.parsed;
+      if (!parsed) throw new Error("Analysis job has no parsed export");
+
+      const seriesTracked: ImportPlanShow[] = [];
+      const seriesWatchlist: ImportPlanShow[] = [];
+      let unresolved = 0;
+
+      for (const show of parsed.shows) {
+        const match = await this.resolveShowMatch(show);
+        if (!match) unresolved++;
+        const item: ImportPlanShow = {
+          key: showKey(show),
+          title: show.title,
+          episodesWatched: show.episodes.length,
+          match,
+          include: match !== null,
+        };
+        (show.episodes.length === 0 ? seriesWatchlist : seriesTracked).push(
+          item,
+        );
+        job.progress.shows++;
+      }
+
+      const moviesWatched: ImportPlanMovie[] = [];
+      const moviesWatchlist: ImportPlanMovie[] = [];
+      for (const movie of parsed.movies) {
+        const match = await this.resolveMovieMatch(movie);
+        if (!match) unresolved++;
+        const item: ImportPlanMovie = {
+          key: movieKey(movie),
+          title: movie.title,
+          year: movie.year,
+          watched: movie.watched,
+          match,
+          include: match !== null,
+        };
+        (movie.watched ? moviesWatched : moviesWatchlist).push(item);
+        job.progress.movies++;
+      }
+
+      job.plan = {
+        seriesTracked,
+        seriesWatchlist,
+        moviesWatched,
+        moviesWatchlist,
+        counts: {
+          shows: parsed.shows.length,
+          movies: parsed.movies.length,
+          unresolved,
+        },
+      };
+      job.status = "completed";
     } catch (error) {
-      throw new BadRequestException(
-        error instanceof Error ? error.message : "Could not read the archive",
-      );
+      job.status = "failed";
+      job.error = error instanceof Error ? error.message : String(error);
+    } finally {
+      job.finishedAt = Date.now();
+    }
+  }
+
+  /** Resolve a show to a catalogue match (via its external ids); null if none. */
+  private async resolveShowMatch(show: ImportShow): Promise<ImportMatch | null> {
+    const tvdbId = show.externalIds.tvdb;
+    if (!tvdbId) return null;
+    try {
+      const summary = await this.tmdb.findSeriesSummaryByTvdbId(tvdbId);
+      return summary ? toMatch(summary) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Resolve a movie to a confident catalogue match; null if none. */
+  private async resolveMovieMatch(
+    movie: ImportMovie,
+  ): Promise<ImportMatch | null> {
+    try {
+      const summaries = await this.tmdb.search(movie.title, "MOVIE");
+      const match = pickMovie(summaries, movie.title, movie.year);
+      return match ? toMatch(match) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Commit a previously analysed import: write only the items the user kept
+   * (`include`), applying any manual matches (`overrides`) for items the
+   * analysis could not resolve. Runs in the background like the other flows.
+   */
+  commit(
+    userId: string,
+    jobId: string,
+    dto: ImportCommitRequest,
+  ): TvTimeImportJobDto {
+    this.pruneOldJobs();
+
+    const analyzed = this.jobs.get(jobId);
+    if (!analyzed) throw new NotFoundException("Import job not found");
+    if (analyzed.userId !== userId) {
+      throw new ForbiddenException("This import job belongs to another user");
+    }
+    if (!analyzed.parsed || !analyzed.plan) {
+      throw new BadRequestException("This job has no analysis to commit");
     }
 
-    const files: TvTimeImportFilesDto = {
-      episodesCsv: entries.get(FILE_NAMES.episodesCsv),
-      showsCsv: entries.get(FILE_NAMES.showsCsv),
-      recordsCsv: entries.get(FILE_NAMES.recordsCsv),
-      rewatchedCsv: entries.get(FILE_NAMES.rewatchedCsv),
+    const include = new Set(dto.include);
+    const overrides = dto.overrides ?? {};
+    const matchByKey = indexPlanMatches(analyzed.plan);
+    const parsed = analyzed.parsed;
+    const overwrite = dto.overwrite ?? false;
+
+    const includedShows = parsed.shows.filter((s) => include.has(showKey(s)));
+    const includedMovies = parsed.movies.filter((m) => include.has(movieKey(m)));
+
+    const job: JobRecord = {
+      id: randomUUID(),
+      userId,
+      dryRun: false,
+      status: "running",
+      progress: {
+        shows: 0,
+        totalShows: includedShows.length,
+        movies: 0,
+        totalMovies: includedMovies.length,
+      },
+      plan: null,
+      report: null,
+      error: null,
+      finishedAt: null,
+      parsed: null,
     };
+    this.jobs.set(job.id, job);
 
-    const missing: string[] = [];
-    if (!files.episodesCsv) missing.push(FILE_NAMES.episodesCsv);
-    if (!files.showsCsv) missing.push(FILE_NAMES.showsCsv);
-    if (importMovies && !files.recordsCsv) missing.push(FILE_NAMES.recordsCsv);
-    if (missing.length > 0) {
-      throw new BadRequestException(
-        `Missing required file(s) in the archive: ${missing.join(", ")}`,
-      );
+    void this.runCommit(
+      job,
+      userId,
+      includedShows,
+      includedMovies,
+      overrides,
+      matchByKey,
+      overwrite,
+    );
+    return toDto(job);
+  }
+
+  private async runCommit(
+    job: JobRecord,
+    userId: string,
+    shows: ImportShow[],
+    movies: ImportMovie[],
+    overrides: Record<string, ImportCommitOverride>,
+    matchByKey: Map<string, ImportMatch>,
+    overwrite: boolean,
+  ): Promise<void> {
+    const report = emptyReport(false, overwrite);
+    try {
+      if (overwrite) {
+        await this.prisma.$transaction([
+          this.prisma.episodeWatch.deleteMany({ where: { userId } }),
+          this.prisma.libraryEntry.deleteMany({ where: { userId } }),
+        ]);
+      }
+
+      for (const show of shows) {
+        const match = overrides[showKey(show)] ?? matchByKey.get(showKey(show));
+        if (match) await this.writeShow(userId, show, match, report);
+        job.progress.shows++;
+      }
+      for (const movie of movies) {
+        const match =
+          overrides[movieKey(movie)] ?? matchByKey.get(movieKey(movie));
+        if (match) await this.writeMovie(userId, movie, match, report);
+        job.progress.movies++;
+      }
+
+      job.report = report;
+      job.status = "completed";
+    } catch (error) {
+      job.status = "failed";
+      job.error = error instanceof Error ? error.message : String(error);
+    } finally {
+      job.finishedAt = Date.now();
     }
-    return files;
+  }
+
+  /** Write one show against an already-resolved catalogue match. */
+  private async writeShow(
+    userId: string,
+    show: ImportShow,
+    match: ImportCommitOverride,
+    report: TvTimeImportReport,
+  ): Promise<void> {
+    report.shows.total++;
+
+    if (show.episodes.length === 0) {
+      await this.mediaItemService.upsertFromSource(
+        match.source,
+        match.sourceId,
+        match.type,
+      );
+      await this.upsertSeriesEntry(
+        userId,
+        match.source,
+        match.sourceId,
+        "PLANNED",
+        show,
+      );
+      report.shows.watchlist++;
+      return;
+    }
+
+    const index = await this.persistSeriesIndex(
+      match.source,
+      match.sourceId,
+      match.type,
+    );
+
+    let watchedRegular = 0;
+    for (const ep of show.episodes) {
+      const episodeId = index.byKey.get(`${ep.season}|${ep.episode}`);
+      if (episodeId === undefined) {
+        pushCapped(report.episodes.unmatched, {
+          show: show.title,
+          season: ep.season,
+          episode: ep.episode,
+        });
+        continue;
+      }
+      report.episodes.watched++;
+      if (ep.season > 0) watchedRegular++;
+      if (episodeId) {
+        report.episodes.watchesCreated += await this.recordWatches(
+          userId,
+          episodeId,
+          ep.totalWatches,
+          ep.watchedAt,
+        );
+      }
+    }
+
+    const status = entryStatusFromProgress(watchedRegular, index.totalRegular);
+    await this.upsertSeriesEntry(
+      userId,
+      match.source,
+      match.sourceId,
+      status,
+      show,
+    );
+    if (status === "PLANNED") report.shows.watchlist++;
+    else report.shows.imported++;
+  }
+
+  /** Write one movie against an already-resolved catalogue match. */
+  private async writeMovie(
+    userId: string,
+    movie: ImportMovie,
+    match: ImportCommitOverride,
+    report: TvTimeImportReport,
+  ): Promise<void> {
+    report.movies.total++;
+    const status: EntryStatus = movie.watched ? "COMPLETED" : "PLANNED";
+    const media = await this.mediaItemService.upsertFromSource(
+      match.source,
+      match.sourceId,
+      match.type,
+    );
+    await this.prisma.libraryEntry.upsert({
+      where: { userId_mediaItemId: { userId, mediaItemId: media.id } },
+      update: { status },
+      create: { userId, mediaItemId: media.id, status },
+    });
+    if (status === "PLANNED") report.movies.watchlist++;
+    else report.movies.imported++;
   }
 
   getJob(userId: string, jobId: string): TvTimeImportJobDto {
@@ -153,167 +389,16 @@ export class ImportService {
     return toDto(job);
   }
 
-  private async run(
-    job: JobRecord,
-    userId: string,
-    shows: ParsedShow[],
-    movies: ParsedMovie[],
-    overwrite: boolean,
-  ): Promise<void> {
-    const report = emptyReport(job.dryRun, overwrite);
-    try {
-      if (overwrite && !job.dryRun) {
-        // Destructive replace: drop the user's history and library entries
-        // first. The shared MediaItem/Season/Episode cache is left untouched —
-        // it is not user data. Watches go first (they reference episodes only,
-        // but ordering keeps the intent explicit).
-        await this.prisma.$transaction([
-          this.prisma.episodeWatch.deleteMany({ where: { userId } }),
-          this.prisma.libraryEntry.deleteMany({ where: { userId } }),
-        ]);
-      }
-      for (const show of shows) {
-        await this.importShow(userId, show, job.dryRun, report);
-        job.progress.shows++;
-      }
-      for (const movie of movies) {
-        await this.importMovie(userId, movie, job.dryRun, report);
-        job.progress.movies++;
-      }
-      job.report = report;
-      job.status = "completed";
-    } catch (error) {
-      job.status = "failed";
-      job.error = error instanceof Error ? error.message : String(error);
-    } finally {
-      job.finishedAt = Date.now();
-    }
-  }
-
-  private async importShow(
-    userId: string,
-    show: ParsedShow,
-    dryRun: boolean,
-    report: TvTimeImportReport,
-  ): Promise<void> {
-    report.shows.total++;
-
-    const tmdbId = await this.resolveSeries(show.tvdbId);
-    if (!tmdbId) {
-      pushCapped(report.shows.unresolved, {
-        title: show.name,
-        tvdbId: show.tvdbId,
-        // Keep the watch data so the report can tell a watchlist show apart
-        // from a started one and list what would be imported after reconciling.
-        episodes: show.episodes.map((e) => ({
-          season: e.season,
-          episode: e.episode,
-        })),
-      });
-      return;
-    }
-
-    // Watchlist show (never started): no progress to reconcile, so skip the
-    // (heavy) episode fetch. Still persist the media on a real run.
-    if (show.episodes.length === 0) {
-      report.shows.watchlist++;
-      if (!dryRun) {
-        await this.mediaItemService.upsertFromSource("TMDB", tmdbId, "SERIES");
-        await this.upsertSeriesEntry(userId, tmdbId, "PLANNED", show);
-      }
-      return;
-    }
-
-    const index = dryRun
-      ? indexFromDetails(
-          await this.mediaItemService.getLiveDetails("TMDB", tmdbId, "SERIES"),
-        )
-      : await this.persistSeriesIndex(tmdbId);
-
-    let watchedRegular = 0;
-    for (const ep of show.episodes) {
-      const key = `${ep.season}|${ep.episode}`;
-      if (!index.byKey.has(key)) {
-        pushCapped(report.episodes.unmatched, {
-          show: show.name,
-          season: ep.season,
-          episode: ep.episode,
-        });
-        continue;
-      }
-      report.episodes.watched++;
-      if (ep.season > 0) watchedRegular++;
-
-      const episodeId = index.byKey.get(key);
-      if (!dryRun && episodeId) {
-        report.episodes.watchesCreated += await this.recordWatches(
-          userId,
-          episodeId,
-          ep.totalWatches,
-          ep.watchedAt,
-        );
-      }
-    }
-
-    const status = entryStatusFromProgress(watchedRegular, index.totalRegular);
-    if (!dryRun) {
-      await this.upsertSeriesEntry(userId, tmdbId, status, show);
-    }
-    if (status === "PLANNED") report.shows.watchlist++;
-    else report.shows.imported++;
-  }
-
-  private async importMovie(
-    userId: string,
-    movie: ParsedMovie,
-    dryRun: boolean,
-    report: TvTimeImportReport,
-  ): Promise<void> {
-    report.movies.total++;
-
-    const summaries = await this.tmdb.search(movie.title, "MOVIE");
-    const match = pickMovie(summaries, movie.title, movie.year);
-    if (!match) {
-      pushCapped(report.movies.unresolved, {
-        title: movie.title,
-        year: movie.year,
-        watched: movie.watched,
-      });
-      return;
-    }
-
-    const status = movie.watched ? "COMPLETED" : "PLANNED";
-    if (!dryRun) {
-      const media = await this.mediaItemService.upsertFromSource(
-        "TMDB",
-        match.sourceId,
-        "MOVIE",
-      );
-      await this.prisma.libraryEntry.upsert({
-        where: { userId_mediaItemId: { userId, mediaItemId: media.id } },
-        update: { status },
-        create: { userId, mediaItemId: media.id, status },
-      });
-    }
-    if (status === "PLANNED") report.movies.watchlist++;
-    else report.movies.imported++;
-  }
-
-  private async resolveSeries(tvdbId: string): Promise<string | null> {
-    try {
-      return await this.tmdb.findSeriesByTvdbId(tvdbId);
-    } catch {
-      // Network/404 hiccups are reported as unresolved rather than aborting.
-      return null;
-    }
-  }
-
   /** Persist the series (on-demand cache) and index its stored episodes. */
-  private async persistSeriesIndex(tmdbId: string): Promise<EpisodeIndex> {
+  private async persistSeriesIndex(
+    source: CatalogSource,
+    sourceId: string,
+    type: MediaType,
+  ): Promise<EpisodeIndex> {
     const media = await this.mediaItemService.upsertFromSource(
-      "TMDB",
-      tmdbId,
-      "SERIES",
+      source,
+      sourceId,
+      type,
     );
     const seasons = await this.prisma.season.findMany({
       where: { mediaItemId: media.id },
@@ -355,12 +440,18 @@ export class ImportService {
 
   private async upsertSeriesEntry(
     userId: string,
-    tmdbId: string,
+    source: CatalogSource,
+    sourceId: string,
     status: EntryStatus,
-    show: ParsedShow,
+    show: ImportShow,
   ): Promise<void> {
     const ref = await this.prisma.mediaExternalId.findUnique({
-      where: { source_externalId: { source: "TMDB", externalId: tmdbId } },
+      where: {
+        source_externalId: {
+          source: source as DbExternalSource,
+          externalId: sourceId,
+        },
+      },
     });
     if (!ref) return; // upsertFromSource ran just before, so this always exists.
 
@@ -396,8 +487,49 @@ function toDto(job: JobRecord): TvTimeImportJobDto {
     status: job.status,
     dryRun: job.dryRun,
     progress: job.progress,
+    plan: job.plan,
     report: job.report,
     error: job.error,
+  };
+}
+
+/** Stable per-item id carried through analyze → review → commit. */
+function showKey(show: ImportShow): string {
+  const { tvdb, tmdb, imdb, anilist } = show.externalIds;
+  if (tvdb) return `tvdb:${tvdb}`;
+  if (tmdb) return `tmdb:${tmdb}`;
+  if (imdb) return `imdb:${imdb}`;
+  if (anilist) return `anilist:${anilist}`;
+  return `show:${show.title.toLowerCase()}`;
+}
+
+function movieKey(movie: ImportMovie): string {
+  return `movie:${movie.title.toLowerCase()}:${movie.year ?? ""}`;
+}
+
+/** Flatten a plan's auto-resolved matches into a key → match lookup. */
+function indexPlanMatches(plan: ImportPlan): Map<string, ImportMatch> {
+  const byKey = new Map<string, ImportMatch>();
+  const items = [
+    ...plan.seriesTracked,
+    ...plan.seriesWatchlist,
+    ...plan.moviesWatched,
+    ...plan.moviesWatchlist,
+  ];
+  for (const item of items) {
+    if (item.match) byKey.set(item.key, item.match);
+  }
+  return byKey;
+}
+
+function toMatch(summary: MediaSummaryDto): ImportMatch {
+  return {
+    source: summary.source,
+    sourceId: summary.sourceId,
+    type: summary.type,
+    title: summary.title,
+    year: summary.year,
+    posterUrl: summary.posterUrl,
   };
 }
 
@@ -411,21 +543,9 @@ function emptyReport(dryRun: boolean, overwrite: boolean): TvTimeImportReport {
   };
 }
 
-function indexFromDetails(details: MediaDetailsDto): EpisodeIndex {
-  const byKey = new Map<string, string | null>();
-  let totalRegular = 0;
-  for (const season of details.seasons) {
-    for (const episode of season.episodes) {
-      byKey.set(`${season.number}|${episode.number}`, null);
-      if (season.number > 0) totalRegular++;
-    }
-  }
-  return { byKey, totalRegular };
-}
-
 /** Earliest and latest watch dates; finishedAt only makes sense when complete. */
 function watchWindow(
-  show: ParsedShow,
+  show: ImportShow,
   completed: boolean,
 ): { startedAt: Date | null; finishedAt: Date | null } {
   const dates = show.episodes

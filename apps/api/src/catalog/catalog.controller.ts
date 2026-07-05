@@ -28,17 +28,18 @@ export class CatalogController {
     const wantTmdb = query.type === undefined || query.type !== MediaType.ANIME;
     const wantAnilist =
       query.type === undefined || query.type === MediaType.ANIME;
+    const page = query.page ?? 1;
 
     const [tmdbResults, anilistResults] = await Promise.all([
       wantTmdb
         ? this.mediaItemService
             .providerFor(CatalogSource.TMDB)
-            .search(query.q, query.type)
+            .search(query.q, query.type, page)
         : Promise.resolve([]),
       wantAnilist
         ? this.mediaItemService
             .providerFor(CatalogSource.ANILIST)
-            .search(query.q)
+            .search(query.q, undefined, page)
         : Promise.resolve([]),
     ]);
 

@@ -30,12 +30,18 @@ export interface ProviderMediaDetails {
   genres: string[];
   status: string | null;
   releaseDate: string | null;
+  /** Average minutes per episode (series/anime) or the film's runtime; null if unknown. */
+  runtimeMin: number | null;
   externalIds: ProviderExternalId[];
   seasons: ProviderSeason[];
 }
 
 export interface CatalogProvider {
   readonly source: CatalogSource;
-  search(query: string, type?: MediaType): Promise<MediaSummaryDto[]>;
+  search(
+    query: string,
+    type?: MediaType,
+    page?: number,
+  ): Promise<MediaSummaryDto[]>;
   getDetails(sourceId: string, type: MediaType): Promise<ProviderMediaDetails>;
 }
