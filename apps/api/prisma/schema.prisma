@@ -51,6 +51,31 @@ model User {
   entries        LibraryEntry[]
   episodeWatches EpisodeWatch[]
   refreshTokens  RefreshToken[]
+  notifications  Notification[]
+}
+
+// In-app notifications (currently only "new episode out" of a tracked show).
+// Payload is denormalised so a notification survives catalogue-cache refreshes.
+model Notification {
+  id            String    @id @default(cuid())
+  userId        String
+  // Only "NEW_EPISODE" today; a string so new kinds need no migration.
+  type          String    @default("NEW_EPISODE")
+  mediaTitle    String
+  mediaType     MediaType
+  sourceId      String
+  seasonNumber  Int
+  episodeNumber Int
+  episodeTitle  String?
+  // The episode this is about — the dedup key (not a FK, kept simple).
+  episodeId     String
+  readAt        DateTime?
+  createdAt     DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, episodeId])
+  @@index([userId, createdAt])
 }
 
 // One row per device/session, so refreshing on the phone does not log out the desktop.

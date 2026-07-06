@@ -12,6 +12,7 @@
   import favicon from "$lib/assets/favicon.svg";
   import { auth } from "$lib/auth.svelte";
   import Icon from "$lib/components/Icon.svelte";
+  import { notifications } from "$lib/notifications.svelte";
   import { theme } from "$lib/theme.svelte";
 
   let { children } = $props();
@@ -108,6 +109,11 @@
     theme.init();
   });
 
+  // Once logged in, detect new episodes of tracked shows and load the feed.
+  $effect(() => {
+    if (ready && auth.isLoggedIn) void notifications.refresh(true);
+  });
+
   // Redirect to /login as soon as we know the user is not authenticated.
   $effect(() => {
     if (
@@ -175,6 +181,33 @@
         </a>
 
         <nav class="flex flex-1 flex-col gap-0.5 py-2">
+          <a
+            href="/notifications"
+            title={expanded ? undefined : "Notifications"}
+            aria-current={page.url.pathname.startsWith("/notifications")
+              ? "page"
+              : undefined}
+            class="flex w-full items-center overflow-hidden rounded-xl transition-colors {page.url.pathname.startsWith(
+              '/notifications',
+            )
+              ? 'bg-accent/15 text-accent'
+              : 'text-dim hover:bg-surface-2 hover:text-fg'}">
+            <span class="relative grid h-10 w-10 shrink-0 place-items-center">
+              <Icon name="bell" class="h-5 w-5" />
+              {#if notifications.unread > 0}
+                <span
+                  class="absolute top-1.5 right-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[0.55rem] font-bold text-accent-fg">
+                  {notifications.unread > 9 ? "9+" : notifications.unread}
+                </span>
+              {/if}
+            </span>
+            <span
+              class="whitespace-nowrap text-sm font-semibold transition-opacity duration-150 {expanded
+                ? 'opacity-100'
+                : 'opacity-0'}">
+              Notifications
+            </span>
+          </a>
           {#each SECTIONS as section, i (i)}
             {#if section.label}
               {#if expanded}
@@ -282,6 +315,27 @@
           {item.label}
         </a>
       {/each}
+      <a
+        href="/notifications"
+        aria-current={page.url.pathname.startsWith("/notifications")
+          ? "page"
+          : undefined}
+        class="flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[0.62rem] font-semibold {page.url.pathname.startsWith(
+          '/notifications',
+        )
+          ? 'text-accent'
+          : 'text-dim'}">
+        <span class="relative">
+          <Icon name="bell" class="h-6 w-6" />
+          {#if notifications.unread > 0}
+            <span
+              class="absolute -top-1 -right-1 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[0.55rem] font-bold text-accent-fg">
+              {notifications.unread > 9 ? "9+" : notifications.unread}
+            </span>
+          {/if}
+        </span>
+        Alertes
+      </a>
       <a
         href="/settings"
         aria-current={page.url.pathname.startsWith("/settings")

@@ -10,6 +10,7 @@ import type {
   MediaDetailDto,
   MediaDetailsDto,
   MediaType,
+  NotificationFeedDto,
   RegisterRequestDto,
   SearchResponseDto,
   StatsDto,
@@ -253,12 +254,40 @@ export function unwatchEpisode(episodeId: string): Promise<void> {
   return request(`/library/episodes/${episodeId}/watches`, { method: "DELETE" });
 }
 
+/** Set (or clear, with null) the rating of a single viewing. */
+export function rateWatch(watchId: string, rating: number | null): Promise<void> {
+  return request(`/library/watches/${watchId}`, {
+    method: "PATCH",
+    body: { rating },
+  });
+}
+
+/** Delete one specific viewing (by its id). */
+export function deleteWatch(watchId: string): Promise<void> {
+  return request(`/library/watches/${watchId}`, { method: "DELETE" });
+}
+
 export function getCalendar(): Promise<CalendarEntryDto[]> {
   return request("/library/calendar");
 }
 
 export function getStats(): Promise<StatsDto> {
   return request("/library/stats");
+}
+
+// --- Notifications ---
+
+/** Detect new episodes of tracked shows, then return the refreshed feed. */
+export function scanNotifications(): Promise<NotificationFeedDto> {
+  return request("/notifications/scan", { method: "POST" });
+}
+
+export function getNotifications(): Promise<NotificationFeedDto> {
+  return request("/notifications");
+}
+
+export function markNotificationsRead(): Promise<void> {
+  return request("/notifications/read", { method: "POST" });
 }
 
 // --- TV Time import ---

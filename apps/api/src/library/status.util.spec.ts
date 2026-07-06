@@ -24,6 +24,7 @@ describe("deriveStatus", () => {
   const progress = (watched: number, total: number) => ({
     watchedEpisodes: watched,
     totalEpisodes: total,
+    nextEpisode: null,
   });
 
   describe("manual overrides win", () => {

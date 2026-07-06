@@ -177,7 +177,7 @@ describe("Tracklore API (e2e)", () => {
     // Status is derived: nothing watched yet → PLANNED, regardless of the
     // WATCHING sent in the request.
     expect(response.body.status).toBe("PLANNED");
-    expect(response.body.progress).toEqual({
+    expect(response.body.progress).toMatchObject({
       watchedEpisodes: 0,
       totalEpisodes: 3,
     });
@@ -217,7 +217,7 @@ describe("Tracklore API (e2e)", () => {
       .get(`/api/library/entries/${entryId}`)
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
-    expect(entry.body.progress).toEqual({
+    expect(entry.body.progress).toMatchObject({
       watchedEpisodes: 1,
       totalEpisodes: 3,
     });
@@ -241,7 +241,7 @@ describe("Tracklore API (e2e)", () => {
       .get(`/api/library/entries/${entryId}`)
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
-    expect(entry.body.progress).toEqual({
+    expect(entry.body.progress).toMatchObject({
       watchedEpisodes: 1,
       totalEpisodes: 3,
     });
@@ -362,7 +362,7 @@ describe("Tracklore API (e2e)", () => {
       .get(`/api/library/entries/${newEntryId}`)
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
-    expect(entry.body.progress).toEqual({
+    expect(entry.body.progress).toMatchObject({
       watchedEpisodes: 2,
       totalEpisodes: 3,
     });
@@ -381,6 +381,57 @@ describe("Tracklore API (e2e)", () => {
     expect(
       undone.body.seasons[0].episodes.map((e: { watchCount: number }) => e.watchCount),
     ).toEqual([1, 0, 0]);
+
+    // #4 "Resume": next up is now episode 2 (first unwatched, released).
+    const resume = await request(http)
+      .get(`/api/library/entries/${newEntryId}`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+    expect(resume.body.progress.nextEpisode).toMatchObject({
+      episodeId: eps[1].id,
+      episodeNumber: 2,
+    });
+
+    // The media detail exposes each viewing (date + rating); rate one of them.
+    const detail = await request(http)
+      .get(`/api/media/anime/5555`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+    const firstEp = detail.body.seasons[0].episodes[0];
+    expect(firstEp.watches).toHaveLength(1);
+    const watchId: string = firstEp.watches[0].id;
+    expect(firstEp.watches[0].rating).toBeNull();
+
+    await request(http)
+      .patch(`/api/library/watches/${watchId}`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ rating: 8 })
+      .expect(204);
+
+    const rated = await request(http)
+      .get(`/api/media/anime/5555`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+    expect(rated.body.seasons[0].episodes[0].watches[0].rating).toBe(8);
+  });
+
+  it("notifications: scan and feed respond", async () => {
+    const scan = await request(http)
+      .post("/api/notifications/scan")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(201);
+    expect(Array.isArray(scan.body.notifications)).toBe(true);
+    expect(typeof scan.body.unread).toBe("number");
+
+    await request(http)
+      .get("/api/notifications")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+
+    await request(http)
+      .post("/api/notifications/read")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(204);
   });
 
   it("rotates refresh tokens: the old one is consumed", async () => {

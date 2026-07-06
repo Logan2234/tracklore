@@ -23,8 +23,8 @@ export default defineConfig({
         name: "Tracklore",
         short_name: "Tracklore",
         description: "Self-hosted tracker for series, movies and anime",
-        theme_color: "#0e0f13",
-        background_color: "#0e0f13",
+        theme_color: "#0c0d10",
+        background_color: "#0c0d10",
         display: "standalone",
         start_url: "/",
         // TODO: add 192/512 PNG (+ maskable) icons for a fully installable PWA.

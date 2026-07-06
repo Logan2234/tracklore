@@ -1,5 +1,5 @@
 import type { CatalogSource, MediaType } from "../enums";
-import type { LibraryEntryDto } from "./library";
+import type { EpisodeWatchDto, LibraryEntryDto } from "./library";
 
 /** A media as returned by a live catalogue search (not persisted). */
 export interface MediaSummaryDto {
@@ -46,7 +46,7 @@ export interface MediaDetailsDto extends MediaSummaryDto {
   seasons: SeasonDto[];
 }
 
-/** One episode on the unified media page, carrying the user's watch count. */
+/** One episode on the unified media page, carrying the user's watch history. */
 export interface MediaDetailEpisodeDto {
   /** null until the media is persisted (i.e. not yet in anyone's library). */
   id: string | null;
@@ -54,6 +54,8 @@ export interface MediaDetailEpisodeDto {
   title: string | null;
   airDate: string | null;
   watchCount: number;
+  /** The current user's viewings of this episode (date + rating), most recent first. */
+  watches: EpisodeWatchDto[];
 }
 
 export interface MediaDetailSeasonDto {

@@ -29,9 +29,18 @@ export interface LibraryEntryDto {
   progress: ProgressDto | null;
 }
 
+/** The next episode to watch (first released, unwatched regular episode). */
+export interface NextEpisodeDto {
+  episodeId: string;
+  seasonNumber: number;
+  episodeNumber: number;
+}
+
 export interface ProgressDto {
   watchedEpisodes: number;
   totalEpisodes: number;
+  /** One-click "resume" target; null when caught up (or nothing released next). */
+  nextEpisode: NextEpisodeDto | null;
 }
 
 /** Body for creating/updating a library entry from a catalogue media. */

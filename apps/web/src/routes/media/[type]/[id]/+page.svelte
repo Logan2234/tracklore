@@ -4,7 +4,9 @@
   import type { EntryStatus, MediaDetailDto, MediaType } from "@tracklore/shared";
   import {
     deleteLibraryEntry,
+    deleteWatch,
     getMediaDetail,
+    rateWatch,
     updateLibraryEntry,
     upsertLibraryEntry,
     unwatchEpisode,
@@ -41,6 +43,16 @@
   let error = $state<string | null>(null);
   let busyEpisodeId = $state<string | null>(null);
   let busySeasonId = $state<string | null>(null);
+  // Episode whose watch history (dates + ratings) is expanded, by id.
+  let openHistory = $state<string | null>(null);
+  // Specials (season 0) are hidden by default; a toggle reveals them.
+  let showSpecials = $state(false);
+
+  const dateFmt = new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
   // Episode-row dropdown, positioned fixed (the season card clips overflow).
   let menu = $state<{ episodeId: string; top: number; right: number } | null>(
     null,
@@ -122,6 +134,10 @@
         })
       : [],
   );
+  const hasSpecials = $derived(orderedSeasons.some((s) => s.number === 0));
+  const visibleSeasons = $derived(
+    orderedSeasons.filter((s) => showSpecials || s.number !== 0),
+  );
 
   async function add() {
     if (!detail) return;
@@ -183,6 +199,33 @@
       busySeasonId = null;
     }
   }
+
+  async function setRating(watchId: string, raw: string) {
+    error = null;
+    try {
+      await rateWatch(watchId, raw === "" ? null : Number(raw));
+      await reload();
+    } catch (err) {
+      error =
+        err instanceof ApiError ? err.message : "Impossible d'enregistrer la note";
+    }
+  }
+
+  async function removeWatch(watchId: string) {
+    error = null;
+    try {
+      await deleteWatch(watchId);
+      await reload();
+    } catch (err) {
+      error =
+        err instanceof ApiError
+          ? err.message
+          : "Impossible de supprimer le visionnage";
+    }
+  }
+
+  const seasonWatchedCount = (season: MediaDetailSeasonDto) =>
+    season.episodes.filter((e) => e.watchCount > 0).length;
 
   function openMenu(event: MouseEvent, episodeId: string) {
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
@@ -321,6 +364,17 @@
           {entry.progress.watchedEpisodes} / {entry.progress.totalEpisodes} épisodes
           vus · {pct} %
         </p>
+        {#if entry.progress.nextEpisode}
+          {@const next = entry.progress.nextEpisode}
+          <button
+            class="btn btn-primary mt-3"
+            disabled={busyEpisodeId === next.episodeId}
+            onclick={() => markWatched(next.episodeId)}>
+            ▶ Reprendre · S{String(next.seasonNumber).padStart(2, "0")}E{String(
+              next.episodeNumber,
+            ).padStart(2, "0")}
+          </button>
+        {/if}
       </div>
     {/if}
 
@@ -423,88 +477,148 @@
 
     <!-- Episodes (series/anime). Watch actions only once the media is tracked. -->
     {#if !isMovie && detail.seasons.length > 0}
-      <h2 class="mt-10 mb-4 font-display text-xl font-bold">Épisodes</h2>
+      <div class="mt-10 mb-4 flex items-baseline justify-between gap-3">
+        <h2 class="font-display text-xl font-bold">Épisodes</h2>
+        {#if hasSpecials}
+          <button
+            class="chip"
+            class:chip-on={showSpecials}
+            onclick={() => (showSpecials = !showSpecials)}>
+            {showSpecials ? "Masquer les Specials" : "Afficher les Specials"}
+          </button>
+        {/if}
+      </div>
       <div class="flex flex-col gap-4 pb-4">
-        {#each orderedSeasons as season (season.number)}
-          <div class="card">
-            <header
-              class="flex items-center gap-3 border-b border-border bg-surface-2 px-4 py-2.5 font-display font-semibold">
+        {#each visibleSeasons as season (season.number)}
+          <!-- Seasons are collapsible and collapsed by default. -->
+          <details class="card group">
+            <summary
+              class="flex cursor-pointer list-none items-center gap-3 rounded-[inherit] bg-surface-2 px-4 py-2.5 font-display font-semibold group-open:rounded-b-none group-open:border-b group-open:border-border [&::-webkit-details-marker]:hidden">
+              <Icon
+                name="chevron-right"
+                class="h-4 w-4 shrink-0 text-dim transition-transform group-open:rotate-90" />
               <span class="min-w-0 flex-1 truncate">
                 {season.title ?? `Saison ${season.number}`}
+              </span>
+              <span class="timecode shrink-0 text-xs">
+                {seasonWatchedCount(season)}/{season.episodes.length}
               </span>
               {#if entry && season.id}
                 {#if seasonWatched(season)}
                   <span
                     class="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-success">
-                    <Icon name="check" class="h-4 w-4" /> Saison vue
+                    <Icon name="check" class="h-4 w-4" /> Vue
                   </span>
                 {:else}
                   <button
                     class="btn btn-ghost shrink-0 px-2.5 py-1 text-xs"
                     disabled={busySeasonId === season.id}
-                    onclick={() => markSeason(season.id!)}>
+                    onclick={(e) => {
+                      e.preventDefault();
+                      markSeason(season.id!);
+                    }}>
                     Marquer la saison vue
                   </button>
                 {/if}
               {/if}
-            </header>
+            </summary>
             <ul>
               {#each season.episodes as episode (episode.number)}
-                <li
-                  class="flex items-center gap-3 border-b border-border px-4 py-2.5 last:border-b-0">
-                  <span class="timecode w-14 shrink-0 text-sm">
-                    S{String(season.number).padStart(2, "0")}E{String(
-                      episode.number,
-                    ).padStart(2, "0")}
-                  </span>
-                  <span class="min-w-0 flex-1 truncate text-sm">
-                    {episode.title ?? `Épisode ${episode.number}`}
-                    {#if episode.watchCount > 1}
-                      <span class="text-success">×{episode.watchCount}</span>
-                    {/if}
-                  </span>
-                  {#if episode.watchCount > 0}
-                    <span
-                      class="inline-flex items-center gap-1 text-xs font-semibold text-success">
-                      <Icon name="check" class="h-4 w-4" /> Vu
+                {@const watched = episode.watchCount > 0}
+                {@const historyOpen = openHistory === episode.id}
+                <li class="border-b border-border last:border-b-0">
+                  <div class="flex items-center gap-3 px-4 py-2.5">
+                    <span class="timecode w-14 shrink-0 text-sm">
+                      S{String(season.number).padStart(2, "0")}E{String(
+                        episode.number,
+                      ).padStart(2, "0")}
                     </span>
-                  {/if}
-                  {#if entry && episode.id}
-                    {@const watched = episode.watchCount > 0}
-                    {@const canThrough =
-                      season.number > 0 &&
-                      !allPreviousWatched(season.number, episode.number)}
-                    <!-- Split-button: primary marks this episode; the attached
-                         chevron opens a dropdown (e.g. "mark through here"). -->
-                    <div
-                      class="inline-flex shrink-0 items-stretch overflow-hidden rounded-lg text-xs font-semibold {watched
-                        ? 'border border-border text-dim'
-                        : 'bg-btn text-btn-fg'}">
-                      <button
-                        class="px-2.5 py-1 transition-[filter,background-color,color] disabled:opacity-50 {watched
-                          ? 'hover:bg-surface-2 hover:text-fg'
-                          : 'hover:brightness-95'}"
-                        disabled={busyEpisodeId === episode.id}
-                        onclick={() => markWatched(episode.id!)}>
-                        {watched ? "Revoir" : "Marquer vu"}
-                      </button>
-                      {#if canThrough || watched}
-                        <button
-                          class="border-l px-1.5 transition-[filter,background-color,color] {watched
-                            ? 'border-border hover:bg-surface-2 hover:text-fg'
-                            : 'border-btn-fg/25 hover:brightness-95'}"
-                          aria-label="Plus d'actions"
-                          aria-haspopup="menu"
-                          onclick={(e) => openMenu(e, episode.id!)}>
-                          ▾
-                        </button>
+                    <span class="min-w-0 flex-1 truncate text-sm">
+                      {episode.title ?? `Épisode ${episode.number}`}
+                      {#if episode.watchCount > 1}
+                        <span class="text-success">×{episode.watchCount}</span>
                       {/if}
-                    </div>
+                    </span>
+                    {#if watched && episode.id}
+                      <!-- Toggles the watch history (dates + ratings). -->
+                      <button
+                        class="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-success hover:underline"
+                        aria-expanded={historyOpen}
+                        onclick={() =>
+                          (openHistory = historyOpen ? null : episode.id)}>
+                        <Icon name="check" class="h-4 w-4" />
+                        {dateFmt.format(new Date(episode.watches[0].watchedAt))}
+                      </button>
+                    {/if}
+                    {#if entry && episode.id}
+                      {@const canThrough =
+                        season.number > 0 &&
+                        !allPreviousWatched(season.number, episode.number)}
+                      <!-- Split-button: primary marks this episode; the attached
+                           chevron opens a dropdown (e.g. "mark through here"). -->
+                      <div
+                        class="inline-flex shrink-0 items-stretch overflow-hidden rounded-lg text-xs font-semibold {watched
+                          ? 'border border-border text-dim'
+                          : 'bg-btn text-btn-fg'}">
+                        <button
+                          class="px-2.5 py-1 transition-[filter,background-color,color] disabled:opacity-50 {watched
+                            ? 'hover:bg-surface-2 hover:text-fg'
+                            : 'hover:brightness-95'}"
+                          disabled={busyEpisodeId === episode.id}
+                          onclick={() => markWatched(episode.id!)}>
+                          {watched ? "Revoir" : "Marquer vu"}
+                        </button>
+                        {#if canThrough || watched}
+                          <button
+                            class="border-l px-1.5 transition-[filter,background-color,color] {watched
+                              ? 'border-border hover:bg-surface-2 hover:text-fg'
+                              : 'border-btn-fg/25 hover:brightness-95'}"
+                            aria-label="Plus d'actions"
+                            aria-haspopup="menu"
+                            onclick={(e) => openMenu(e, episode.id!)}>
+                            ▾
+                          </button>
+                        {/if}
+                      </div>
+                    {/if}
+                  </div>
+
+                  {#if historyOpen && watched}
+                    <!-- Watch history: one row per viewing (date · rating · delete). -->
+                    <ul
+                      class="flex flex-col gap-1.5 border-t border-border bg-surface-2/40 px-4 py-2.5 pl-[4.5rem]">
+                      {#each episode.watches as w (w.id)}
+                        <li class="flex items-center gap-3 text-xs">
+                          <span class="flex-1 text-dim">
+                            {dateFmt.format(new Date(w.watchedAt))}
+                          </span>
+                          <label class="flex items-center gap-1.5">
+                            <span class="text-dim">Note</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="10"
+                              step="0.5"
+                              placeholder="—"
+                              class="input h-7 w-16 px-2 py-0 text-xs"
+                              value={w.rating ?? ""}
+                              onchange={(e) =>
+                                setRating(w.id, e.currentTarget.value)} />
+                          </label>
+                          <button
+                            class="text-dim hover:text-danger"
+                            aria-label="Supprimer ce visionnage"
+                            onclick={() => removeWatch(w.id)}>
+                            Supprimer
+                          </button>
+                        </li>
+                      {/each}
+                    </ul>
                   {/if}
                 </li>
               {/each}
             </ul>
-          </div>
+          </details>
         {/each}
       </div>
     {/if}

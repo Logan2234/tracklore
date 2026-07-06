@@ -60,9 +60,13 @@ pnpm --filter @tracklore/api test:e2e    # full API flow, isolated "e2e" schema
 
 ## Roadmap
 
-- **P1 — MVP** (current): auth, search, tracking, episode progress, PWA, Docker
-- **P1.5** — TV Time import (interactive, collection by collection, via TVDB IDs)
-- **P2** — Capacitor + push notifications ("new episode out")
+- **P1 — MVP** ✓: auth, search, tracking, episode progress, PWA, Docker
+- **P1.5 — TV Time import** ✓: interactive reconciliation (analyze → review
+  collection by collection → commit), matched through TVDB IDs, with manual
+  overrides. Source-agnostic pipeline, ready for more import sources.
+- **P2** (current) — push notifications ("new episode out") + Capacitor.
+  In-app notifications shipped; Web Push and the native (Capacitor) wrapper are
+  still to do.
 - **P3** — games & books modules
 - **P4** — social (friends, activity feed, shared lists)
 - **P5** — hosted offer / entitlements (open core)

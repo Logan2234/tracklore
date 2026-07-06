@@ -402,6 +402,27 @@ export class LibraryService {
     await this.prisma.episodeWatch.delete({ where: { id: watchId } });
   }
 
+  /** Set (or clear, with null) the rating of a single viewing. */
+  async rateWatch(
+    userId: string,
+    watchId: string,
+    rating: number | null,
+  ): Promise<void> {
+    const watch = await this.prisma.episodeWatch.findUnique({
+      where: { id: watchId },
+    });
+    if (!watch) {
+      throw new NotFoundException("Watch not found");
+    }
+    if (watch.userId !== userId) {
+      throw new ForbiddenException("This watch belongs to another user");
+    }
+    await this.prisma.episodeWatch.update({
+      where: { id: watchId },
+      data: { rating },
+    });
+  }
+
   private async assertEntryOwnership(
     userId: string,
     entryId: string,
@@ -430,10 +451,17 @@ export class LibraryService {
       season: { mediaItemId, number: { gt: 0 } },
     };
 
-    const totalEpisodes = await this.prisma.episode.count({
+    const episodes = await this.prisma.episode.findMany({
       where: regularEpisodes,
+      orderBy: [{ season: { number: "asc" } }, { number: "asc" }],
+      select: {
+        id: true,
+        number: true,
+        airDate: true,
+        season: { select: { number: true } },
+      },
     });
-    if (totalEpisodes === 0) {
+    if (episodes.length === 0) {
       return null; // Movies (or media without any episode listing).
     }
 
@@ -442,8 +470,27 @@ export class LibraryService {
       distinct: ["episodeId"],
       select: { episodeId: true },
     });
+    const watchedIds = new Set(watched.map((w) => w.episodeId));
 
-    return { watchedEpisodes: watched.length, totalEpisodes };
+    // Next up: first unwatched episode that has aired (null airDate = AniList's
+    // generated episodes, treated as available).
+    const now = new Date();
+    const next = episodes.find(
+      (e) =>
+        !watchedIds.has(e.id) && (e.airDate === null || e.airDate <= now),
+    );
+
+    return {
+      watchedEpisodes: watchedIds.size,
+      totalEpisodes: episodes.length,
+      nextEpisode: next
+        ? {
+            episodeId: next.id,
+            seasonNumber: next.season.number,
+            episodeNumber: next.number,
+          }
+        : null,
+    };
   }
 
   private toEntryDto(
@@ -526,6 +573,7 @@ export class LibraryService {
           title: episode.title,
           airDate: episode.airDate,
           watchCount: 0,
+          watches: [],
         })),
       })),
       entry: null,
@@ -544,7 +592,13 @@ export class LibraryService {
       include: {
         episodes: {
           orderBy: { number: "asc" },
-          include: { watches: { where: { userId }, select: { id: true } } },
+          include: {
+            watches: {
+              where: { userId },
+              orderBy: { watchedAt: "desc" },
+              select: { id: true, watchedAt: true, rating: true },
+            },
+          },
         },
       },
     });
@@ -584,6 +638,12 @@ export class LibraryService {
           title: episode.title,
           airDate: episode.airDate?.toISOString() ?? null,
           watchCount: episode.watches.length,
+          watches: episode.watches.map((w) => ({
+            id: w.id,
+            episodeId: episode.id,
+            watchedAt: w.watchedAt.toISOString(),
+            rating: w.rating,
+          })),
         })),
       })),
       entry,
