@@ -50,6 +50,7 @@ const EMPTY_EXTRAS = {
   watchProviders: { flatrate: [], rent: [], buy: [], link: null },
   cast: [],
   similar: [],
+  ratings: [],
 };
 const anilistStub = {
   source: CatalogSource.ANILIST,

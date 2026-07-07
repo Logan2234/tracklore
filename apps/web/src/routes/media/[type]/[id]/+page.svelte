@@ -378,6 +378,18 @@
             · {detail.airingFinished ? "Diffusion terminée" : "En diffusion"}
           {/if}
         </p>
+
+        {#if extras && extras.ratings.length > 0}
+          <div class="mt-2.5 flex flex-wrap gap-1.5">
+            {#each extras.ratings as r (r.source)}
+              <span
+                class="inline-flex items-center gap-1 rounded-md bg-surface-2 px-2 py-0.5 text-xs">
+                <span class="font-bold text-accent">{r.source}</span>
+                <span class="timecode">{r.score}</span>
+              </span>
+            {/each}
+          </div>
+        {/if}
       </div>
     </div>
 

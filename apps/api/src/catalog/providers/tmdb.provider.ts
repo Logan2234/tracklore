@@ -10,7 +10,8 @@ import {
   MediaSummaryDto,
   MediaType,
 } from "@tracklore/shared";
-import type { MediaExtrasDto, WatchProviderDto } from "@tracklore/shared";
+import type { MediaExtrasDto, RatingDto, WatchProviderDto } from "@tracklore/shared";
+import { OmdbService } from "../omdb.service";
 import type {
   CatalogProvider,
   ProviderExternalId,
@@ -83,11 +84,13 @@ interface TmdbWatchRegion {
 }
 
 interface TmdbExtras {
+  vote_average?: number | null;
   credits?: {
     cast?: { name: string; character?: string; profile_path?: string | null }[];
   };
   recommendations?: { results?: (TmdbMovieResult | TmdbTvResult)[] };
   "watch/providers"?: { results?: Record<string, TmdbWatchRegion> };
+  external_ids?: { imdb_id?: string | null };
 }
 
 interface TmdbFindResult {
@@ -102,7 +105,10 @@ interface TmdbFindResult {
 export class TmdbProvider implements CatalogProvider {
   readonly source = CatalogSource.TMDB;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly omdb: OmdbService,
+  ) {}
 
   async search(
     query: string,
@@ -215,8 +221,15 @@ export class TmdbProvider implements CatalogProvider {
   async getExtras(sourceId: string, type: MediaType): Promise<MediaExtrasDto> {
     const path = type === MediaType.MOVIE ? "movie" : "tv";
     const data = await this.get<TmdbExtras>(`/${path}/${sourceId}`, {
-      append_to_response: "credits,recommendations,watch/providers",
+      append_to_response: "credits,recommendations,watch/providers,external_ids",
     });
+
+    // TMDB's own score, plus IMDb/RT/Metacritic from OMDb (via the IMDb id).
+    const ratings: RatingDto[] = [];
+    if (data.vote_average && data.vote_average > 0) {
+      ratings.push({ source: "TMDB", score: data.vote_average.toFixed(1) });
+    }
+    ratings.push(...(await this.omdb.getRatings(data.external_ids?.imdb_id ?? null)));
 
     const region = data["watch/providers"]?.results?.FR;
     const toProviders = (list?: TmdbWatchProvider[]): WatchProviderDto[] =>
@@ -242,6 +255,7 @@ export class TmdbProvider implements CatalogProvider {
       similar: (data.recommendations?.results ?? [])
         .slice(0, 12)
         .map((r) => summarize(r as TmdbMovieResult & TmdbTvResult)),
+      ratings,
     };
   }
 

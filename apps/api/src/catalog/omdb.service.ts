@@ -1,0 +1,50 @@
+import { Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import type { RatingDto } from "@tracklore/shared";
+
+const OMDB_URL = "https://www.omdbapi.com/";
+
+/** Maps OMDb's verbose rating source names to our short labels. */
+const SOURCE_LABELS: Record<string, string> = {
+  "Internet Movie Database": "IMDb",
+  "Rotten Tomatoes": "RT",
+  Metacritic: "Metacritic",
+};
+
+interface OmdbResponse {
+  Response: string;
+  Ratings?: { Source: string; Value: string }[];
+}
+
+/**
+ * OMDb aggregates IMDb + Rotten Tomatoes + Metacritic scores from an IMDb id.
+ * Requires OMDB_API_KEY; without it (or on any failure) this returns an empty
+ * list so the caller degrades silently — ratings are a nice-to-have.
+ */
+@Injectable()
+export class OmdbService {
+  constructor(private readonly config: ConfigService) {}
+
+  async getRatings(imdbId: string | null): Promise<RatingDto[]> {
+    const apiKey = this.config.get<string>("OMDB_API_KEY");
+    if (!apiKey || !imdbId) return [];
+
+    try {
+      const url = new URL(OMDB_URL);
+      url.searchParams.set("apikey", apiKey);
+      url.searchParams.set("i", imdbId);
+      const response = await fetch(url);
+      if (!response.ok) return [];
+
+      const data = (await response.json()) as OmdbResponse;
+      if (data.Response !== "True" || !data.Ratings) return [];
+
+      return data.Ratings.map((r) => ({
+        source: SOURCE_LABELS[r.Source] ?? r.Source,
+        score: r.Value,
+      }));
+    } catch {
+      return []; // network / parse hiccup → no ratings, no error
+    }
+  }
+}

@@ -43,12 +43,21 @@ export interface CastMemberDto {
   photoUrl: string | null;
 }
 
+/** One community/critic score, kept as a display string (e.g. "8.5", "91%"). */
+export interface RatingDto {
+  /** Short label: "TMDB", "AniList", "IMDb", "RT", "Metacritic". */
+  source: string;
+  score: string;
+}
+
 /** Rich, non-persisted extras for the media detail page (fetched live). */
 export interface MediaExtrasDto {
   watchProviders: WatchProvidersDto;
   cast: CastMemberDto[];
   /** Similar / recommended titles, linkable to their own media page. */
   similar: MediaSummaryDto[];
+  /** Community/critic scores (TMDB/AniList always; IMDb/RT/Metacritic via OMDb). */
+  ratings: RatingDto[];
 }
 
 export interface EpisodeDto {

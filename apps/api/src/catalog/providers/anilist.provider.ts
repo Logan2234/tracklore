@@ -53,6 +53,7 @@ const DETAILS_QUERY = `
 const EXTRAS_QUERY = `
   query ($id: Int) {
     Media(id: $id, type: ANIME) {
+      averageScore
       characters(sort: [ROLE, RELEVANCE], perPage: 12) {
         edges { role node { name { full } image { medium } } }
       }
@@ -92,6 +93,7 @@ interface AnilistMedia {
 }
 
 interface AnilistExtras {
+  averageScore?: number | null;
   characters?: {
     edges?: {
       role?: string | null;
@@ -170,6 +172,9 @@ export class AnilistProvider implements CatalogProvider {
         .map((n) => n.mediaRecommendation)
         .filter((m): m is AnilistMedia => m != null)
         .map((m) => this.toSummary(m)),
+      ratings: media?.averageScore
+        ? [{ source: "AniList", score: `${media.averageScore}%` }]
+        : [],
     };
   }
 

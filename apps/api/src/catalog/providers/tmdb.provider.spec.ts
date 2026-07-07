@@ -2,6 +2,7 @@ import { ConfigService } from "@nestjs/config";
 import { MediaSource, MediaType } from "@tracklore/shared";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { OmdbService } from "../omdb.service";
 import { TmdbProvider } from "./tmdb.provider";
 
 const FIXTURES = join(__dirname, "..", "..", "..", "test", "fixtures");
@@ -37,7 +38,11 @@ describe("TmdbProvider", () => {
 
   beforeEach(() => {
     const config = { getOrThrow: jest.fn().mockReturnValue("test-token") };
-    provider = new TmdbProvider(config as unknown as ConfigService);
+    const omdb = { getRatings: jest.fn().mockResolvedValue([]) };
+    provider = new TmdbProvider(
+      config as unknown as ConfigService,
+      omdb as unknown as OmdbService,
+    );
   });
 
   afterEach(() => {
