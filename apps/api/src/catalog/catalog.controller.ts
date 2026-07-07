@@ -8,6 +8,7 @@ import {
 import {
   CatalogSource,
   MediaDetailsDto,
+  MediaExtrasDto,
   MediaType,
   SearchResponseDto,
 } from "@tracklore/shared";
@@ -64,6 +65,18 @@ export class CatalogController {
     const source = parseSource(sourceParam);
     const resolvedType = resolveType(source, type);
     return this.mediaItemService.getLiveDetails(source, id, resolvedType);
+  }
+
+  /** Live extras (where to watch, cast, similar) — nothing is persisted. */
+  @Get(":source/:id/extras")
+  getExtras(
+    @Param("source") sourceParam: string,
+    @Param("id") id: string,
+    @Query("type") type?: MediaType,
+  ): Promise<MediaExtrasDto> {
+    const source = parseSource(sourceParam);
+    const resolvedType = resolveType(source, type);
+    return this.mediaItemService.providerFor(source).getExtras(id, resolvedType);
   }
 }
 

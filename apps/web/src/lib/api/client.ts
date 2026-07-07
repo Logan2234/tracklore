@@ -9,6 +9,7 @@ import type {
   LoginRequestDto,
   MediaDetailDto,
   MediaDetailsDto,
+  MediaExtrasDto,
   MediaType,
   NotificationFeedDto,
   RegisterRequestDto,
@@ -176,6 +177,17 @@ export function getCatalogDetails(
   type: MediaType,
 ): Promise<MediaDetailsDto> {
   return request(`/catalog/${source.toLowerCase()}/${sourceId}?type=${type}`);
+}
+
+/** Live extras (where to watch, cast, similar) — not persisted. */
+export function getMediaExtras(
+  source: string,
+  sourceId: string,
+  type: MediaType,
+): Promise<MediaExtrasDto> {
+  return request(
+    `/catalog/${source.toLowerCase()}/${sourceId}/extras?type=${type}`,
+  );
 }
 
 /**

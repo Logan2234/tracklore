@@ -1,5 +1,6 @@
 import type {
   CatalogSource,
+  MediaExtrasDto,
   MediaSource,
   MediaSummaryDto,
   MediaType,
@@ -44,4 +45,6 @@ export interface CatalogProvider {
     page?: number,
   ): Promise<MediaSummaryDto[]>;
   getDetails(sourceId: string, type: MediaType): Promise<ProviderMediaDetails>;
+  /** Live, non-persisted extras: where to watch, cast, similar titles. */
+  getExtras(sourceId: string, type: MediaType): Promise<MediaExtrasDto>;
 }

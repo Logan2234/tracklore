@@ -21,6 +21,36 @@ export interface SearchResponseDto {
   results: MediaSummaryDto[];
 }
 
+/** A streaming platform where a title is available (from TMDB / JustWatch). */
+export interface WatchProviderDto {
+  name: string;
+  logoUrl: string | null;
+}
+
+/** Where to watch, split by offer type, for one region. */
+export interface WatchProvidersDto {
+  flatrate: WatchProviderDto[];
+  rent: WatchProviderDto[];
+  buy: WatchProviderDto[];
+  /** JustWatch deep link for the region, if any. */
+  link: string | null;
+}
+
+export interface CastMemberDto {
+  name: string;
+  /** Character/role, when known. */
+  role: string | null;
+  photoUrl: string | null;
+}
+
+/** Rich, non-persisted extras for the media detail page (fetched live). */
+export interface MediaExtrasDto {
+  watchProviders: WatchProvidersDto;
+  cast: CastMemberDto[];
+  /** Similar / recommended titles, linkable to their own media page. */
+  similar: MediaSummaryDto[];
+}
+
 export interface EpisodeDto {
   /** Internal ID, only present once the media is persisted. */
   id: string | null;

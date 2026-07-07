@@ -10,6 +10,7 @@ import {
   MediaSummaryDto,
   MediaType,
 } from "@tracklore/shared";
+import type { MediaExtrasDto, WatchProviderDto } from "@tracklore/shared";
 import type {
   CatalogProvider,
   ProviderExternalId,
@@ -67,6 +68,26 @@ interface TmdbSeasonDetails {
     name?: string | null;
     air_date?: string | null;
   }[];
+}
+
+interface TmdbWatchProvider {
+  provider_name: string;
+  logo_path?: string | null;
+}
+
+interface TmdbWatchRegion {
+  link?: string;
+  flatrate?: TmdbWatchProvider[];
+  rent?: TmdbWatchProvider[];
+  buy?: TmdbWatchProvider[];
+}
+
+interface TmdbExtras {
+  credits?: {
+    cast?: { name: string; character?: string; profile_path?: string | null }[];
+  };
+  recommendations?: { results?: (TmdbMovieResult | TmdbTvResult)[] };
+  "watch/providers"?: { results?: Record<string, TmdbWatchRegion> };
 }
 
 interface TmdbFindResult {
@@ -187,6 +208,40 @@ export class TmdbProvider implements CatalogProvider {
       runtimeMin: tv.episode_run_time?.[0] ?? null,
       externalIds: this.toExternalIds(String(tv.id), tv.external_ids),
       seasons,
+    };
+  }
+
+  /** Live extras (where to watch, cast, similar) in a single append call. */
+  async getExtras(sourceId: string, type: MediaType): Promise<MediaExtrasDto> {
+    const path = type === MediaType.MOVIE ? "movie" : "tv";
+    const data = await this.get<TmdbExtras>(`/${path}/${sourceId}`, {
+      append_to_response: "credits,recommendations,watch/providers",
+    });
+
+    const region = data["watch/providers"]?.results?.FR;
+    const toProviders = (list?: TmdbWatchProvider[]): WatchProviderDto[] =>
+      (list ?? []).map((p) => ({
+        name: p.provider_name,
+        logoUrl: p.logo_path ? `${IMG}/w92${p.logo_path}` : null,
+      }));
+    const summarize = (r: TmdbMovieResult & TmdbTvResult): MediaSummaryDto =>
+      type === MediaType.MOVIE ? this.toMovieSummary(r) : this.toTvSummary(r);
+
+    return {
+      watchProviders: {
+        flatrate: toProviders(region?.flatrate),
+        rent: toProviders(region?.rent),
+        buy: toProviders(region?.buy),
+        link: region?.link ?? null,
+      },
+      cast: (data.credits?.cast ?? []).slice(0, 12).map((c) => ({
+        name: c.name,
+        role: c.character || null,
+        photoUrl: c.profile_path ? `${IMG}/w185${c.profile_path}` : null,
+      })),
+      similar: (data.recommendations?.results ?? [])
+        .slice(0, 12)
+        .map((r) => summarize(r as TmdbMovieResult & TmdbTvResult)),
     };
   }
 

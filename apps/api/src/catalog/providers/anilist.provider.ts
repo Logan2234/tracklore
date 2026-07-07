@@ -9,6 +9,7 @@ import {
   MediaSummaryDto,
   MediaType,
 } from "@tracklore/shared";
+import type { MediaExtrasDto } from "@tracklore/shared";
 import type {
   CatalogProvider,
   ProviderEpisode,
@@ -49,6 +50,26 @@ const DETAILS_QUERY = `
   }
 `;
 
+const EXTRAS_QUERY = `
+  query ($id: Int) {
+    Media(id: $id, type: ANIME) {
+      characters(sort: [ROLE, RELEVANCE], perPage: 12) {
+        edges { role node { name { full } image { medium } } }
+      }
+      recommendations(sort: RATING_DESC, perPage: 12) {
+        nodes {
+          mediaRecommendation {
+            id
+            title { romaji english }
+            seasonYear
+            coverImage { large }
+          }
+        }
+      }
+    }
+  }
+`;
+
 interface AnilistMedia {
   id: number;
   title: { romaji?: string | null; english?: string | null };
@@ -68,6 +89,18 @@ interface AnilistMedia {
   };
   nextAiringEpisode?: { episode: number } | null;
   streamingEpisodes?: { title?: string | null }[];
+}
+
+interface AnilistExtras {
+  characters?: {
+    edges?: {
+      role?: string | null;
+      node: { name: { full?: string | null }; image?: { medium?: string | null } };
+    }[];
+  };
+  recommendations?: {
+    nodes?: { mediaRecommendation?: AnilistMedia | null }[];
+  };
 }
 
 /** Anime, from AniList (GraphQL, no API key needed for public queries). */
@@ -115,6 +148,28 @@ export class AnilistProvider implements CatalogProvider {
         { source: MediaSource.ANILIST, externalId: String(media.id) },
       ],
       seasons: [{ number: 1, title: null, episodes: buildEpisodes(media) }],
+    };
+  }
+
+  // AniList exposes no streaming providers; cast = characters, similar =
+  // recommendations. `type` is always ANIME here.
+  async getExtras(sourceId: string): Promise<MediaExtrasDto> {
+    const data = await this.query<{ Media: AnilistExtras | null }>(
+      EXTRAS_QUERY,
+      { id: Number(sourceId) },
+    );
+    const media = data.Media;
+    return {
+      watchProviders: { flatrate: [], rent: [], buy: [], link: null },
+      cast: (media?.characters?.edges ?? []).map((e) => ({
+        name: e.node.name.full ?? "?",
+        role: e.role ?? null,
+        photoUrl: e.node.image?.medium ?? null,
+      })),
+      similar: (media?.recommendations?.nodes ?? [])
+        .map((n) => n.mediaRecommendation)
+        .filter((m): m is AnilistMedia => m != null)
+        .map((m) => this.toSummary(m)),
     };
   }
 

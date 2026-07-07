@@ -46,6 +46,11 @@ const ANIME_DETAILS: ProviderMediaDetails = {
 
 // External catalogues are stubbed: e2e exercises our API + database, not TMDB/AniList.
 // getDetails echoes the requested id so different sourceIds yield distinct media.
+const EMPTY_EXTRAS = {
+  watchProviders: { flatrate: [], rent: [], buy: [], link: null },
+  cast: [],
+  similar: [],
+};
 const anilistStub = {
   source: CatalogSource.ANILIST,
   search: jest.fn().mockResolvedValue([ANIME_SUMMARY]),
@@ -56,11 +61,13 @@ const anilistStub = {
       externalIds: [{ source: MediaSource.ANILIST, externalId: sourceId }],
     }),
   ),
+  getExtras: jest.fn().mockResolvedValue(EMPTY_EXTRAS),
 };
 const tmdbStub = {
   source: CatalogSource.TMDB,
   search: jest.fn().mockResolvedValue([]),
   getDetails: jest.fn(),
+  getExtras: jest.fn().mockResolvedValue(EMPTY_EXTRAS),
 };
 
 describe("Tracklore API (e2e)", () => {
@@ -432,6 +439,16 @@ describe("Tracklore API (e2e)", () => {
       .post("/api/notifications/read")
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(204);
+  });
+
+  it("media extras: returns where-to-watch, cast and similar", async () => {
+    const res = await request(http)
+      .get("/api/catalog/anilist/5555/extras?type=ANIME")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+    expect(res.body.watchProviders).toBeDefined();
+    expect(Array.isArray(res.body.cast)).toBe(true);
+    expect(Array.isArray(res.body.similar)).toBe(true);
   });
 
   it("rotates refresh tokens: the old one is consumed", async () => {

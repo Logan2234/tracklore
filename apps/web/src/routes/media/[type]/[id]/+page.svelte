@@ -6,6 +6,7 @@
     deleteLibraryEntry,
     deleteWatch,
     getMediaDetail,
+    getMediaExtras,
     rateWatch,
     updateLibraryEntry,
     upsertLibraryEntry,
@@ -15,7 +16,10 @@
     watchThrough,
     ApiError,
   } from "$lib/api/client";
-  import type { MediaDetailSeasonDto } from "@tracklore/shared";
+  import type {
+    MediaDetailSeasonDto,
+    MediaExtrasDto,
+  } from "@tracklore/shared";
   import Poster from "$lib/components/Poster.svelte";
   import Icon from "$lib/components/Icon.svelte";
 
@@ -109,6 +113,28 @@
   async function reload() {
     detail = await getMediaDetail(type, id);
   }
+
+  // Live extras (where to watch, cast, similar). Loaded once per media (keyed on
+  // the route), independent of watch-state reloads. Best-effort: errors are
+  // swallowed so a provider hiccup never breaks the page.
+  let extras = $state<MediaExtrasDto | null>(null);
+  $effect(() => {
+    const t = type;
+    const i = id;
+    extras = null;
+    if (!t || !i) return;
+    const source = t === "ANIME" ? "anilist" : "tmdb";
+    getMediaExtras(source, i, t)
+      .then((x) => (extras = x))
+      .catch(() => {});
+  });
+
+  const hasProviders = $derived(
+    !!extras &&
+      (extras.watchProviders.flatrate.length > 0 ||
+        extras.watchProviders.rent.length > 0 ||
+        extras.watchProviders.buy.length > 0),
+  );
 
   const entry = $derived(detail?.entry ?? null);
   const isMovie = $derived(detail?.type === "MOVIE");
@@ -382,6 +408,34 @@
       <p class="mt-6 max-w-2xl text-dim">{detail.overview}</p>
     {/if}
 
+    {#if hasProviders && extras}
+      <!-- Où regarder (TMDB / JustWatch). -->
+      <section class="mt-6 max-w-2xl">
+        <h2 class="mb-2 font-display text-sm font-bold">Où regarder</h2>
+        <div class="flex flex-col gap-2">
+          {#each [{ label: "Streaming", list: extras.watchProviders.flatrate }, { label: "Location", list: extras.watchProviders.rent }, { label: "Achat", list: extras.watchProviders.buy }] as group (group.label)}
+            {#if group.list.length > 0}
+              <div class="flex items-center gap-2.5">
+                <span class="timecode w-20 shrink-0 text-xs">{group.label}</span>
+                <div class="flex flex-wrap gap-1.5">
+                  {#each group.list as p (p.name)}
+                    <span title={p.name} class="grid h-8 w-8 place-items-center overflow-hidden rounded-lg bg-surface-2">
+                      {#if p.logoUrl}
+                        <img src={p.logoUrl} alt={p.name} class="h-full w-full object-cover" loading="lazy" />
+                      {:else}
+                        <span class="text-[0.6rem] font-bold text-dim">{p.name.slice(0, 2)}</span>
+                      {/if}
+                    </span>
+                  {/each}
+                </div>
+              </div>
+            {/if}
+          {/each}
+        </div>
+        <p class="timecode mt-1.5 text-[0.65rem]">Données de disponibilité JustWatch · France</p>
+      </section>
+    {/if}
+
     <!-- Actions -->
     {#if !entry}
       <div class="mt-6">
@@ -621,6 +675,53 @@
           </details>
         {/each}
       </div>
+    {/if}
+
+    {#if extras && extras.cast.length > 0}
+      <section class="mt-10">
+        <h2 class="mb-3 font-display text-xl font-bold">Distribution</h2>
+        <div
+          class="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
+          {#each extras.cast as c (c.name + (c.role ?? ""))}
+            <div class="w-24 shrink-0 snap-start text-center">
+              <div
+                class="aspect-2/3 w-full overflow-hidden rounded-lg bg-surface-2">
+                {#if c.photoUrl}
+                  <img
+                    src={c.photoUrl}
+                    alt={c.name}
+                    loading="lazy"
+                    class="h-full w-full object-cover" />
+                {/if}
+              </div>
+              <p class="mt-1.5 truncate text-xs font-semibold">{c.name}</p>
+              {#if c.role}
+                <p class="truncate text-[0.65rem] text-dim">{c.role}</p>
+              {/if}
+            </div>
+          {/each}
+        </div>
+      </section>
+    {/if}
+
+    {#if extras && extras.similar.length > 0}
+      <section class="mt-10">
+        <h2 class="mb-3 font-display text-xl font-bold">Titres similaires</h2>
+        <div
+          class="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
+          {#each extras.similar as s (`${s.source}:${s.sourceId}`)}
+            <a
+              href={`/media/${s.type.toLowerCase()}/${s.sourceId}`}
+              class="w-28 shrink-0 snap-start sm:w-32">
+              <div
+                class="card overflow-hidden transition-[border-color] hover:border-accent">
+                <Poster src={s.posterUrl} title={s.title} />
+              </div>
+              <p class="mt-1.5 truncate text-xs font-semibold">{s.title}</p>
+            </a>
+          {/each}
+        </div>
+      </section>
     {/if}
   </div>
 
