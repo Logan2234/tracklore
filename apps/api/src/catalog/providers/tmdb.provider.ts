@@ -10,7 +10,7 @@ import {
   MediaSummaryDto,
   MediaType,
 } from "@tracklore/shared";
-import type { MediaExtrasDto, RatingDto, WatchProviderDto } from "@tracklore/shared";
+import type { MediaExtrasDto, WatchProviderDto } from "@tracklore/shared";
 import { OmdbService } from "../omdb.service";
 import type {
   CatalogProvider,
@@ -84,7 +84,6 @@ interface TmdbWatchRegion {
 }
 
 interface TmdbExtras {
-  vote_average?: number | null;
   credits?: {
     cast?: { name: string; character?: string; profile_path?: string | null }[];
   };
@@ -224,12 +223,10 @@ export class TmdbProvider implements CatalogProvider {
       append_to_response: "credits,recommendations,watch/providers,external_ids",
     });
 
-    // TMDB's own score, plus IMDb/RT/Metacritic from OMDb (via the IMDb id).
-    const ratings: RatingDto[] = [];
-    if (data.vote_average && data.vote_average > 0) {
-      ratings.push({ source: "TMDB", score: data.vote_average.toFixed(1) });
-    }
-    ratings.push(...(await this.omdb.getRatings(data.external_ids?.imdb_id ?? null)));
+    // IMDb / Rotten Tomatoes / Metacritic from OMDb (via the IMDb id).
+    const ratings = await this.omdb.getRatings(
+      data.external_ids?.imdb_id ?? null,
+    );
 
     const region = data["watch/providers"]?.results?.FR;
     const toProviders = (list?: TmdbWatchProvider[]): WatchProviderDto[] =>

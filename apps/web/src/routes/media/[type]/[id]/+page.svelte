@@ -43,14 +43,21 @@
     DROPPED: { label: "Abandonné", cls: "border border-danger text-danger" },
   };
 
+  // Brand-ish colors per rating source (no official logos — those are
+  // trademarked). Literal classes so Tailwind picks them up.
+  const RATING_STYLES: Record<string, string> = {
+    IMDb: "bg-[#f5c518] text-black",
+    RT: "bg-[#fa320a] text-white",
+    Metacritic: "bg-[#66cc33] text-black",
+    AniList: "bg-[#02a9ff] text-white",
+  };
+
   let detail = $state<MediaDetailDto | null>(null);
   let error = $state<string | null>(null);
   let busyEpisodeId = $state<string | null>(null);
   let busySeasonId = $state<string | null>(null);
   // Episode whose watch history (dates + ratings) is expanded, by id.
   let openHistory = $state<string | null>(null);
-  // Specials (season 0) are hidden by default; a toggle reveals them.
-  let showSpecials = $state(false);
 
   const dateFmt = new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
@@ -159,10 +166,6 @@
           return a.number - b.number;
         })
       : [],
-  );
-  const hasSpecials = $derived(orderedSeasons.some((s) => s.number === 0));
-  const visibleSeasons = $derived(
-    orderedSeasons.filter((s) => showSpecials || s.number !== 0),
   );
 
   async function add() {
@@ -315,7 +318,7 @@
 
 {#if detail}
   <!-- Hero: real backdrop, gradient fallback fading into the page. -->
-  <div class="relative -z-1">
+  <div class="relative">
     {#if detail.backdropUrl}
       <img
         src={detail.backdropUrl}
@@ -383,9 +386,11 @@
           <div class="mt-2.5 flex flex-wrap gap-1.5">
             {#each extras.ratings as r (r.source)}
               <span
-                class="inline-flex items-center gap-1 rounded-md bg-surface-2 px-2 py-0.5 text-xs">
-                <span class="font-bold text-accent">{r.source}</span>
-                <span class="timecode">{r.score}</span>
+                class="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-semibold {RATING_STYLES[
+                  r.source
+                ] ?? 'bg-surface-2 text-fg'}">
+                <span>{r.source}</span>
+                <span class="tabular-nums opacity-90">{r.score}</span>
               </span>
             {/each}
           </div>
@@ -418,34 +423,6 @@
 
     {#if detail.overview}
       <p class="mt-6 max-w-2xl text-dim">{detail.overview}</p>
-    {/if}
-
-    {#if hasProviders && extras}
-      <!-- Où regarder (TMDB / JustWatch). -->
-      <section class="mt-6 max-w-2xl">
-        <h2 class="mb-2 font-display text-sm font-bold">Où regarder</h2>
-        <div class="flex flex-col gap-2">
-          {#each [{ label: "Streaming", list: extras.watchProviders.flatrate }, { label: "Location", list: extras.watchProviders.rent }, { label: "Achat", list: extras.watchProviders.buy }] as group (group.label)}
-            {#if group.list.length > 0}
-              <div class="flex items-center gap-2.5">
-                <span class="timecode w-20 shrink-0 text-xs">{group.label}</span>
-                <div class="flex flex-wrap gap-1.5">
-                  {#each group.list as p (p.name)}
-                    <span title={p.name} class="grid h-8 w-8 place-items-center overflow-hidden rounded-lg bg-surface-2">
-                      {#if p.logoUrl}
-                        <img src={p.logoUrl} alt={p.name} class="h-full w-full object-cover" loading="lazy" />
-                      {:else}
-                        <span class="text-[0.6rem] font-bold text-dim">{p.name.slice(0, 2)}</span>
-                      {/if}
-                    </span>
-                  {/each}
-                </div>
-              </div>
-            {/if}
-          {/each}
-        </div>
-        <p class="timecode mt-1.5 text-[0.65rem]">Données de disponibilité JustWatch · France</p>
-      </section>
     {/if}
 
     <!-- Actions -->
@@ -541,21 +518,42 @@
       </div>
     {/if}
 
+    {#if hasProviders && extras}
+      <!-- Où regarder: deliberately discreet (small, muted logos). -->
+      <section class="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <span class="timecode text-xs">Où regarder</span>
+        {#each [{ label: "Streaming", list: extras.watchProviders.flatrate }, { label: "Location", list: extras.watchProviders.rent }, { label: "Achat", list: extras.watchProviders.buy }] as group (group.label)}
+          {#if group.list.length > 0}
+            <div class="flex items-center gap-1.5">
+              <span class="text-[0.65rem] text-dim">{group.label}</span>
+              {#each group.list.slice(0, 8) as p (p.name)}
+                <span
+                  title={p.name}
+                  class="grid h-6 w-6 place-items-center overflow-hidden rounded bg-surface-2 opacity-80">
+                  {#if p.logoUrl}
+                    <img
+                      src={p.logoUrl}
+                      alt={p.name}
+                      loading="lazy"
+                      class="h-full w-full object-cover" />
+                  {:else}
+                    <span class="text-[0.55rem] font-bold text-dim"
+                      >{p.name.slice(0, 2)}</span>
+                  {/if}
+                </span>
+              {/each}
+            </div>
+          {/if}
+        {/each}
+        <span class="timecode w-full text-[0.6rem] text-dim">JustWatch · France</span>
+      </section>
+    {/if}
+
     <!-- Episodes (series/anime). Watch actions only once the media is tracked. -->
     {#if !isMovie && detail.seasons.length > 0}
-      <div class="mt-10 mb-4 flex items-baseline justify-between gap-3">
-        <h2 class="font-display text-xl font-bold">Épisodes</h2>
-        {#if hasSpecials}
-          <button
-            class="chip"
-            class:chip-on={showSpecials}
-            onclick={() => (showSpecials = !showSpecials)}>
-            {showSpecials ? "Masquer les Specials" : "Afficher les Specials"}
-          </button>
-        {/if}
-      </div>
+      <h2 class="mt-10 mb-4 font-display text-xl font-bold">Épisodes</h2>
       <div class="flex flex-col gap-4 pb-4">
-        {#each visibleSeasons as season (season.number)}
+        {#each orderedSeasons as season (season.number)}
           <!-- Seasons are collapsible and collapsed by default. -->
           <details class="card group">
             <summary
