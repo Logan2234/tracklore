@@ -66,7 +66,6 @@ export class LibraryService {
       rating: dto.rating,
       notes: dto.notes,
       favorite: dto.favorite,
-      archived: dto.archived,
     };
     const entry = await this.prisma.libraryEntry.upsert({
       where: { userId_mediaItemId: { userId, mediaItemId: mediaItem.id } },
@@ -78,6 +77,7 @@ export class LibraryService {
     return this.toEntryDto(
       entry,
       await this.computeProgress(userId, mediaItem.id),
+      await this.lastWatchedAt(userId, mediaItem.id),
     );
   }
 
@@ -99,6 +99,7 @@ export class LibraryService {
         this.toEntryDto(
           entry,
           await this.computeProgress(userId, entry.mediaItemId),
+          await this.lastWatchedAt(userId, entry.mediaItemId),
         ),
       ),
     );
@@ -118,6 +119,7 @@ export class LibraryService {
     return this.toEntryDto(
       entry,
       await this.computeProgress(userId, entry.mediaItemId),
+      await this.lastWatchedAt(userId, entry.mediaItemId),
     );
   }
 
@@ -135,7 +137,6 @@ export class LibraryService {
         rating: dto.rating,
         notes: dto.notes,
         favorite: dto.favorite,
-        archived: dto.archived,
         startedAt:
           dto.startedAt === undefined ? undefined : toDateOrNull(dto.startedAt),
         finishedAt:
@@ -149,6 +150,7 @@ export class LibraryService {
     return this.toEntryDto(
       entry,
       await this.computeProgress(userId, entry.mediaItemId),
+      await this.lastWatchedAt(userId, entry.mediaItemId),
     );
   }
 
@@ -493,9 +495,22 @@ export class LibraryService {
     };
   }
 
+  /** Most recent viewing of a media (max episode watch), or null if never. */
+  private async lastWatchedAt(
+    userId: string,
+    mediaItemId: string,
+  ): Promise<Date | null> {
+    const agg = await this.prisma.episodeWatch.aggregate({
+      where: { userId, episode: { season: { mediaItemId } } },
+      _max: { watchedAt: true },
+    });
+    return agg._max.watchedAt;
+  }
+
   private toEntryDto(
     entry: EntryWithMedia,
     progress: ProgressDto | null,
+    watchedAt: Date | null,
   ): LibraryEntryDto {
     const media = entry.mediaItem;
     const status = deriveStatus(
@@ -504,6 +519,8 @@ export class LibraryService {
       normalizeAiringFinished(media.status),
       entry.status,
     );
+    // Movies have no episode watches: fall back to when it was marked finished.
+    const lastWatchedAt = watchedAt ?? entry.finishedAt;
     return {
       id: entry.id,
       mediaItem: toMediaItemDto(media),
@@ -511,9 +528,10 @@ export class LibraryService {
       rating: entry.rating,
       notes: entry.notes,
       favorite: entry.favorite,
-      archived: entry.archived,
       startedAt: entry.startedAt?.toISOString() ?? null,
       finishedAt: entry.finishedAt?.toISOString() ?? null,
+      createdAt: entry.createdAt.toISOString(),
+      lastWatchedAt: lastWatchedAt?.toISOString() ?? null,
       progress,
     };
   }
@@ -611,6 +629,7 @@ export class LibraryService {
       ? this.toEntryDto(
           entryRow,
           await this.computeProgress(userId, media.id),
+          await this.lastWatchedAt(userId, media.id),
         )
       : null;
 

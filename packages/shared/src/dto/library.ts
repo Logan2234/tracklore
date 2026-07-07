@@ -22,9 +22,12 @@ export interface LibraryEntryDto {
   rating: number | null;
   notes: string | null;
   favorite: boolean;
-  archived: boolean;
   startedAt: string | null;
   finishedAt: string | null;
+  /** When the entry was added to the library (ISO). */
+  createdAt: string;
+  /** Most recent viewing (max episode watch, else the movie's finishedAt); null if never. */
+  lastWatchedAt: string | null;
   /** Episode progress, only for series/anime. */
   progress: ProgressDto | null;
 }
@@ -53,7 +56,6 @@ export interface UpsertLibraryEntryDto {
   rating?: number | null;
   notes?: string | null;
   favorite?: boolean;
-  archived?: boolean;
 }
 
 /** One watch event for one episode; several rows for the same episode = rewatches. */

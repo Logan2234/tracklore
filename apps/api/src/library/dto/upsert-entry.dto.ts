@@ -43,8 +43,4 @@ export class UpsertEntryDto implements UpsertLibraryEntryDto {
   @IsOptional()
   @IsBoolean()
   favorite?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
-  archived?: boolean;
 }

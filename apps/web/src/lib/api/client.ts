@@ -214,10 +214,7 @@ export function upsertLibraryEntry(
 export function updateLibraryEntry(
   entryId: string,
   body: Partial<
-    Pick<
-      LibraryEntryDto,
-      "status" | "rating" | "notes" | "favorite" | "archived"
-    >
+    Pick<LibraryEntryDto, "status" | "rating" | "notes" | "favorite">
   >,
 ): Promise<LibraryEntryDto> {
   return request(`/library/entries/${entryId}`, { method: "PATCH", body });

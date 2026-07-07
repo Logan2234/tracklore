@@ -164,7 +164,6 @@ model LibraryEntry {
   rating      Float?
   notes       String?
   favorite    Boolean     @default(false)
-  archived    Boolean     @default(false)
   startedAt   DateTime?
   finishedAt  DateTime?
   createdAt   DateTime    @default(now())

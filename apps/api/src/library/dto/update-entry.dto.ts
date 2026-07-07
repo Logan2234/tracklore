@@ -32,10 +32,6 @@ export class UpdateEntryDto {
   favorite?: boolean;
 
   @IsOptional()
-  @IsBoolean()
-  archived?: boolean;
-
-  @IsOptional()
   @IsDateString()
   startedAt?: string | null;
 
