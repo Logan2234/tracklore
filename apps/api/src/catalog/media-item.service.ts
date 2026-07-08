@@ -1,10 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type {
-  CatalogSource as DbCatalogSource,
-  ExternalSource as DbExternalSource,
-  MediaType as DbMediaType,
-  MediaItem,
-} from "@prisma/client";
+import type { MediaItem } from "@prisma/client";
 import type {
   CatalogSource,
   MediaDetailsDto,
@@ -155,6 +150,7 @@ export class MediaItemService {
         update: { title: season.title },
         create: { mediaItemId, number: season.number, title: season.title },
       });
+
       for (const episode of season.episodes) {
         const airDate = episode.airDate ? new Date(episode.airDate) : null;
         await this.prisma.episode.upsert({
@@ -188,6 +184,7 @@ export class MediaItemService {
       status: details.status,
       genres: details.genres,
       runtimeMin: details.runtimeMin,
+      isAdult: details.summary.isAdult,
       lastSyncedAt: new Date(),
     };
   }

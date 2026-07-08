@@ -1,6 +1,13 @@
 import { MediaType } from "@tracklore/shared";
 import { Type } from "class-transformer";
-import { IsIn, IsInt, IsOptional, IsString, Min, MinLength } from "class-validator";
+import {
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
+  MinLength,
+} from "class-validator";
 
 export class SearchQueryDto {
   @IsString()

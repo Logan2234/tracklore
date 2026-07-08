@@ -1,0 +1,115 @@
+<script lang="ts">
+  import { Domain } from "@tracklore/shared";
+  import Icon from "$lib/components/Icon.svelte";
+  import { isDomainEnabled } from "$lib/domains";
+
+  type ImportSource = {
+    name: string;
+    description: string;
+    /** Present only for sources that actually import something today. */
+    href?: string;
+  };
+  type ImportGroup = {
+    domain: Domain;
+    label: string;
+    icon: "library" | "book" | "gamepad";
+    sources: ImportSource[];
+  };
+
+  // Disabled (no href) cards are a visible checklist of what's left to wire up,
+  // not decoration — keep names to sources we'd actually build against.
+  const GROUPS: ImportGroup[] = [
+    {
+      domain: Domain.MEDIA,
+      label: "Médias",
+      icon: "library",
+      sources: [
+        {
+          name: "TV Time",
+          description:
+            "Films, séries et animes suivis, réconciliation interactive.",
+          href: "/account/import/tvtime",
+        },
+        { name: "Trakt", description: "Films et séries." },
+        { name: "Letterboxd", description: "Films." },
+        { name: "MyAnimeList", description: "Anime et manga." },
+        { name: "Simkl", description: "Films, séries et anime." },
+        { name: "Kitsu", description: "Anime et manga." },
+      ],
+    },
+    {
+      domain: Domain.BOOKS,
+      label: "Livres",
+      icon: "book",
+      sources: [
+        { name: "Goodreads", description: "Bibliothèque et lectures." },
+        { name: "The StoryGraph", description: "Bibliothèque et lectures." },
+        { name: "Babelio", description: "Bibliothèque et lectures." },
+        { name: "LibraryThing", description: "Bibliothèque et lectures." },
+        { name: "Bookwyrm", description: "Bibliothèque et lectures." },
+      ],
+    },
+    {
+      domain: Domain.GAMES,
+      label: "Jeux",
+      icon: "gamepad",
+      sources: [
+        { name: "Steam", description: "Bibliothèque de jeux." },
+        { name: "Backloggd", description: "Backlog et jeux terminés." },
+      ],
+    },
+  ];
+</script>
+
+<div class="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
+  <div class="mb-6 flex items-center gap-3">
+    <a href="/account" class="text-dim hover:text-fg" aria-label="Retour">
+      <Icon name="chevron-left" class="h-5 w-5" />
+    </a>
+    <h1 class="font-display text-3xl font-extrabold tracking-tight md:text-4xl">
+      Import
+    </h1>
+  </div>
+  <p class="mb-8 max-w-xl text-sm text-dim">
+    Récupère ton historique depuis une autre appli, par domaine.
+  </p>
+
+  <div class="flex flex-col gap-8">
+    {#each GROUPS as group (group.domain)}
+      {#if isDomainEnabled(group.domain)}
+        <section>
+          <p class="timecode mb-3 text-xs uppercase">{group.label}</p>
+          <div class="flex flex-col gap-3">
+            {#each group.sources as source (source.name)}
+              {#if source.href}
+                <a
+                  href={source.href}
+                  class="flex items-center gap-3 rounded-lg border border-border bg-bg p-4 transition-colors hover:border-accent hover:bg-surface-2">
+                  <Icon name={group.icon} class="h-6 w-6 text-accent" />
+                  <span class="flex-1">
+                    <span class="block font-semibold">{source.name}</span>
+                    <span class="text-sm text-dim">{source.description}</span>
+                  </span>
+                  <Icon name="chevron-right" class="h-5 w-5 text-dim" />
+                </a>
+              {:else}
+                <div
+                  class="flex items-center gap-3 rounded-lg border border-border bg-bg p-4 opacity-60">
+                  <Icon name={group.icon} class="h-6 w-6 text-dim" />
+                  <span class="flex-1">
+                    <span class="block font-semibold">{source.name}</span>
+                    <span class="text-sm text-dim">{source.description}</span>
+                  </span>
+                  <span
+                    class="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-semibold text-dim">
+                    Bientôt
+                  </span>
+                </div>
+              {/if}
+            {/each}
+          </div>
+        </section>
+      {/if}
+    {/each}
+  </div>
+</div>

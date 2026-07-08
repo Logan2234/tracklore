@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -25,15 +26,16 @@ import type {
 } from "@tracklore/shared";
 import { MediaItemService } from "../catalog/media-item.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { AgeGateService } from "../users/age-gate.service";
 import { UpdateEntryDto } from "./dto/update-entry.dto";
 import { UpsertEntryDto } from "./dto/upsert-entry.dto";
 import { WatchEpisodeDto } from "./dto/watch-episode.dto";
 import { deriveStatus, normalizeAiringFinished } from "./status.util";
 import { aggregateStats } from "./stats.util";
 
-/** Reused include: entries always need the media + its external IDs (sourceId).
- * `satisfies` (not a type annotation) keeps the literal shape so Prisma can
- * still infer the joined payload type from it. */
+// Reused include: entries always need the media + its external IDs (sourceId).
+// `satisfies` (not a type annotation) keeps the literal shape so Prisma can
+// still infer the joined payload type from it.
 const ENTRY_INCLUDE = {
   mediaItem: { include: { externalIds: true } },
 } satisfies Prisma.LibraryEntryInclude;
@@ -48,6 +50,7 @@ export class LibraryService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mediaItemService: MediaItemService,
+    private readonly ageGate: AgeGateService,
   ) {}
 
   /** First touch of a media persists it (on-demand cache), then upserts the entry. */
@@ -201,8 +204,13 @@ export class LibraryService {
     const episode = await this.prisma.episode.findUnique({
       where: { id: episodeId },
     });
+
     if (!episode) {
       throw new NotFoundException("Episode not found");
+    }
+
+    if (episode.airDate && episode.airDate > new Date()) {
+      throw new BadRequestException("Cet épisode n'est pas encore sorti");
     }
 
     const watch = await this.prisma.episodeWatch.create({
@@ -228,15 +236,20 @@ export class LibraryService {
   async watchSeason(userId: string, seasonId: string): Promise<void> {
     const episodes = await this.prisma.episode.findMany({
       where: { seasonId },
-      select: { id: true },
+      select: { id: true, airDate: true },
     });
+
     if (episodes.length === 0) {
       throw new NotFoundException("Season not found or has no episodes");
     }
-    await this.markUnwatched(
-      userId,
-      episodes.map((e) => e.id),
-    );
+
+    // Unreleased episodes (future airDate) are silently skipped rather than
+    // blocking the whole season.
+    const now = new Date();
+    const airedIds = episodes
+      .filter((e) => !e.airDate || e.airDate <= now)
+      .map((e) => e.id);
+    await this.markUnwatched(userId, airedIds);
   }
 
   /**
@@ -249,8 +262,13 @@ export class LibraryService {
       where: { id: episodeId },
       include: { season: true },
     });
+
     if (!target) {
       throw new NotFoundException("Episode not found");
+    }
+
+    if (target.airDate && target.airDate > new Date()) {
+      throw new BadRequestException("Cet épisode n'est pas encore sorti");
     }
 
     if (target.season.number === 0) {
@@ -262,14 +280,21 @@ export class LibraryService {
       where: {
         season: { mediaItemId: target.season.mediaItemId, number: { gt: 0 } },
       },
-      select: { id: true, number: true, season: { select: { number: true } } },
+      select: {
+        id: true,
+        number: true,
+        airDate: true,
+        season: { select: { number: true } },
+      },
     });
+    const now = new Date();
     const throughIds = episodes
       .filter(
         (e) =>
-          e.season.number < target.season.number ||
-          (e.season.number === target.season.number &&
-            e.number <= target.number),
+          (e.season.number < target.season.number ||
+            (e.season.number === target.season.number &&
+              e.number <= target.number)) &&
+          (!e.airDate || e.airDate <= now),
       )
       .map((e) => e.id);
     await this.markUnwatched(userId, throughIds);
@@ -290,6 +315,7 @@ export class LibraryService {
     const toCreate = episodeIds
       .filter((id) => !watchedIds.has(id))
       .map((id) => ({ userId, episodeId: id }));
+
     if (toCreate.length > 0) {
       await this.prisma.episodeWatch.createMany({ data: toCreate });
     }
@@ -385,9 +411,11 @@ export class LibraryService {
       where: { userId, episodeId },
       orderBy: { watchedAt: "desc" },
     });
+
     if (!latest) {
       throw new NotFoundException("No watch to undo for this episode");
     }
+
     await this.prisma.episodeWatch.delete({ where: { id: latest.id } });
   }
 
@@ -395,12 +423,15 @@ export class LibraryService {
     const watch = await this.prisma.episodeWatch.findUnique({
       where: { id: watchId },
     });
+
     if (!watch) {
       throw new NotFoundException("Watch not found");
     }
+
     if (watch.userId !== userId) {
       throw new ForbiddenException("This watch belongs to another user");
     }
+
     await this.prisma.episodeWatch.delete({ where: { id: watchId } });
   }
 
@@ -413,12 +444,15 @@ export class LibraryService {
     const watch = await this.prisma.episodeWatch.findUnique({
       where: { id: watchId },
     });
+
     if (!watch) {
       throw new NotFoundException("Watch not found");
     }
+
     if (watch.userId !== userId) {
       throw new ForbiddenException("This watch belongs to another user");
     }
+
     await this.prisma.episodeWatch.update({
       where: { id: watchId },
       data: { rating },
@@ -432,12 +466,15 @@ export class LibraryService {
     const entry = await this.prisma.libraryEntry.findUnique({
       where: { id: entryId },
     });
+
     if (!entry) {
       throw new NotFoundException("Library entry not found");
     }
+
     if (entry.userId !== userId) {
       throw new ForbiddenException("This entry belongs to another user");
     }
+
     return entry;
   }
 
@@ -463,6 +500,7 @@ export class LibraryService {
         season: { select: { number: true } },
       },
     });
+
     if (episodes.length === 0) {
       return null; // Movies (or media without any episode listing).
     }
@@ -478,8 +516,7 @@ export class LibraryService {
     // generated episodes, treated as available).
     const now = new Date();
     const next = episodes.find(
-      (e) =>
-        !watchedIds.has(e.id) && (e.airDate === null || e.airDate <= now),
+      (e) => !watchedIds.has(e.id) && (e.airDate === null || e.airDate <= now),
     );
 
     return {
@@ -560,7 +597,14 @@ export class LibraryService {
     });
 
     if (ref) {
-      return this.mediaDetailFromCache(userId, source, sourceId, ref.mediaItem);
+      const detail = await this.mediaDetailFromCache(
+        userId,
+        source,
+        sourceId,
+        ref.mediaItem,
+      );
+      await this.assertAdultAllowed(userId, detail.isAdult);
+      return detail;
     }
 
     const details = await this.mediaItemService.getLiveDetails(
@@ -568,6 +612,7 @@ export class LibraryService {
       sourceId,
       type,
     );
+    await this.assertAdultAllowed(userId, details.isAdult);
     return {
       source,
       sourceId,
@@ -581,6 +626,7 @@ export class LibraryService {
       genres: details.genres,
       airingStatus: details.status,
       airingFinished: normalizeAiringFinished(details.status),
+      isAdult: details.isAdult,
       seasons: details.seasons.map((season) => ({
         id: null,
         number: season.number,
@@ -596,6 +642,20 @@ export class LibraryService {
       })),
       entry: null,
     };
+  }
+
+  /** Blocks 18+ titles for accounts that haven't opted in (or aren't 18+). */
+  private async assertAdultAllowed(
+    userId: string,
+    isAdultTitle: boolean,
+  ): Promise<void> {
+    if (!isAdultTitle) return;
+
+    if (!(await this.ageGate.allowsAdultContent(userId))) {
+      throw new ForbiddenException(
+        "This title is restricted to accounts with adult content enabled",
+      );
+    }
   }
 
   private async mediaDetailFromCache(
@@ -647,6 +707,7 @@ export class LibraryService {
       genres: media.genres,
       airingStatus: media.status,
       airingFinished: normalizeAiringFinished(media.status),
+      isAdult: media.isAdult,
       seasons: seasons.map((season) => ({
         id: season.id,
         number: season.number,

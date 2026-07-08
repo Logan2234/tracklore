@@ -110,6 +110,16 @@ body {
   }
 }
 
+/* Tailwind's preflight resets buttons to `cursor: default`; restore the
+   pointer for enabled interactive controls. In the base layer so any
+   `cursor-*` utility (e.g. the modal backdrop's `cursor-default`) still wins. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
 ::selection {
   background: color-mix(in srgb, var(--accent) 30%, transparent);
 }

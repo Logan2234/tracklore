@@ -1,6 +1,7 @@
 import type { NotificationDto } from "@tracklore/shared";
 import {
   getNotifications,
+  markNotificationRead,
   markNotificationsRead,
   scanNotifications,
 } from "$lib/api/client";
@@ -23,10 +24,24 @@ class Notifications {
 
   async markAllRead(): Promise<void> {
     if (this.unread === 0) return;
+
     try {
       await markNotificationsRead();
       this.unread = 0;
       this.items = this.items.map((n) => ({ ...n, read: true }));
+    } catch {
+      // ignore
+    }
+  }
+
+  async markRead(id: string): Promise<void> {
+    const target = this.items.find((n) => n.id === id);
+    if (!target || target.read) return;
+
+    try {
+      await markNotificationRead(id);
+      target.read = true;
+      this.unread = Math.max(0, this.unread - 1);
     } catch {
       // ignore
     }

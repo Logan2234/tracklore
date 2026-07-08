@@ -28,11 +28,7 @@ import { randomUUID } from "node:crypto";
 import { MediaItemService } from "../../catalog/media-item.service";
 import { TmdbProvider } from "../../catalog/providers/tmdb.provider";
 import { PrismaService } from "../../prisma/prisma.service";
-import type {
-  ImportMovie,
-  ImportShow,
-  ParsedImport,
-} from "../import-source";
+import type { ImportMovie, ImportShow, ParsedImport } from "../import-source";
 import { TvTimeImportSource } from "./tvtime.source";
 
 /** Completed jobs are dropped from memory after this delay. */
@@ -82,7 +78,6 @@ export class ImportService {
     const job: JobRecord = {
       id: randomUUID(),
       userId,
-      dryRun: true, // analysis never writes
       status: "running",
       progress: {
         shows: 0,
@@ -129,6 +124,7 @@ export class ImportService {
 
       const moviesWatched: ImportPlanMovie[] = [];
       const moviesWatchlist: ImportPlanMovie[] = [];
+
       for (const movie of parsed.movies) {
         const match = await this.resolveMovieMatch(movie);
         if (!match) unresolved++;
@@ -165,9 +161,12 @@ export class ImportService {
   }
 
   /** Resolve a show to a catalogue match (via its external ids); null if none. */
-  private async resolveShowMatch(show: ImportShow): Promise<ImportMatch | null> {
+  private async resolveShowMatch(
+    show: ImportShow,
+  ): Promise<ImportMatch | null> {
     const tvdbId = show.externalIds.tvdb;
     if (!tvdbId) return null;
+
     try {
       const summary = await this.tmdb.findSeriesSummaryByTvdbId(tvdbId);
       return summary ? toMatch(summary) : null;
@@ -203,9 +202,11 @@ export class ImportService {
 
     const analyzed = this.jobs.get(jobId);
     if (!analyzed) throw new NotFoundException("Import job not found");
+
     if (analyzed.userId !== userId) {
       throw new ForbiddenException("This import job belongs to another user");
     }
+
     if (!analyzed.parsed || !analyzed.plan) {
       throw new BadRequestException("This job has no analysis to commit");
     }
@@ -217,12 +218,13 @@ export class ImportService {
     const overwrite = dto.overwrite ?? false;
 
     const includedShows = parsed.shows.filter((s) => include.has(showKey(s)));
-    const includedMovies = parsed.movies.filter((m) => include.has(movieKey(m)));
+    const includedMovies = parsed.movies.filter((m) =>
+      include.has(movieKey(m)),
+    );
 
     const job: JobRecord = {
       id: randomUUID(),
       userId,
-      dryRun: false,
       status: "running",
       progress: {
         shows: 0,
@@ -259,7 +261,8 @@ export class ImportService {
     matchByKey: Map<string, ImportMatch>,
     overwrite: boolean,
   ): Promise<void> {
-    const report = emptyReport(false, overwrite);
+    const report = emptyReport(overwrite);
+
     try {
       if (overwrite) {
         await this.prisma.$transaction([
@@ -273,6 +276,7 @@ export class ImportService {
         if (match) await this.writeShow(userId, show, match, report);
         job.progress.shows++;
       }
+
       for (const movie of movies) {
         const match =
           overrides[movieKey(movie)] ?? matchByKey.get(movieKey(movie));
@@ -323,8 +327,10 @@ export class ImportService {
     );
 
     let watchedRegular = 0;
+
     for (const ep of show.episodes) {
       const episodeId = index.byKey.get(`${ep.season}|${ep.episode}`);
+
       if (episodeId === undefined) {
         pushCapped(report.episodes.unmatched, {
           show: show.title,
@@ -333,8 +339,10 @@ export class ImportService {
         });
         continue;
       }
+
       report.episodes.watched++;
       if (ep.season > 0) watchedRegular++;
+
       if (episodeId) {
         report.episodes.watchesCreated += await this.recordWatches(
           userId,
@@ -383,9 +391,11 @@ export class ImportService {
   getJob(userId: string, jobId: string): TvTimeImportJobDto {
     const job = this.jobs.get(jobId);
     if (!job) throw new NotFoundException("Import job not found");
+
     if (job.userId !== userId) {
       throw new ForbiddenException("This import job belongs to another user");
     }
+
     return toDto(job);
   }
 
@@ -407,12 +417,14 @@ export class ImportService {
 
     const byKey = new Map<string, string | null>();
     let totalRegular = 0;
+
     for (const season of seasons) {
       for (const episode of season.episodes) {
         byKey.set(`${season.number}|${episode.number}`, episode.id);
         if (season.number > 0) totalRegular++;
       }
     }
+
     return { byKey, totalRegular };
   }
 
@@ -473,6 +485,7 @@ export class ImportService {
 
   private pruneOldJobs(): void {
     const cutoff = Date.now() - JOB_RETENTION_MS;
+
     for (const [id, job] of this.jobs) {
       if (job.finishedAt !== null && job.finishedAt < cutoff) {
         this.jobs.delete(id);
@@ -485,7 +498,6 @@ function toDto(job: JobRecord): TvTimeImportJobDto {
   return {
     id: job.id,
     status: job.status,
-    dryRun: job.dryRun,
     progress: job.progress,
     plan: job.plan,
     report: job.report,
@@ -516,9 +528,11 @@ function indexPlanMatches(plan: ImportPlan): Map<string, ImportMatch> {
     ...plan.moviesWatched,
     ...plan.moviesWatchlist,
   ];
+
   for (const item of items) {
     if (item.match) byKey.set(item.key, item.match);
   }
+
   return byKey;
 }
 
@@ -533,13 +547,12 @@ function toMatch(summary: MediaSummaryDto): ImportMatch {
   };
 }
 
-function emptyReport(dryRun: boolean, overwrite: boolean): TvTimeImportReport {
+function emptyReport(overwrite: boolean): TvTimeImportReport {
   return {
-    dryRun,
     overwrite,
-    shows: { total: 0, imported: 0, watchlist: 0, unresolved: [] },
+    shows: { total: 0, imported: 0, watchlist: 0 },
     episodes: { watched: 0, watchesCreated: 0, unmatched: [] },
-    movies: { total: 0, imported: 0, watchlist: 0, unresolved: [] },
+    movies: { total: 0, imported: 0, watchlist: 0 },
   };
 }
 
@@ -575,7 +588,7 @@ function pickMovie(
   const exact = summaries.filter(
     (s) =>
       norm(s.title) === query ||
-      (s.originalTitle != null && norm(s.originalTitle) === query),
+      (s.originalTitle !== null && norm(s.originalTitle || "") === query),
   );
   if (exact.length === 0) return null;
 
@@ -585,6 +598,7 @@ function pickMovie(
     );
     if (sameYear) return sameYear;
   }
+
   return exact[0];
 }
 

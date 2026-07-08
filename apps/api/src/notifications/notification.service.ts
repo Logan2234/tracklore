@@ -1,9 +1,5 @@
-import { Injectable } from "@nestjs/common";
-import type {
-  MediaExternalId,
-  MediaItem,
-  Notification,
-} from "@prisma/client";
+import { Injectable, NotFoundException } from "@nestjs/common";
+import type { MediaExternalId, MediaItem, Notification } from "@prisma/client";
 import type {
   MediaType,
   NotificationDto,
@@ -27,6 +23,12 @@ export class NotificationService {
    * Returns how many were created.
    */
   async scan(userId: string): Promise<number> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { notifyInApp: true },
+    });
+    if (!user?.notifyInApp) return 0;
+
     const now = new Date();
     const since = new Date(now.getTime() - WINDOW_DAYS * 86_400_000);
 
@@ -41,7 +43,18 @@ export class NotificationService {
         },
       },
       include: {
-        season: { include: { mediaItem: { include: { externalIds: true } } } },
+        season: {
+          include: {
+            mediaItem: {
+              include: {
+                externalIds: true,
+                // Unique per (userId, mediaItemId), and guaranteed to exist
+                // by the `where` above — this is the user's tracked entry.
+                entries: { where: { userId }, select: { createdAt: true } },
+              },
+            },
+          },
+        },
       },
     });
     if (episodes.length === 0) return 0;
@@ -63,6 +76,7 @@ export class NotificationService {
         mediaTitle: e.season.mediaItem.title,
         mediaType: e.season.mediaItem.type as MediaType,
         sourceId: canonicalSourceId(e.season.mediaItem),
+        trackedSince: e.season.mediaItem.entries[0].createdAt,
       })),
       { since, now, alreadyNotified },
     );
@@ -93,6 +107,17 @@ export class NotificationService {
       data: { readAt: new Date() },
     });
   }
+
+  async markRead(userId: string, id: string): Promise<void> {
+    const { count } = await this.prisma.notification.updateMany({
+      where: { id, userId },
+      data: { readAt: new Date() },
+    });
+
+    if (count === 0) {
+      throw new NotFoundException("Notification not found");
+    }
+  }
 }
 
 function canonicalSourceId(
@@ -115,6 +140,7 @@ function toDto(n: Notification): NotificationDto {
     episodeNumber: n.episodeNumber,
     episodeTitle: n.episodeTitle,
     read: n.readAt !== null,
+    airDate: n.airDate.toISOString(),
     createdAt: n.createdAt.toISOString(),
   };
 }

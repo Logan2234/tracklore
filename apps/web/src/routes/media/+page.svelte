@@ -4,16 +4,20 @@
     LibraryEntryDto,
     MediaType,
   } from "@tracklore/shared";
+  import { isDormant } from "@tracklore/shared";
   import { listLibrary, ApiError } from "$lib/api/client";
   import Poster from "$lib/components/Poster.svelte";
   import Icon from "$lib/components/Icon.svelte";
 
-  const STATUS_TABS: { label: string; value: EntryStatus | undefined }[] = [
+  // "DORMANT" is not a real status: it's a client-side refinement over WATCHING
+  // (nothing watched for a while). Selecting it loads WATCHING then filters.
+  type StatusTab = EntryStatus | "DORMANT";
+  const STATUS_TABS: { label: string; value: StatusTab | undefined }[] = [
     { label: "Tout", value: undefined },
     { label: "En cours", value: "WATCHING" },
     { label: "À voir", value: "PLANNED" },
     { label: "Terminé", value: "COMPLETED" },
-    { label: "En pause", value: "PAUSED" },
+    { label: "En sommeil", value: "DORMANT" },
     { label: "Abandonné", value: "DROPPED" },
   ];
 
@@ -38,7 +42,7 @@
     { label: "Note", value: "rating" },
   ];
 
-  let status = $state<EntryStatus | undefined>(undefined);
+  let status = $state<StatusTab | undefined>(undefined);
   let type = $state<MediaType | undefined>(undefined);
   let entries = $state<LibraryEntryDto[]>([]);
   let loading = $state(true);
@@ -52,7 +56,9 @@
   $effect(() => {
     loading = true;
     error = null;
-    listLibrary({ status, type })
+    // "En sommeil" narrows to WATCHING server-side; the dormant cut is client-side.
+    const apiStatus = status === "DORMANT" ? "WATCHING" : status;
+    listLibrary({ status: apiStatus, type })
       .then((result) => {
         entries = result;
       })
@@ -70,6 +76,7 @@
     const q = query.trim().toLowerCase();
     const list = entries.filter((e) => {
       if (favoritesOnly && !e.favorite) return false;
+      if (status === "DORMANT" && !isDormant(e)) return false;
       if (q && !e.mediaItem.title.toLowerCase().includes(q)) return false;
       return true;
     });
@@ -98,6 +105,17 @@
     return Math.round(
       (entry.progress.watchedEpisodes / entry.progress.totalEpisodes) * 100,
     );
+  }
+
+  const hasQuery = $derived(query.trim() !== "");
+  const hasFilters = $derived(
+    status !== undefined || type !== undefined || favoritesOnly,
+  );
+
+  function clearFilters() {
+    status = undefined;
+    type = undefined;
+    favoritesOnly = false;
   }
 </script>
 
@@ -179,18 +197,35 @@
         </div>
       {/each}
     </div>
-  {:else if entries.length === 0}
-    <div
-      class="rounded-xl border border-dashed border-border px-6 py-16 text-center">
-      <p class="text-dim">Rien ici pour l'instant.</p>
-      <a href="/search" class="btn btn-primary mt-4 inline-flex">
-        <Icon name="search" class="h-4 w-4" /> Chercher un titre
-      </a>
-    </div>
   {:else if shown.length === 0}
     <div
       class="rounded-xl border border-dashed border-border px-6 py-16 text-center text-dim">
-      Aucun titre ne correspond à ces filtres.
+      {#if !hasFilters && !hasQuery}
+        <p>Tu n'as encore aucun titre dans ta bibliothèque.</p>
+        <a href="/search" class="btn btn-primary mt-4 inline-flex">
+          <Icon name="search" class="h-4 w-4" /> Chercher un titre
+        </a>
+      {:else if hasQuery && !hasFilters}
+        <p>
+          Aucun titre ne correspond à « {query.trim()} » dans ta bibliothèque.
+          <a
+            href={`/search?query=${encodeURIComponent(query.trim())}`}
+            class="font-semibold text-accent hover:underline">
+            Le chercher dans le catalogue →
+          </a>
+        </p>
+      {:else}
+        <p>
+          {#if hasQuery}
+            Aucun titre ne correspond à ces filtres pour « {query.trim()} ».
+          {:else}
+            Aucun titre ne correspond à ces filtres.
+          {/if}
+        </p>
+        <button class="btn btn-ghost mt-4" onclick={clearFilters}>
+          Effacer les filtres
+        </button>
+      {/if}
     </div>
   {:else}
     <div
@@ -215,6 +250,9 @@
               <span class="timecode text-xs">
                 {entry.progress.watchedEpisodes} / {entry.progress
                   .totalEpisodes} ép.
+                {#if isDormant(entry)}
+                  <span class="text-dim">· 🌙 En sommeil</span>
+                {/if}
               </span>
             {:else}
               <span class="timecode text-xs">

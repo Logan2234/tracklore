@@ -39,4 +39,16 @@ export default defineConfig({
       },
     }),
   ],
+  // @tracklore/shared is a linked workspace package, so Vite treats it as
+  // source and skips its usual CJS→ESM pre-bundling — but it's compiled to
+  // CommonJS (consumed as dist/, see root CLAUDE.md), so named imports break
+  // in dev without forcing that conversion explicitly.
+  optimizeDeps: {
+    include: ["@tracklore/shared"],
+  },
+  build: {
+    commonjsOptions: {
+      include: [/@tracklore\/shared/, /node_modules/],
+    },
+  },
 });

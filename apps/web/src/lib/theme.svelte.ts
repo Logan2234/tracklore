@@ -5,9 +5,9 @@ const THEME_COLOR = { light: "#edece8", dark: "#0c0d10" } as const;
 
 type Mode = "light" | "dark";
 
-/** Global theme state (Svelte 5 runes). Persists the manual choice in
- *  localStorage; falls back to the OS preference when none is set. The initial
- *  `.dark` class is applied by an inline script in app.html (no-flash). */
+// Global theme state (Svelte 5 runes). Persists the manual choice in
+//  localStorage; falls back to the OS preference when none is set. The initial
+//  `.dark` class is applied by an inline script in app.html (no-flash).
 class ThemeState {
   mode = $state<Mode>("light");
 

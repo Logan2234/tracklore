@@ -21,12 +21,17 @@ export class MediaController {
     @Param("type") typeParam: string,
     @Param("id") id: string,
   ): Promise<MediaDetailDto> {
-    return this.libraryService.getMediaDetail(user.sub, parseType(typeParam), id);
+    return this.libraryService.getMediaDetail(
+      user.sub,
+      parseType(typeParam),
+      id,
+    );
   }
 }
 
 function parseType(value: string): MediaType {
   const upper = value.toUpperCase();
+
   if (
     upper !== MediaType.MOVIE &&
     upper !== MediaType.SERIES &&
@@ -34,5 +39,6 @@ function parseType(value: string): MediaType {
   ) {
     throw new BadRequestException(`Unknown media type '${value}'`);
   }
+
   return upper;
 }

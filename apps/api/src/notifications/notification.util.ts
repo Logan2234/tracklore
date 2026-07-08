@@ -10,6 +10,8 @@ export interface CandidateEpisode {
   mediaTitle: string;
   mediaType: MediaType;
   sourceId: string;
+  /** When the user started tracking this media (their `LibraryEntry.createdAt`). */
+  trackedSince: Date;
 }
 
 /** The payload persisted as a Notification row (minus user/read/date). */
@@ -21,13 +23,15 @@ export interface NewEpisodeNotification {
   seasonNumber: number;
   episodeNumber: number;
   episodeTitle: string | null;
+  airDate: Date;
 }
 
 /**
- * Pick episodes newly released within `(since, now]` and not already notified.
+ * Pick episodes newly released within `(since, now]`, not already notified,
+ * and that aired after the user started tracking the show — otherwise
+ * importing an already-finished show would "announce" its last episode as
+ * news just because it happens to fall inside the detection window.
  * Pure so the detection window + dedup are unit-testable without a database.
- * The window bounds how far back we look, so following an old show never floods
- * the user with notifications for episodes that aired long ago.
  */
 export function selectNewEpisodeNotifications(
   candidates: CandidateEpisode[],
@@ -39,6 +43,7 @@ export function selectNewEpisodeNotifications(
       (e) =>
         e.airDate > since &&
         e.airDate <= now &&
+        e.airDate > e.trackedSince &&
         !alreadyNotified.has(e.episodeId),
     )
     .map((e) => ({
@@ -49,5 +54,6 @@ export function selectNewEpisodeNotifications(
       seasonNumber: e.seasonNumber,
       episodeNumber: e.episodeNumber,
       episodeTitle: e.episodeTitle,
+      airDate: e.airDate,
     }));
 }

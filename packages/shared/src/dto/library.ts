@@ -32,6 +32,23 @@ export interface LibraryEntryDto {
   progress: ProgressDto | null;
 }
 
+/**
+ * A WATCHING series/anime is "dormant" once nothing has been watched for this
+ * many days — a derived signal, orthogonal to the status (there is no PAUSED
+ * status: a paused show is just a WATCHING one left alone).
+ */
+export const DORMANT_AFTER_DAYS = 30;
+
+/** Whether an entry is a WATCHING series/anime with no recent viewing. */
+export function isDormant(
+  entry: LibraryEntryDto,
+  now: Date = new Date(),
+): boolean {
+  if (entry.status !== "WATCHING" || !entry.lastWatchedAt) return false;
+  const elapsedMs = now.getTime() - new Date(entry.lastWatchedAt).getTime();
+  return elapsedMs > DORMANT_AFTER_DAYS * 24 * 60 * 60 * 1000;
+}
+
 /** The next episode to watch (first released, unwatched regular episode). */
 export interface NextEpisodeDto {
   episodeId: string;

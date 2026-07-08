@@ -1,4 +1,11 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Post,
+} from "@nestjs/common";
 import type { AuthTokensDto } from "@tracklore/shared";
 import { AuthResult, AuthService } from "./auth.service";
 import { Public } from "./decorators/public.decorator";
@@ -12,14 +19,20 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post("register")
-  register(@Body() dto: RegisterDto): Promise<AuthResult> {
-    return this.authService.register(dto);
+  register(
+    @Body() dto: RegisterDto,
+    @Headers("user-agent") userAgent?: string,
+  ): Promise<AuthResult> {
+    return this.authService.register(dto, userAgent);
   }
 
   @HttpCode(HttpStatus.OK)
   @Post("login")
-  login(@Body() dto: LoginDto): Promise<AuthResult> {
-    return this.authService.login(dto);
+  login(
+    @Body() dto: LoginDto,
+    @Headers("user-agent") userAgent?: string,
+  ): Promise<AuthResult> {
+    return this.authService.login(dto, userAgent);
   }
 
   @HttpCode(HttpStatus.OK)

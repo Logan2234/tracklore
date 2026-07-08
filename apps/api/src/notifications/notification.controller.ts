@@ -1,4 +1,12 @@
-import { Controller, Get, HttpCode, HttpStatus, Post } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+} from "@nestjs/common";
 import type { NotificationFeedDto } from "@tracklore/shared";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { JwtPayload } from "../auth/decorators/current-user.decorator";
@@ -24,5 +32,14 @@ export class NotificationController {
   @Post("read")
   async markAllRead(@CurrentUser() user: JwtPayload): Promise<void> {
     await this.notifications.markAllRead(user.sub);
+  }
+
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Patch(":id/read")
+  async markRead(
+    @CurrentUser() user: JwtPayload,
+    @Param("id") id: string,
+  ): Promise<void> {
+    await this.notifications.markRead(user.sub, id);
   }
 }

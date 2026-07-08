@@ -28,12 +28,12 @@ describe("deriveStatus", () => {
   });
 
   describe("manual overrides win", () => {
-    it("keeps PAUSED even when everything is watched", () => {
-      expect(deriveStatus("ANIME", progress(12, 12), true, "PAUSED")).toBe(
-        "PAUSED",
+    it("keeps DROPPED even when everything is watched", () => {
+      expect(deriveStatus("ANIME", progress(12, 12), true, "DROPPED")).toBe(
+        "DROPPED",
       );
     });
-    it("keeps DROPPED even when episodes are watched", () => {
+    it("keeps DROPPED even when episodes are partially watched", () => {
       expect(deriveStatus("SERIES", progress(3, 10), false, "DROPPED")).toBe(
         "DROPPED",
       );

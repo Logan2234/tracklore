@@ -134,7 +134,7 @@ describe("Tracklore API (e2e)", () => {
   it("logs in and returns tokens", async () => {
     const response = await request(http)
       .post("/api/auth/login")
-      .send({ email: user.email, password: user.password })
+      .send({ identifier: user.email, password: user.password })
       .expect(200);
 
     accessToken = response.body.tokens.accessToken;
@@ -155,7 +155,32 @@ describe("Tracklore API (e2e)", () => {
     expect(response.body).toMatchObject({
       email: user.email,
       entitlements: [],
+      // New accounts get every content domain enabled by default.
+      enabledDomains: ["MEDIA", "BOOKS", "GAMES"],
     });
+  });
+
+  it("updates enabled domains and rejects an empty list", async () => {
+    const patched = await request(http)
+      .patch("/api/users/me")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ enabledDomains: ["MEDIA"] })
+      .expect(200);
+    expect(patched.body.enabledDomains).toEqual(["MEDIA"]);
+
+    // At least one domain must remain; an empty list is rejected by the DTO.
+    await request(http)
+      .patch("/api/users/me")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ enabledDomains: [] })
+      .expect(400);
+
+    // Restore the default so later tests see a normal account.
+    await request(http)
+      .patch("/api/users/me")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ enabledDomains: ["MEDIA", "BOOKS", "GAMES"] })
+      .expect(200);
   });
 
   it("searches the catalog (stubbed providers)", async () => {
@@ -255,8 +280,9 @@ describe("Tracklore API (e2e)", () => {
     });
   });
 
-  it("marks a whole season without inflating already-watched episodes", async () => {
-    // Episode 1 is already watched (twice); watchSeason fills only 2 and 3.
+  it("marks a whole season without inflating already-watched episodes, skipping unaired ones", async () => {
+    // Episode 1 is already watched (twice); watchSeason fills episode 2 but
+    // skips episode 3, whose air date is still in the future.
     await request(http)
       .post(`/api/library/seasons/${firstSeasonId}/watches`)
       .set("Authorization", `Bearer ${accessToken}`)
@@ -267,15 +293,35 @@ describe("Tracklore API (e2e)", () => {
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
     const eps = episodes.body.seasons[0].episodes;
-    expect(eps.every((e: { watchCount: number }) => e.watchCount > 0)).toBe(true);
-    expect(eps[0].watchCount).toBe(2); // episode 1 not re-watched by the bulk mark
+    expect(eps.map((e: { watchCount: number }) => e.watchCount)).toEqual([
+      2, 1, 0,
+    ]);
 
     const entry = await request(http)
       .get(`/api/library/entries/${entryId}`)
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
-    // All episodes watched + FINISHED airing → COMPLETED (not UP_TO_DATE).
-    expect(entry.body.status).toBe("COMPLETED");
+    // Episode 3 still unwatched (unaired) → WATCHING, not COMPLETED.
+    expect(entry.body.status).toBe("WATCHING");
+  });
+
+  it("rejects marking an unaired episode as watched, directly or via watch-through", async () => {
+    const episodes = await request(http)
+      .get(`/api/library/entries/${entryId}/episodes`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+    const futureEpisodeId = episodes.body.seasons[0].episodes[2].id;
+
+    await request(http)
+      .post(`/api/library/episodes/${futureEpisodeId}/watches`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({})
+      .expect(400);
+
+    await request(http)
+      .post(`/api/library/episodes/${futureEpisodeId}/watch-through`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(400);
   });
 
   it("returns upcoming episodes of tracked series in the calendar", async () => {
@@ -306,22 +352,22 @@ describe("Tracklore API (e2e)", () => {
     expect(response.body.airingFinished).toBe(true);
     expect(response.body.seasons[0].episodes[0].watchCount).toBeGreaterThan(0);
     expect(response.body.entry).not.toBeNull();
-    expect(response.body.entry.status).toBe("COMPLETED");
+    expect(response.body.entry.status).toBe("WATCHING");
   });
 
-  it("keeps a manual pause override until the user resumes", async () => {
+  it("keeps a manual dropped override until the user resumes", async () => {
     await request(http)
       .patch(`/api/library/entries/${entryId}`)
       .set("Authorization", `Bearer ${accessToken}`)
-      .send({ status: "PAUSED" })
+      .send({ status: "DROPPED" })
       .expect(200);
 
-    const paused = await request(http)
+    const dropped = await request(http)
       .get(`/api/library/entries/${entryId}`)
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
-    // Override wins even though every episode is watched.
-    expect(paused.body.status).toBe("PAUSED");
+    // Override wins over the derived status.
+    expect(dropped.body.status).toBe("DROPPED");
 
     // Resume → back to the derived status.
     await request(http)
@@ -333,7 +379,7 @@ describe("Tracklore API (e2e)", () => {
       .get(`/api/library/entries/${entryId}`)
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
-    expect(resumed.body.status).toBe("COMPLETED");
+    expect(resumed.body.status).toBe("WATCHING");
   });
 
   it("marks episodes through a chosen one, excluding specials", async () => {
@@ -387,7 +433,9 @@ describe("Tracklore API (e2e)", () => {
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
     expect(
-      undone.body.seasons[0].episodes.map((e: { watchCount: number }) => e.watchCount),
+      undone.body.seasons[0].episodes.map(
+        (e: { watchCount: number }) => e.watchCount,
+      ),
     ).toEqual([1, 0, 0]);
 
     // #4 "Resume": next up is now episode 2 (first unwatched, released).
@@ -478,6 +526,123 @@ describe("Tracklore API (e2e)", () => {
     await request(http)
       .post("/api/auth/refresh")
       .send({ refreshToken })
+      .expect(401);
+  });
+
+  it("tracks device sessions and rotates them in place", async () => {
+    const u = {
+      email: "e2e-sessions@tracklore.test",
+      password: "sessions-1",
+      displayName: "Sessions",
+    };
+    const reg = await request(http)
+      .post("/api/auth/register")
+      .send(u)
+      .set("user-agent", "DeviceA")
+      .expect(201);
+    const tokenA: string = reg.body.tokens.accessToken;
+    const refreshA: string = reg.body.tokens.refreshToken;
+
+    // Registration opened exactly one session, labelled with its User-Agent.
+    let list = await request(http)
+      .get("/api/auth/sessions")
+      .set("Authorization", `Bearer ${tokenA}`)
+      .expect(200);
+    expect(list.body).toHaveLength(1);
+    const original = list.body[0];
+    expect(original.userAgent).toBe("DeviceA");
+
+    // Rotation updates the same row in place: same id and createdAt, not a new session.
+    const rot = await request(http)
+      .post("/api/auth/refresh")
+      .send({ refreshToken: refreshA })
+      .expect(200);
+    const tokenA2: string = rot.body.tokens.accessToken;
+    list = await request(http)
+      .get("/api/auth/sessions")
+      .set("Authorization", `Bearer ${tokenA2}`)
+      .expect(200);
+    expect(list.body).toHaveLength(1);
+    expect(list.body[0].id).toBe(original.id);
+    expect(list.body[0].createdAt).toBe(original.createdAt);
+
+    // A second login opens a distinct device.
+    const login2 = await request(http)
+      .post("/api/auth/login")
+      .send({ identifier: u.email, password: u.password })
+      .set("user-agent", "DeviceB")
+      .expect(200);
+    const tokenB: string = login2.body.tokens.accessToken;
+    const refreshB: string = login2.body.tokens.refreshToken;
+    const jtiB: string = JSON.parse(
+      Buffer.from(refreshB.split(".")[1], "base64url").toString(),
+    ).jti;
+
+    list = await request(http)
+      .get("/api/auth/sessions")
+      .set("Authorization", `Bearer ${tokenB}`)
+      .expect(200);
+    expect(list.body).toHaveLength(2);
+
+    // Revoke every other device: only DeviceB (the current jti) survives.
+    await request(http)
+      .delete(`/api/auth/sessions?except=${jtiB}`)
+      .set("Authorization", `Bearer ${tokenB}`)
+      .expect(204);
+    list = await request(http)
+      .get("/api/auth/sessions")
+      .set("Authorization", `Bearer ${tokenB}`)
+      .expect(200);
+    expect(list.body).toHaveLength(1);
+    expect(list.body[0].jti).toBe(jtiB);
+
+    // Revoking a single session by id works too.
+    await request(http)
+      .delete(`/api/auth/sessions/${list.body[0].id}`)
+      .set("Authorization", `Bearer ${tokenB}`)
+      .expect(204);
+    list = await request(http)
+      .get("/api/auth/sessions")
+      .set("Authorization", `Bearer ${tokenB}`)
+      .expect(200);
+    expect(list.body).toHaveLength(0);
+  });
+
+  it("deletes the account and wipes access to it", async () => {
+    // Throwaway account so the shared suite user stays intact.
+    const victim = {
+      email: "e2e-delete@tracklore.test",
+      password: "delete-me-1",
+      displayName: "Delete",
+    };
+    const registered = await request(http)
+      .post("/api/auth/register")
+      .send(victim)
+      .expect(201);
+    const token: string = registered.body.tokens.accessToken;
+
+    // Wrong password is rejected — deletion is guarded like a credential change.
+    await request(http)
+      .delete("/api/users/me")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ currentPassword: "wrong" })
+      .expect(401);
+
+    await request(http)
+      .delete("/api/users/me")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ currentPassword: victim.password })
+      .expect(204);
+
+    // The row is gone: the (still-valid) JWT now resolves to no user…
+    await request(http)
+      .get("/api/users/me")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(404);
+    // …and the credentials no longer authenticate.
+    await request(http)
+      .post("/api/auth/login")
+      .send({ identifier: victim.email, password: victim.password })
       .expect(401);
   });
 });

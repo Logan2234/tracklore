@@ -2,7 +2,7 @@
   import { goto } from "$app/navigation";
   import { login, ApiError } from "$lib/api/client";
 
-  let email = $state("");
+  let identifier = $state("");
   let password = $state("");
   let error = $state<string | null>(null);
   let loading = $state(false);
@@ -12,7 +12,7 @@
     error = null;
     loading = true;
     try {
-      await login({ email, password });
+      await login({ identifier, password });
       await goto("/");
     } catch (err) {
       error = err instanceof ApiError ? err.message : "Connexion impossible";
@@ -34,9 +34,9 @@
     <form onsubmit={submit} class="card flex flex-col gap-4 p-7">
       <h1 class="font-display text-xl font-bold">Connexion</h1>
       <input
-        type="email"
-        placeholder="Email"
-        bind:value={email}
+        type="text"
+        placeholder="Email ou nom d'utilisateur"
+        bind:value={identifier}
         required
         class="input" />
       <input

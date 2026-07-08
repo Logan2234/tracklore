@@ -1,13 +1,13 @@
 <script lang="ts">
+  import { getCalendar, listLibrary, watchEpisode } from "$lib/api/client";
+  import { auth } from "$lib/auth.svelte";
+  import Icon from "$lib/components/Icon.svelte";
+  import Poster from "$lib/components/Poster.svelte";
   import type {
     CalendarEntryDto,
     LibraryEntryDto,
     NextEpisodeDto,
   } from "@tracklore/shared";
-  import { getCalendar, listLibrary, watchEpisode } from "$lib/api/client";
-  import { auth } from "$lib/auth.svelte";
-  import Poster from "$lib/components/Poster.svelte";
-  import Icon from "$lib/components/Icon.svelte";
 
   let watching = $state<LibraryEntryDto[]>([]);
   let planned = $state<LibraryEntryDto[]>([]);
@@ -98,7 +98,7 @@
   <section class="mb-10">
     <div class="mb-4 flex items-baseline justify-between">
       <h2 class="font-display text-xl font-bold">À reprendre</h2>
-      <a href="/library" class="text-sm font-semibold text-dim hover:text-fg"
+      <a href="/media" class="text-sm font-semibold text-dim hover:text-fg"
         >Tout voir →</a>
     </div>
     {#if loading}
@@ -169,7 +169,9 @@
               <p class="truncate font-display text-sm font-semibold">
                 {e.mediaItem.title}
               </p>
-              <p class="timecode text-xs">{epCode(e)} · {dayShort(e.airDate)}</p>
+              <p class="timecode text-xs">
+                {epCode(e)} · {dayShort(e.airDate)}
+              </p>
             </div>
           </a>
         {/each}
@@ -182,7 +184,7 @@
     <section class="mb-10">
       <div class="mb-4 flex items-baseline justify-between">
         <h2 class="font-display text-xl font-bold">Ta liste d’envies</h2>
-        <a href="/library" class="text-sm font-semibold text-dim hover:text-fg"
+        <a href="/media" class="text-sm font-semibold text-dim hover:text-fg"
           >Tout voir →</a>
       </div>
       <div

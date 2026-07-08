@@ -10,7 +10,8 @@
     getStats()
       .then((s) => (stats = s))
       .catch((err) => {
-        error = err instanceof ApiError ? err.message : "Statistiques indisponibles";
+        error =
+          err instanceof ApiError ? err.message : "Statistiques indisponibles";
       })
       .finally(() => (loading = false));
   });
@@ -32,10 +33,26 @@
   const tiles = $derived(
     stats
       ? [
-          { value: nf.format(stats.hoursWatched), unit: "h", label: "Heures vues" },
-          { value: nf.format(stats.episodesWatched), unit: "", label: "Épisodes vus" },
-          { value: nf.format(stats.seriesCompleted), unit: "", label: "Séries terminées" },
-          { value: nf.format(stats.moviesWatched), unit: "", label: "Films vus" },
+          {
+            value: nf.format(stats.hoursWatched),
+            unit: "h",
+            label: "Heures vues",
+          },
+          {
+            value: nf.format(stats.episodesWatched),
+            unit: "",
+            label: "Épisodes vus",
+          },
+          {
+            value: nf.format(stats.seriesCompleted),
+            unit: "",
+            label: "Séries terminées",
+          },
+          {
+            value: nf.format(stats.moviesWatched),
+            unit: "",
+            label: "Films vus",
+          },
         ]
       : [],
   );
@@ -97,7 +114,9 @@
     <div class="grid gap-5 md:grid-cols-2">
       <!-- Type split (share of watch time) -->
       <section class="card p-5">
-        <h2 class="mb-4 font-display text-lg font-bold">Répartition du temps</h2>
+        <h2 class="mb-4 font-display text-lg font-bold">
+          Répartition du temps
+        </h2>
         {#if totalHours > 0}
           <div class="flex h-3 overflow-hidden rounded-full">
             {#each stats.timeByType as s (s.type)}

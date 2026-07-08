@@ -4,13 +4,17 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import type {
+  CastDetailDto,
+  MediaExtrasDto,
+  WatchProviderDto,
+} from "@tracklore/shared";
 import {
   CatalogSource,
   MediaSource,
   MediaSummaryDto,
   MediaType,
 } from "@tracklore/shared";
-import type { MediaExtrasDto, WatchProviderDto } from "@tracklore/shared";
 import { OmdbService } from "../omdb.service";
 import type {
   CatalogProvider,
@@ -28,6 +32,7 @@ interface TmdbMovieResult {
   original_title?: string;
   release_date?: string;
   poster_path?: string | null;
+  adult?: boolean;
 }
 
 interface TmdbTvResult {
@@ -85,11 +90,32 @@ interface TmdbWatchRegion {
 
 interface TmdbExtras {
   credits?: {
-    cast?: { name: string; character?: string; profile_path?: string | null }[];
+    cast?: {
+      id: number;
+      name: string;
+      character?: string;
+      profile_path?: string | null;
+    }[];
   };
   recommendations?: { results?: (TmdbMovieResult | TmdbTvResult)[] };
   "watch/providers"?: { results?: Record<string, TmdbWatchRegion> };
   external_ids?: { imdb_id?: string | null };
+}
+
+/** One entry of a person's `combined_credits.cast` (movie or TV role). */
+type TmdbCreditItem = (TmdbMovieResult | TmdbTvResult) & {
+  media_type: "movie" | "tv";
+  popularity?: number;
+};
+
+interface TmdbPersonDetails {
+  name: string;
+  biography?: string | null;
+  birthday?: string | null;
+  deathday?: string | null;
+  place_of_birth?: string | null;
+  profile_path?: string | null;
+  combined_credits?: { cast?: TmdbCreditItem[] };
 }
 
 interface TmdbFindResult {
@@ -116,7 +142,9 @@ export class TmdbProvider implements CatalogProvider {
   ): Promise<MediaSummaryDto[]> {
     const wantMovies = type === undefined || type === MediaType.MOVIE;
     const wantSeries = type === undefined || type === MediaType.SERIES;
-    const params = { query, page: String(page) };
+    // Adult movies are fetched too (flagged via `adult`) — the caller
+    // (CatalogController) strips them per-account with the age gate.
+    const params = { query, page: String(page), include_adult: "true" };
 
     const [movies, series] = await Promise.all([
       wantMovies
@@ -220,7 +248,8 @@ export class TmdbProvider implements CatalogProvider {
   async getExtras(sourceId: string, type: MediaType): Promise<MediaExtrasDto> {
     const path = type === MediaType.MOVIE ? "movie" : "tv";
     const data = await this.get<TmdbExtras>(`/${path}/${sourceId}`, {
-      append_to_response: "credits,recommendations,watch/providers,external_ids",
+      append_to_response:
+        "credits,recommendations,watch/providers,external_ids",
     });
 
     // IMDb / Rotten Tomatoes / Metacritic from OMDb (via the IMDb id).
@@ -245,6 +274,7 @@ export class TmdbProvider implements CatalogProvider {
         link: region?.link ?? null,
       },
       cast: (data.credits?.cast ?? []).slice(0, 12).map((c) => ({
+        id: String(c.id),
         name: c.name,
         role: c.character || null,
         photoUrl: c.profile_path ? `${IMG}/w185${c.profile_path}` : null,
@@ -253,6 +283,34 @@ export class TmdbProvider implements CatalogProvider {
         .slice(0, 12)
         .map((r) => summarize(r as TmdbMovieResult & TmdbTvResult)),
       ratings,
+    };
+  }
+
+  /** Live detail of a TMDB person for the cast modal. */
+  async getPerson(id: string): Promise<CastDetailDto> {
+    const p = await this.get<TmdbPersonDetails>(`/person/${id}`, {
+      append_to_response: "combined_credits",
+    });
+
+    // Most-popular, poster-bearing roles first; dedupe repeat titles.
+    const seen = new Set<number>();
+    const knownFor: MediaSummaryDto[] = (p.combined_credits?.cast ?? [])
+      .filter((c) => c.poster_path)
+      .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))
+      .filter((c) => (seen.has(c.id) ? false : seen.add(c.id)))
+      .slice(0, 12)
+      .map((c) =>
+        c.media_type === "movie"
+          ? this.toMovieSummary(c as TmdbMovieResult)
+          : this.toTvSummary(c as TmdbTvResult),
+      );
+
+    return {
+      name: p.name,
+      photoUrl: p.profile_path ? `${IMG}/w185${p.profile_path}` : null,
+      subtitle: personSubtitle(p),
+      description: p.biography?.trim() || null,
+      knownFor,
     };
   }
 
@@ -265,6 +323,7 @@ export class TmdbProvider implements CatalogProvider {
       originalTitle: movie.original_title ?? null,
       year: movie.release_date ? Number(movie.release_date.slice(0, 4)) : null,
       posterUrl: movie.poster_path ? `${IMG}/w500${movie.poster_path}` : null,
+      isAdult: movie.adult ?? false,
     };
   }
 
@@ -277,6 +336,9 @@ export class TmdbProvider implements CatalogProvider {
       originalTitle: tv.original_name ?? null,
       year: tv.first_air_date ? Number(tv.first_air_date.slice(0, 4)) : null,
       posterUrl: tv.poster_path ? `${IMG}/w500${tv.poster_path}` : null,
+      // TMDB's TV catalogue carries no `adult` flag (its pornographic
+      // catalogue is movies-only).
+      isAdult: false,
     };
   }
 
@@ -284,15 +346,18 @@ export class TmdbProvider implements CatalogProvider {
     const externalIds: ProviderExternalId[] = [
       { source: MediaSource.TMDB, externalId: tmdbId },
     ];
+
     if (ids?.imdb_id) {
       externalIds.push({ source: MediaSource.IMDB, externalId: ids.imdb_id });
     }
+
     if (ids?.tvdb_id) {
       externalIds.push({
         source: MediaSource.TVDB,
         externalId: String(ids.tvdb_id),
       });
     }
+
     return externalIds;
   }
 
@@ -301,6 +366,7 @@ export class TmdbProvider implements CatalogProvider {
     params: Record<string, string>,
   ): Promise<T> {
     const url = new URL(`${BASE_URL}${path}`);
+
     for (const [key, value] of Object.entries(params)) {
       url.searchParams.set(key, value);
     }
@@ -311,14 +377,29 @@ export class TmdbProvider implements CatalogProvider {
         Accept: "application/json",
       },
     });
+
     if (response.status === 404) {
       throw new NotFoundException("Media not found on TMDB");
     }
+
     if (!response.ok) {
       throw new BadGatewayException(
         `TMDB request failed with status ${response.status}`,
       );
     }
+
     return (await response.json()) as T;
   }
+}
+
+/** "1985 – 2020 · Tokyo, Japan" from whatever birth/death/place fields exist. */
+function personSubtitle(p: TmdbPersonDetails): string | null {
+  const birthYear = p.birthday?.slice(0, 4);
+  const deathYear = p.deathday?.slice(0, 4);
+  const years = birthYear
+    ? deathYear
+      ? `${birthYear} – ${deathYear}`
+      : birthYear
+    : null;
+  return [years, p.place_of_birth].filter(Boolean).join(" · ") || null;
 }

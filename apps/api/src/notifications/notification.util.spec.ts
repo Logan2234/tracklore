@@ -10,6 +10,9 @@ const base: Omit<CandidateEpisode, "episodeId" | "airDate"> = {
   mediaTitle: "My Show",
   mediaType: "SERIES",
   sourceId: "500",
+  // Long before any test air date, so existing tests aren't affected by the
+  // "aired after tracking started" gate — see the dedicated describe below.
+  trackedSince: new Date("2020-01-01T00:00:00Z"),
 };
 
 describe("selectNewEpisodeNotifications", () => {
@@ -18,9 +21,17 @@ describe("selectNewEpisodeNotifications", () => {
 
   it("keeps only episodes aired within (since, now], mapped to payloads", () => {
     const candidates: CandidateEpisode[] = [
-      { ...base, episodeId: "recent", airDate: new Date("2026-07-05T00:00:00Z") },
+      {
+        ...base,
+        episodeId: "recent",
+        airDate: new Date("2026-07-05T00:00:00Z"),
+      },
       { ...base, episodeId: "old", airDate: new Date("2026-01-01T00:00:00Z") },
-      { ...base, episodeId: "future", airDate: new Date("2026-07-20T00:00:00Z") },
+      {
+        ...base,
+        episodeId: "future",
+        airDate: new Date("2026-07-20T00:00:00Z"),
+      },
     ];
 
     const result = selectNewEpisodeNotifications(candidates, {
@@ -38,6 +49,7 @@ describe("selectNewEpisodeNotifications", () => {
       seasonNumber: 1,
       episodeNumber: 1,
       episodeTitle: "Pilot",
+      airDate: new Date("2026-07-05T00:00:00Z"),
     });
   });
 
@@ -62,5 +74,40 @@ describe("selectNewEpisodeNotifications", () => {
       { since, now, alreadyNotified: new Set() },
     );
     expect(result).toEqual([]);
+  });
+
+  describe("freshly-tracked shows", () => {
+    it("excludes an episode that aired before the user started tracking (e.g. importing an already-finished show)", () => {
+      const trackedSince = new Date("2026-07-05T12:00:00Z");
+      const result = selectNewEpisodeNotifications(
+        [
+          {
+            ...base,
+            episodeId: "finale",
+            // Aired inside the window, but before this user added the show.
+            airDate: new Date("2026-07-04T00:00:00Z"),
+            trackedSince,
+          },
+        ],
+        { since, now, alreadyNotified: new Set() },
+      );
+      expect(result).toEqual([]);
+    });
+
+    it("still notifies an episode that airs after tracking started", () => {
+      const trackedSince = new Date("2026-07-01T00:00:00Z");
+      const result = selectNewEpisodeNotifications(
+        [
+          {
+            ...base,
+            episodeId: "new-ep",
+            airDate: new Date("2026-07-05T00:00:00Z"),
+            trackedSince,
+          },
+        ],
+        { since, now, alreadyNotified: new Set() },
+      );
+      expect(result.map((n) => n.episodeId)).toEqual(["new-ep"]);
+    });
   });
 });

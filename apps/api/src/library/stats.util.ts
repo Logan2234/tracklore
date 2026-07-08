@@ -48,11 +48,13 @@ export function aggregateStats(
     ANIME: 0,
   };
   const genreCount = new Map<string, number>();
+
   const addGenres = (genres: string[]) => {
     for (const g of genres) genreCount.set(g, (genreCount.get(g) ?? 0) + 1);
   };
 
   let episodesWatched = 0;
+
   for (const w of watches) {
     if (w.seasonNumber === 0) continue; // specials excluded
     episodesWatched++;
@@ -62,8 +64,10 @@ export function aggregateStats(
 
   let moviesWatched = 0;
   let seriesCompleted = 0;
+
   for (const e of entries) {
     if (e.status !== "COMPLETED") continue;
+
     if (e.type === "MOVIE") {
       moviesWatched++;
       minutesByType.MOVIE += runtimeFor("MOVIE", e.runtimeMin);

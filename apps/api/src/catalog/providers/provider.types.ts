@@ -1,4 +1,5 @@
 import type {
+  CastDetailDto,
   CatalogSource,
   MediaExtrasDto,
   MediaSource,
@@ -47,4 +48,9 @@ export interface CatalogProvider {
   getDetails(sourceId: string, type: MediaType): Promise<ProviderMediaDetails>;
   /** Live, non-persisted extras: where to watch, cast, similar titles. */
   getExtras(sourceId: string, type: MediaType): Promise<MediaExtrasDto>;
+  /**
+   * Live detail of a cast entity (e.g. a TMDB person). Optional: sources with
+   * no linkable cast entity (AniList) omit it, and their cast has null ids.
+   */
+  getPerson?(id: string): Promise<CastDetailDto>;
 }

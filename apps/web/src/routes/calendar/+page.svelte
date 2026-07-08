@@ -40,13 +40,23 @@
 
   // Group the (already date-sorted) episodes by calendar day.
   const days = $derived.by(() => {
-    const groups: { key: string; label: string; date: string; items: CalendarEntryDto[] }[] = [];
+    const groups: {
+      key: string;
+      label: string;
+      date: string;
+      items: CalendarEntryDto[];
+    }[] = [];
     for (const e of entries) {
       const d = new Date(e.airDate);
       const key = d.toDateString();
       let group = groups.at(-1);
       if (!group || group.key !== key) {
-        group = { key, label: relativeLabel(d), date: dayLabel.format(d), items: [] };
+        group = {
+          key,
+          label: relativeLabel(d),
+          date: dayLabel.format(d),
+          items: [],
+        };
         groups.push(group);
       }
       group.items.push(e);
@@ -79,7 +89,8 @@
     <div class="flex flex-col gap-8">
       {#each days as day (day.key)}
         <section>
-          <div class="mb-3 flex items-baseline gap-3 border-b border-border pb-2">
+          <div
+            class="mb-3 flex items-baseline gap-3 border-b border-border pb-2">
             <h2 class="font-display text-lg font-bold">{day.label}</h2>
             <span class="timecode text-sm">{day.date}</span>
           </div>
@@ -89,14 +100,17 @@
                 href={href(e)}
                 class="card flex items-center gap-4 p-3 transition-[border-color] hover:border-accent">
                 <div class="w-12 shrink-0 overflow-hidden rounded-md">
-                  <Poster src={e.mediaItem.posterUrl} title={e.mediaItem.title} />
+                  <Poster
+                    src={e.mediaItem.posterUrl}
+                    title={e.mediaItem.title} />
                 </div>
                 <div class="min-w-0 flex-1">
                   <p class="truncate font-display font-semibold">
                     {e.mediaItem.title}
                   </p>
                   <p class="timecode text-sm">
-                    {code(e)}{#if e.episodeTitle} · {e.episodeTitle}{/if}
+                    {code(e)}{#if e.episodeTitle}
+                      · {e.episodeTitle}{/if}
                   </p>
                 </div>
               </a>

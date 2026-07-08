@@ -177,8 +177,7 @@
         }
       })
       .catch((err) => {
-        error =
-          err instanceof Error ? err.message : "Suivi du job impossible.";
+        error = err instanceof Error ? err.message : "Suivi du job impossible.";
       });
   }
 
@@ -269,7 +268,11 @@
     const overrides: Record<string, ImportCommitOverride> = {};
     for (const [key, m] of Object.entries(picked)) {
       if (include.has(key)) {
-        overrides[key] = { source: m.source, sourceId: m.sourceId, type: m.type };
+        overrides[key] = {
+          source: m.source,
+          sourceId: m.sourceId,
+          type: m.type,
+        };
       }
     }
     try {
@@ -293,7 +296,9 @@
   function subtitle(item: PlanItem, kind: Kind): string {
     if (kind === "show") {
       const n = (item as ImportPlanShow).episodesWatched;
-      return n > 0 ? `${n} épisode${n > 1 ? "s" : ""} vu${n > 1 ? "s" : ""}` : "watchlist";
+      return n > 0
+        ? `${n} épisode${n > 1 ? "s" : ""} vu${n > 1 ? "s" : ""}`
+        : "watchlist";
     }
     const y = (item as ImportPlanMovie).year;
     return y ? String(y) : "";
@@ -309,7 +314,10 @@
 
 <div class="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
   <div class="mb-6 flex items-center gap-3">
-    <a href="/settings" class="text-dim hover:text-fg" aria-label="Retour">
+    <a
+      href="/account/import"
+      class="text-dim hover:text-fg"
+      aria-label="Retour">
       <Icon name="chevron-left" class="h-5 w-5" />
     </a>
     <h1 class="font-display text-3xl font-extrabold tracking-tight md:text-4xl">
@@ -329,8 +337,8 @@
       <p class="mb-5 text-sm text-dim">
         Dépose l’archive <code
           class="rounded bg-bg px-1.5 py-0.5 font-mono text-xs">.zip</code> de ton
-        export GDPR TV Time. On l’analyse pour te laisser trier collection par
-        collection avant d’écrire quoi que ce soit.
+        export GDPR TV Time. On l’analyse pour te laisser trier collection par collection
+        avant d’écrire quoi que ce soit.
       </p>
 
       <label
@@ -396,8 +404,7 @@
         <span class="font-semibold">{summary.shows}</span> séries ·
         <span class="font-semibold">{summary.movies}</span> films à importer
         {#if summary.needMatch > 0}
-          <span class="text-danger">
-            · {summary.needMatch} à associer</span>
+          <span class="text-danger"> · {summary.needMatch} à associer</span>
         {/if}
       </div>
       <label class="flex items-center gap-2 text-sm text-danger">
@@ -419,10 +426,20 @@
             class="flex cursor-pointer items-center justify-between font-display font-bold">
             <span>{c.label} ({c.items.length})</span>
             <span class="flex gap-2 text-xs font-normal">
-              <button class="chip" onclick={(e) => { e.preventDefault(); setAll(c.items, true); }}>
+              <button
+                class="chip"
+                onclick={(e) => {
+                  e.preventDefault();
+                  setAll(c.items, true);
+                }}>
                 Tout
               </button>
-              <button class="chip" onclick={(e) => { e.preventDefault(); setAll(c.items, false); }}>
+              <button
+                class="chip"
+                onclick={(e) => {
+                  e.preventDefault();
+                  setAll(c.items, false);
+                }}>
                 Rien
               </button>
             </span>
@@ -486,12 +503,14 @@
                             <button
                               class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-surface-2"
                               onclick={() => chooseMatch(item.key, r)}>
-                              <div class="h-10 w-7 shrink-0 overflow-hidden rounded">
+                              <div
+                                class="h-10 w-7 shrink-0 overflow-hidden rounded">
                                 <Poster src={r.posterUrl} title={r.title} />
                               </div>
                               <span class="min-w-0 flex-1 truncate">
                                 {r.title}
-                                {#if r.year}<span class="text-dim"> · {r.year}</span
+                                {#if r.year}<span class="text-dim">
+                                    · {r.year}</span
                                   >{/if}
                               </span>
                               <span class="timecode text-xs">{r.type}</span>
@@ -533,7 +552,9 @@
         </div>
         <div class="rounded-lg border border-border bg-bg p-4">
           <p class="timecode text-xs uppercase">Épisodes</p>
-          <p class="font-display text-2xl font-bold">{r.episodes.watchesCreated}</p>
+          <p class="font-display text-2xl font-bold">
+            {r.episodes.watchesCreated}
+          </p>
           <p class="text-sm text-dim">visionnages créés</p>
         </div>
         <div class="rounded-lg border border-border bg-bg p-4">
@@ -543,8 +564,11 @@
         </div>
       </div>
       <div class="mt-5 flex gap-2">
-        <a href="/library" class="btn btn-primary">Voir ma bibliothèque</a>
-        <a href="/settings/import" class="btn" onclick={() => location.reload()}>
+        <a href="/media" class="btn btn-primary">Voir ma bibliothèque</a>
+        <a
+          href="/account/import/tvtime"
+          class="btn"
+          onclick={() => location.reload()}>
           Nouvel import
         </a>
       </div>

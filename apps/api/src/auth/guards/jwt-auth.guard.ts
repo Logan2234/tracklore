@@ -27,6 +27,7 @@ export class JwtAuthGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
+
     if (isPublic) {
       return true;
     }
@@ -37,6 +38,7 @@ export class JwtAuthGuard implements CanActivate {
       typeof authHeader === "string" && authHeader.startsWith("Bearer ")
         ? authHeader.slice("Bearer ".length)
         : null;
+
     if (!token) {
       throw new UnauthorizedException("Missing access token");
     }
@@ -48,6 +50,7 @@ export class JwtAuthGuard implements CanActivate {
     } catch {
       throw new UnauthorizedException("Invalid or expired access token");
     }
+
     return true;
   }
 }

@@ -2,10 +2,14 @@ import { env } from "$env/dynamic/public";
 import type {
   AuthTokensDto,
   CalendarEntryDto,
+  CastDetailDto,
+  ChangeEmailRequestDto,
+  ChangePasswordRequestDto,
+  DeleteAccountRequestDto,
   EntryStatus,
   EpisodeWatchDto,
-  LibraryEntryDto,
   ImportCommitRequest,
+  LibraryEntryDto,
   LoginRequestDto,
   MediaDetailDto,
   MediaDetailsDto,
@@ -14,11 +18,15 @@ import type {
   NotificationFeedDto,
   RegisterRequestDto,
   SearchResponseDto,
-  StatsDto,
+  SessionDto,
   StartTvTimeImportDto,
+  StatsDto,
   TvTimeImportJobDto,
+  UpdateUsernameRequestDto,
+  UpdateUserRequestDto,
   UpsertLibraryEntryDto,
   UserDto,
+  UsernameAvailabilityDto,
 } from "@tracklore/shared";
 import { auth } from "../auth.svelte";
 
@@ -46,9 +54,11 @@ async function request<T>(
   retried = false,
 ): Promise<T> {
   const headers: Record<string, string> = {};
+
   if (options.body !== undefined) {
     headers["Content-Type"] = "application/json";
   }
+
   if (options.withAuth !== false && auth.accessToken) {
     headers.Authorization = `Bearer ${auth.accessToken}`;
   }
@@ -67,9 +77,11 @@ async function request<T>(
     auth.refreshToken
   ) {
     const refreshed = await tryRefresh();
+
     if (refreshed) {
       return request<T>(path, options, true);
     }
+
     auth.clear();
   }
 
@@ -85,9 +97,11 @@ async function request<T>(
       message ?? `Request failed (${response.status})`,
     );
   }
+
   if (response.status === 204) {
     return undefined as T;
   }
+
   return (await response.json()) as T;
 }
 
@@ -114,6 +128,7 @@ async function tryRefresh(): Promise<boolean> {
 export async function initAuth(): Promise<void> {
   auth.loadTokens();
   if (!auth.accessToken) return;
+
   try {
     auth.user = await request<UserDto>("/users/me");
   } catch {
@@ -147,6 +162,69 @@ export async function login(body: LoginRequestDto): Promise<void> {
   auth.user = result.user;
 }
 
+export async function updateMe(body: UpdateUserRequestDto): Promise<UserDto> {
+  const user = await request<UserDto>("/users/me", { method: "PATCH", body });
+  auth.user = user;
+  return user;
+}
+
+export async function changeEmail(
+  body: ChangeEmailRequestDto,
+): Promise<UserDto> {
+  const user = await request<UserDto>("/users/me/email", {
+    method: "PATCH",
+    body,
+  });
+  auth.user = user;
+  return user;
+}
+
+export function changePassword(body: ChangePasswordRequestDto): Promise<void> {
+  return request("/users/me/password", { method: "PATCH", body });
+}
+
+export function checkUsernameAvailable(
+  value: string,
+): Promise<UsernameAvailabilityDto> {
+  const params = new URLSearchParams({ value });
+  return request(`/users/me/username-availability?${params}`);
+}
+
+export async function updateUsername(
+  body: UpdateUsernameRequestDto,
+): Promise<UserDto> {
+  const user = await request<UserDto>("/users/me/username", {
+    method: "PATCH",
+    body,
+  });
+  auth.user = user;
+  return user;
+}
+
+/** Permanently deletes the account and clears local auth state. */
+export async function deleteAccount(
+  body: DeleteAccountRequestDto,
+): Promise<void> {
+  await request("/users/me", { method: "DELETE", body });
+  auth.clear();
+}
+
+// --- Sessions (connected devices) ---
+
+export function getSessions(): Promise<SessionDto[]> {
+  return request("/auth/sessions");
+}
+
+export function revokeSession(id: string): Promise<void> {
+  return request(`/auth/sessions/${id}`, { method: "DELETE" });
+}
+
+/** Revokes every session except the current device (kept via its jti). */
+export function revokeOtherSessions(exceptJti: string): Promise<void> {
+  const params = new URLSearchParams({ except: exceptJti });
+  return request(`/auth/sessions?${params}`, { method: "DELETE" });
+}
+
 export async function logout(): Promise<void> {
   if (auth.refreshToken) {
     await request("/auth/logout", {
@@ -155,6 +233,7 @@ export async function logout(): Promise<void> {
       withAuth: false,
     }).catch(() => undefined);
   }
+
   auth.clear();
 }
 
@@ -188,6 +267,14 @@ export function getMediaExtras(
   return request(
     `/catalog/${source.toLowerCase()}/${sourceId}/extras?type=${type}`,
   );
+}
+
+/** Live detail of a cast entity (TMDB person) for the cast modal. */
+export function getCastDetail(
+  source: string,
+  id: string,
+): Promise<CastDetailDto> {
+  return request(`/catalog/${source.toLowerCase()}/person/${id}`);
 }
 
 /**
@@ -260,11 +347,16 @@ export function watchThrough(episodeId: string): Promise<void> {
 
 /** Undo the most recent watch of an episode (unwatches it at a single watch). */
 export function unwatchEpisode(episodeId: string): Promise<void> {
-  return request(`/library/episodes/${episodeId}/watches`, { method: "DELETE" });
+  return request(`/library/episodes/${episodeId}/watches`, {
+    method: "DELETE",
+  });
 }
 
 /** Set (or clear, with null) the rating of a single viewing. */
-export function rateWatch(watchId: string, rating: number | null): Promise<void> {
+export function rateWatch(
+  watchId: string,
+  rating: number | null,
+): Promise<void> {
   return request(`/library/watches/${watchId}`, {
     method: "PATCH",
     body: { rating },
@@ -297,6 +389,10 @@ export function getNotifications(): Promise<NotificationFeedDto> {
 
 export function markNotificationsRead(): Promise<void> {
   return request("/notifications/read", { method: "POST" });
+}
+
+export function markNotificationRead(id: string): Promise<void> {
+  return request(`/notifications/${id}/read`, { method: "PATCH" });
 }
 
 // --- TV Time import ---

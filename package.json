@@ -12,7 +12,8 @@
     "dev": "pnpm --parallel --filter \"./apps/*\" dev",
     "build": "pnpm --filter \"./packages/*\" build && pnpm --filter \"./apps/*\" build",
     "test": "pnpm --filter \"./apps/*\" test",
-    "lint": "pnpm --recursive lint",
+    "lint": "pnpm --recursive --no-bail lint",
+    "lint:fix": "pnpm --recursive --no-bail lint:fix",
     "format": "prettier --write ."
   },
   "devDependencies": {

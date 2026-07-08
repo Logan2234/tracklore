@@ -1,7 +1,10 @@
 import type { MediaSummaryDto } from "@tracklore/shared";
 import { rankBySearchRelevance, relevanceScore } from "./search-ranking";
 
-const media = (title: string, extra: Partial<MediaSummaryDto> = {}): MediaSummaryDto => ({
+const media = (
+  title: string,
+  extra: Partial<MediaSummaryDto> = {},
+): MediaSummaryDto => ({
   source: "TMDB",
   sourceId: title,
   type: "SERIES",

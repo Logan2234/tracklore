@@ -12,8 +12,10 @@
   import favicon from "$lib/assets/favicon.svg";
   import { auth } from "$lib/auth.svelte";
   import Icon from "$lib/components/Icon.svelte";
+  import { isDomainEnabled } from "$lib/domains";
   import { notifications } from "$lib/notifications.svelte";
   import { theme } from "$lib/theme.svelte";
+  import { Domain } from "@tracklore/shared";
 
   let { children } = $props();
   let ready = $state(false);
@@ -26,10 +28,13 @@
   type NavItem = {
     href: string;
     label: string;
-    icon: "home" | "library" | "search" | "calendar" | "stats" | "gamepad" | "book";
+    icon:
+      "home" | "library" | "search" | "calendar" | "stats" | "gamepad" | "book";
     match: (p: string) => boolean;
     /** Placeholder domain (P3): dimmed + "Bientôt" badge, still reachable. */
     soon?: boolean;
+    /** Domain-scoped entry: hidden when the user disabled that domain. */
+    domain?: Domain;
   };
   type NavSection = { label?: string; items: NavItem[] };
 
@@ -46,10 +51,11 @@
     match: (p) => p.startsWith("/search"),
   };
   const SCREENS: NavItem = {
-    href: "/library",
+    href: "/media",
     label: "Écrans",
     icon: "library",
-    match: (p) => p.startsWith("/library"),
+    match: (p) => p.startsWith("/media"),
+    domain: Domain.MEDIA,
   };
   const CALENDAR: NavItem = {
     href: "/calendar",
@@ -72,6 +78,7 @@
           icon: "gamepad",
           match: (p) => p.startsWith("/games"),
           soon: true,
+          domain: Domain.GAMES,
         },
         {
           href: "/books",
@@ -79,6 +86,7 @@
           icon: "book",
           match: (p) => p.startsWith("/books"),
           soon: true,
+          domain: Domain.BOOKS,
         },
       ],
     },
@@ -181,33 +189,6 @@
         </a>
 
         <nav class="flex flex-1 flex-col gap-0.5 py-2">
-          <a
-            href="/notifications"
-            title={expanded ? undefined : "Notifications"}
-            aria-current={page.url.pathname.startsWith("/notifications")
-              ? "page"
-              : undefined}
-            class="flex w-full items-center overflow-hidden rounded-xl transition-colors {page.url.pathname.startsWith(
-              '/notifications',
-            )
-              ? 'bg-accent/15 text-accent'
-              : 'text-dim hover:bg-surface-2 hover:text-fg'}">
-            <span class="relative grid h-10 w-10 shrink-0 place-items-center">
-              <Icon name="bell" class="h-5 w-5" />
-              {#if notifications.unread > 0}
-                <span
-                  class="absolute top-1.5 right-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[0.55rem] font-bold text-accent-fg">
-                  {notifications.unread > 9 ? "9+" : notifications.unread}
-                </span>
-              {/if}
-            </span>
-            <span
-              class="whitespace-nowrap text-sm font-semibold transition-opacity duration-150 {expanded
-                ? 'opacity-100'
-                : 'opacity-0'}">
-              Notifications
-            </span>
-          </a>
           {#each SECTIONS as section, i (i)}
             {#if section.label}
               {#if expanded}
@@ -216,11 +197,13 @@
                   {section.label}
                 </div>
               {:else}
-                <div class="mx-3 my-2 border-t border-border" aria-hidden="true">
+                <div
+                  class="mx-3 my-2 border-t border-border"
+                  aria-hidden="true">
                 </div>
               {/if}
             {/if}
-            {#each section.items as item (item.href)}
+            {#each section.items.filter((it) => !it.domain || isDomainEnabled(it.domain)) as item (item.href)}
               {@const active = item.match(page.url.pathname)}
               <a
                 href={item.href}
@@ -271,10 +254,38 @@
         </button>
 
         <a
-          href="/settings"
+          href="/notifications"
+          title={expanded ? undefined : "Notifications"}
+          aria-current={page.url.pathname.startsWith("/notifications")
+            ? "page"
+            : undefined}
+          class="flex w-full items-center overflow-hidden rounded-xl transition-colors {page.url.pathname.startsWith(
+            '/notifications',
+          )
+            ? 'bg-accent/15 text-accent'
+            : 'text-dim hover:bg-surface-2 hover:text-fg'}">
+          <span class="relative grid h-10 w-10 shrink-0 place-items-center">
+            <Icon name="bell" class="h-5 w-5" />
+            {#if notifications.unread > 0}
+              <span
+                class="absolute top-1.5 right-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[0.55rem] font-bold text-accent-fg">
+                {notifications.unread > 9 ? "9+" : notifications.unread}
+              </span>
+            {/if}
+          </span>
+          <span
+            class="whitespace-nowrap text-sm font-semibold transition-opacity duration-150 {expanded
+              ? 'opacity-100'
+              : 'opacity-0'}">
+            Notifications
+          </span>
+        </a>
+
+        <a
+          href="/account"
           title={expanded ? undefined : auth.user?.displayName}
           class="mt-1 flex w-full items-center overflow-hidden rounded-xl transition-colors hover:bg-surface-2 {page.url.pathname.startsWith(
-            '/settings',
+            '/account',
           )
             ? 'bg-surface-2'
             : ''}">
@@ -303,7 +314,7 @@
     <!-- Mobile bottom bar -->
     <nav
       class="fixed inset-x-0 bottom-0 z-20 flex border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
-      {#each BOTTOM as item (item.href)}
+      {#each BOTTOM.filter((it) => !it.domain || isDomainEnabled(it.domain)) as item (item.href)}
         {@const active = item.match(page.url.pathname)}
         <a
           href={item.href}
@@ -337,12 +348,12 @@
         Alertes
       </a>
       <a
-        href="/settings"
-        aria-current={page.url.pathname.startsWith("/settings")
+        href="/account"
+        aria-current={page.url.pathname.startsWith("/account")
           ? "page"
           : undefined}
         class="flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[0.62rem] font-semibold {page.url.pathname.startsWith(
-          '/settings',
+          '/account',
         )
           ? 'text-accent'
           : 'text-dim'}">

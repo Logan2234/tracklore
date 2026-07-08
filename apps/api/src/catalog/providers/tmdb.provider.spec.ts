@@ -21,9 +21,11 @@ function mockFetchByUrl(routes: Record<string, unknown>): void {
     const match = Object.entries(routes).find(([pathPart]) =>
       url.includes(pathPart),
     );
+
     if (!match) {
       throw new Error(`Unexpected fetch call in test: ${url}`);
     }
+
     return Promise.resolve(
       new Response(JSON.stringify(match[1]), {
         status: 200,
@@ -67,6 +69,7 @@ describe("TmdbProvider", () => {
         year: 2010,
         posterUrl:
           "https://image.tmdb.org/t/p/w500/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg",
+        isAdult: false,
       },
     ]);
   });
@@ -166,6 +169,64 @@ describe("TmdbProvider", () => {
     expect(seasonOne?.episodes).toEqual([
       { number: 1, title: "Pilot", airDate: "2008-01-20" },
       { number: 2, title: "Cat's in the Bag...", airDate: "2008-01-27" },
+    ]);
+  });
+
+  it("maps a person with a most-popular, deduped, poster-only knownFor list", async () => {
+    mockFetchByUrl({
+      "/person/62": {
+        name: "Bryan Cranston",
+        biography: "  An American actor.  ",
+        birthday: "1956-03-07",
+        deathday: null,
+        place_of_birth: "Hollywood, California, USA",
+        profile_path: "/bc.jpg",
+        combined_credits: {
+          cast: [
+            // No poster → filtered out.
+            { id: 1, media_type: "movie", title: "No Poster", popularity: 99 },
+            {
+              id: 1396,
+              media_type: "tv",
+              name: "Breaking Bad",
+              first_air_date: "2008-01-20",
+              poster_path: "/bb.jpg",
+              popularity: 50,
+            },
+            {
+              id: 27205,
+              media_type: "movie",
+              title: "Inception",
+              release_date: "2010-07-15",
+              poster_path: "/in.jpg",
+              popularity: 80,
+            },
+            // Duplicate id → collapsed.
+            {
+              id: 1396,
+              media_type: "tv",
+              name: "Breaking Bad",
+              poster_path: "/bb.jpg",
+              popularity: 40,
+            },
+          ],
+        },
+      },
+    });
+
+    const person = await provider.getPerson("62");
+
+    expect(person.name).toBe("Bryan Cranston");
+    expect(person.description).toBe("An American actor."); // trimmed
+    expect(person.subtitle).toBe("1956 · Hollywood, California, USA");
+    expect(person.photoUrl).toBe("https://image.tmdb.org/t/p/w185/bc.jpg");
+    // Sorted by popularity desc (Inception 80 > Breaking Bad 50), deduped,
+    // the poster-less credit dropped, types mapped from media_type.
+    expect(
+      person.knownFor.map((k) => ({ id: k.sourceId, type: k.type })),
+    ).toEqual([
+      { id: "27205", type: MediaType.MOVIE },
+      { id: "1396", type: MediaType.SERIES },
     ]);
   });
 });

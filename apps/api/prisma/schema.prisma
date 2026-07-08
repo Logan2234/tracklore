@@ -12,6 +12,15 @@ enum MediaType {
   ANIME
 }
 
+// Top-level content domain a user can compose their app from. MEDIA groups
+// MOVIE/SERIES/ANIME; BOOKS/GAMES are nav placeholders until their screens
+// land at P3. `User.enabledDomains` drives the nav (see web isDomainEnabled).
+enum Domain {
+  MEDIA
+  BOOKS
+  GAMES
+}
+
 // Sources we actually fetch from (canonical).
 enum CatalogSource {
   TMDB
@@ -32,21 +41,36 @@ enum EntryStatus {
   COMPLETED
   PLANNED
   DROPPED
-  PAUSED
   // Series/anime: everything released is watched but the show is still airing.
   // Never stored — it is a derived, read-time status (see LibraryService).
   UP_TO_DATE
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  displayName  String
+  id                String    @id @default(cuid())
+  email             String    @unique
+  passwordHash      String
+  // Free-form label shown around the app; not unique. See `username` for the
+  // unique, login-capable handle.
+  displayName       String
+  // Unique login handle (alongside email). Assigned at registration, editable
+  // in Sécurité.
+  username          String    @unique
+  birthDate         DateTime?
+  // Opt-in to 18+ titles; only effective when birthDate proves the account is 18+.
+  allowAdultContent Boolean   @default(false)
+  // Communication preferences. Email/push have no delivery channel yet (P2
+  // roadmap) — the flags are captured now so consent already exists once they do.
+  notifyInApp       Boolean   @default(true)
+  notifyEmail       Boolean   @default(false)
+  notifyPush        Boolean   @default(false)
   // Open-core seam: feature flags granted to this user (empty in self-host MVP).
-  entitlements Json     @default("[]")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  entitlements      Json      @default("[]")
+  // Composition seam: content domains the user enabled. Drives the nav today;
+  // search/notif filtering follow at P3. Default = every domain visible.
+  enabledDomains    Domain[]  @default([MEDIA, BOOKS, GAMES])
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   entries        LibraryEntry[]
   episodeWatches EpisodeWatch[]
@@ -69,6 +93,9 @@ model Notification {
   episodeTitle  String?
   // The episode this is about — the dedup key (not a FK, kept simple).
   episodeId     String
+  // The episode's real air date — shown to the user instead of `createdAt`,
+  // which is only when the scan happened to run (can lag behind by days).
+  airDate       DateTime
   readAt        DateTime?
   createdAt     DateTime  @default(now())
 
@@ -79,12 +106,21 @@ model Notification {
 }
 
 // One row per device/session, so refreshing on the phone does not log out the desktop.
+// The row survives token rotation (only tokenHash/jti/lastUsedAt change), so it
+// models a durable "connected device" — see auth.service refresh().
 model RefreshToken {
-  id        String   @id @default(cuid())
-  userId    String
-  tokenHash String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String
+  tokenHash  String   @unique
+  // Refresh-JWT id (payload `jti`); lets the current device be flagged in the
+  // sessions list without transmitting the token itself.
+  jti        String   @unique
+  // Raw User-Agent captured at sign-in, to label the device in the UI.
+  userAgent  String?
+  expiresAt  DateTime
+  // Bumped on every rotation — the session's "last active" timestamp.
+  lastUsedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -108,6 +144,8 @@ model MediaItem {
   // Average minutes per episode (series/anime) or the film's runtime; null until
   // captured from the source. Used by the stats aggregation for watch time.
   runtimeMin      Int?
+  // 18+ title (TMDB `adult` movies, AniList hentai). Restricted per-account.
+  isAdult         Boolean       @default(false)
   metadata        Json          @default("{}")
   lastSyncedAt    DateTime      @default(now())
   createdAt       DateTime      @default(now())

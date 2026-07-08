@@ -6,17 +6,18 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import type { User } from "@prisma/client";
-import type { AuthTokensDto, UserDto } from "@tracklore/shared";
+import type { AuthTokensDto, SessionDto, UserDto } from "@tracklore/shared";
 import * as bcrypt from "bcryptjs";
 import { createHash, randomUUID } from "node:crypto";
 import { PrismaService } from "../prisma/prisma.service";
+import { randomUsernameSuffix, slugifyUsername } from "../users/username.util";
 import type { JwtPayload } from "./decorators/current-user.decorator";
 import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
 
 const ACCESS_TOKEN_TTL = "15m";
 const REFRESH_TOKEN_TTL_DAYS = 30;
-const BCRYPT_ROUNDS = 12;
+export const BCRYPT_ROUNDS = 12;
 
 export interface AuthResult {
   user: UserDto;
@@ -31,10 +32,11 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
-  async register(dto: RegisterDto): Promise<AuthResult> {
+  async register(dto: RegisterDto, userAgent?: string): Promise<AuthResult> {
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
+
     if (existing) {
       throw new ConflictException("An account with this email already exists");
     }
@@ -44,22 +46,36 @@ export class AuthService {
         email: dto.email,
         passwordHash: await bcrypt.hash(dto.password, BCRYPT_ROUNDS),
         displayName: dto.displayName,
+        username: await this.generateUniqueUsername(dto.displayName),
       },
     });
-    return { user: toUserDto(user), tokens: await this.issueTokens(user) };
+    return {
+      user: toUserDto(user),
+      tokens: await this.startSession(user, userAgent),
+    };
   }
 
-  async login(dto: LoginDto): Promise<AuthResult> {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+  /** Accepts either the email or the username as the login identifier. */
+  async login(dto: LoginDto, userAgent?: string): Promise<AuthResult> {
+    const user = await this.prisma.user.findFirst({
+      where: { OR: [{ email: dto.identifier }, { username: dto.identifier }] },
     });
+
     if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
       throw new UnauthorizedException("Invalid credentials");
     }
-    return { user: toUserDto(user), tokens: await this.issueTokens(user) };
+
+    return {
+      user: toUserDto(user),
+      tokens: await this.startSession(user, userAgent),
+    };
   }
 
-  /** Rotates the refresh token: the presented one is consumed, a new pair is issued. */
+  /**
+   * Rotates the refresh token in place: the presented one is consumed and the
+   * session row is updated (new token/jti, bumped lastUsedAt) rather than
+   * replaced, so the device keeps its identity and original createdAt.
+   */
   async refresh(refreshToken: string): Promise<AuthTokensDto> {
     try {
       await this.jwtService.verifyAsync(refreshToken, {
@@ -74,12 +90,25 @@ export class AuthService {
       where: { tokenHash },
       include: { user: true },
     });
+
     if (!stored || stored.expiresAt < new Date()) {
       throw new UnauthorizedException("Unknown or expired refresh token");
     }
 
-    await this.prisma.refreshToken.delete({ where: { id: stored.id } });
-    return this.issueTokens(stored.user);
+    const signed = await this.signTokens(stored.user);
+    await this.prisma.refreshToken.update({
+      where: { id: stored.id },
+      data: {
+        tokenHash: hashToken(signed.refreshToken),
+        jti: signed.jti,
+        expiresAt: signed.expiresAt,
+        lastUsedAt: new Date(),
+      },
+    });
+    return {
+      accessToken: signed.accessToken,
+      refreshToken: signed.refreshToken,
+    };
   }
 
   /** Invalidates one refresh token (logout on the current device). */
@@ -89,16 +118,70 @@ export class AuthService {
     });
   }
 
-  private async issueTokens(user: User): Promise<AuthTokensDto> {
+  /** Every signed-in device for this user, most-recently-active first. */
+  async listSessions(userId: string): Promise<SessionDto[]> {
+    const sessions = await this.prisma.refreshToken.findMany({
+      where: { userId },
+      orderBy: { lastUsedAt: "desc" },
+    });
+    return sessions.map((s) => ({
+      id: s.id,
+      jti: s.jti,
+      userAgent: s.userAgent,
+      createdAt: s.createdAt.toISOString(),
+      lastUsedAt: s.lastUsedAt.toISOString(),
+    }));
+  }
+
+  /** Revokes one session by id, scoped to its owner so ids can't be guessed across users. */
+  async revokeSession(userId: string, sessionId: string): Promise<void> {
+    await this.prisma.refreshToken.deleteMany({
+      where: { id: sessionId, userId },
+    });
+  }
+
+  /** Revokes every session except the current device (identified by its jti). */
+  async revokeOtherSessions(userId: string, exceptJti: string): Promise<void> {
+    await this.prisma.refreshToken.deleteMany({
+      where: { userId, jti: { not: exceptJti } },
+    });
+  }
+
+  /** Slugifies `seed` into a username, appending a random suffix on collision. */
+  private async generateUniqueUsername(seed: string): Promise<string> {
+    const base = slugifyUsername(seed);
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const candidate =
+        attempt === 0 ? base : `${base}${randomUsernameSuffix(4)}`;
+      const existing = await this.prisma.user.findUnique({
+        where: { username: candidate },
+        select: { id: true },
+      });
+      if (!existing) return candidate;
+    }
+
+    return `${base}${randomUsernameSuffix(8)}`;
+  }
+
+  /** Signs a fresh access/refresh pair. Persistence is the caller's job. */
+  private async signTokens(user: User): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    jti: string;
+    expiresAt: Date;
+  }> {
     const payload: JwtPayload = { sub: user.id, email: user.email };
 
     const accessToken = await this.jwtService.signAsync(payload, {
       secret: this.configService.getOrThrow<string>("JWT_ACCESS_SECRET"),
       expiresIn: ACCESS_TOKEN_TTL,
     });
-    // jti makes each refresh token unique even when issued within the same second.
+    // jti makes each refresh token unique even when issued within the same second,
+    // and identifies the session row.
+    const jti = randomUUID();
     const refreshToken = await this.jwtService.signAsync(
-      { sub: user.id, jti: randomUUID() },
+      { sub: user.id, jti },
       {
         secret: this.configService.getOrThrow<string>("JWT_REFRESH_SECRET"),
         expiresIn: `${REFRESH_TOKEN_TTL_DAYS}d`,
@@ -108,11 +191,28 @@ export class AuthService {
     const expiresAt = new Date(
       Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
     );
-    await this.prisma.refreshToken.create({
-      data: { userId: user.id, tokenHash: hashToken(refreshToken), expiresAt },
-    });
+    return { accessToken, refreshToken, jti, expiresAt };
+  }
 
-    return { accessToken, refreshToken };
+  /** Opens a new session (login/register): signs tokens and records the device. */
+  private async startSession(
+    user: User,
+    userAgent?: string,
+  ): Promise<AuthTokensDto> {
+    const signed = await this.signTokens(user);
+    await this.prisma.refreshToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: hashToken(signed.refreshToken),
+        jti: signed.jti,
+        userAgent: userAgent ?? null,
+        expiresAt: signed.expiresAt,
+      },
+    });
+    return {
+      accessToken: signed.accessToken,
+      refreshToken: signed.refreshToken,
+    };
   }
 }
 
@@ -124,9 +224,19 @@ export function toUserDto(user: User): UserDto {
   return {
     id: user.id,
     email: user.email,
+    username: user.username,
     displayName: user.displayName,
+    birthDate: user.birthDate
+      ? user.birthDate.toISOString().slice(0, 10)
+      : null,
+    allowAdultContent: user.allowAdultContent,
+    notifyInApp: user.notifyInApp,
+    notifyEmail: user.notifyEmail,
+    notifyPush: user.notifyPush,
     entitlements: Array.isArray(user.entitlements)
       ? (user.entitlements as string[])
       : [],
+    enabledDomains: user.enabledDomains,
+    createdAt: user.createdAt.toISOString(),
   };
 }

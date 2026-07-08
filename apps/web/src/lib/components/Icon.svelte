@@ -17,7 +17,9 @@
     | "chevron-left"
     | "chevron-right"
     | "download"
-    | "bell";
+    | "bell"
+    | "monitor"
+    | "x";
 
   let { name, class: cls = "h-5 w-5" }: { name: IconName; class?: string } =
     $props();
@@ -70,7 +72,8 @@
     <rect x="2" y="7" width="20" height="10" rx="5" />
     <path d="M7 12h3M8.5 10.5v3M15.5 11h.01M18 13.5h.01" />
   {:else if name === "book"}
-    <path d="M6 3h10a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+    <path
+      d="M6 3h10a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
     <path d="M4 18h13" />
   {:else if name === "chevron-left"}
     <path d="M15 6l-6 6 6 6" />
@@ -81,5 +84,10 @@
   {:else if name === "bell"}
     <path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6" />
     <path d="M10.5 20a1.8 1.8 0 0 0 3 0" />
+  {:else if name === "monitor"}
+    <rect x="3" y="4" width="18" height="12" rx="2" />
+    <path d="M8 20h8M12 16v4" />
+  {:else if name === "x"}
+    <path d="M6 6l12 12M18 6 6 18" />
   {/if}
 </svg>

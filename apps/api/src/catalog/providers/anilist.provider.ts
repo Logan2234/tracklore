@@ -26,6 +26,7 @@ const SEARCH_QUERY = `
         title { romaji english }
         seasonYear
         coverImage { large }
+        isAdult
       }
     }
   }
@@ -46,6 +47,7 @@ const DETAILS_QUERY = `
       startDate { year month day }
       nextAiringEpisode { episode }
       streamingEpisodes { title }
+      isAdult
     }
   }
 `;
@@ -64,6 +66,7 @@ const EXTRAS_QUERY = `
             title { romaji english }
             seasonYear
             coverImage { large }
+            isAdult
           }
         }
       }
@@ -90,6 +93,7 @@ interface AnilistMedia {
   };
   nextAiringEpisode?: { episode: number } | null;
   streamingEpisodes?: { title?: string | null }[];
+  isAdult?: boolean;
 }
 
 interface AnilistExtras {
@@ -97,7 +101,10 @@ interface AnilistExtras {
   characters?: {
     edges?: {
       role?: string | null;
-      node: { name: { full?: string | null }; image?: { medium?: string | null } };
+      node: {
+        name: { full?: string | null };
+        image?: { medium?: string | null };
+      };
     }[];
   };
   recommendations?: {
@@ -134,6 +141,7 @@ export class AnilistProvider implements CatalogProvider {
       },
     );
     const media = data.Media;
+
     if (!media) {
       throw new NotFoundException("Media not found on AniList");
     }
@@ -164,13 +172,16 @@ export class AnilistProvider implements CatalogProvider {
     return {
       watchProviders: { flatrate: [], rent: [], buy: [], link: null },
       cast: (media?.characters?.edges ?? []).map((e) => ({
+        // AniList characters have no person detail page here, so they are not
+        // clickable — id stays null (see CastMemberDto).
+        id: null,
         name: e.node.name.full ?? "?",
         role: e.role ?? null,
         photoUrl: e.node.image?.medium ?? null,
       })),
       similar: (media?.recommendations?.nodes ?? [])
         .map((n) => n.mediaRecommendation)
-        .filter((m): m is AnilistMedia => m != null)
+        .filter((m): m is AnilistMedia => m !== null)
         .map((m) => this.toSummary(m)),
       ratings: media?.averageScore
         ? [{ source: "AniList", score: `${media.averageScore}%` }]
@@ -188,6 +199,7 @@ export class AnilistProvider implements CatalogProvider {
       year: media.seasonYear ?? null,
       posterUrl:
         media.coverImage?.extraLarge ?? media.coverImage?.large ?? null,
+      isAdult: media.isAdult ?? false,
     };
   }
 
@@ -203,9 +215,11 @@ export class AnilistProvider implements CatalogProvider {
       },
       body: JSON.stringify({ query, variables }),
     });
+
     if (response.status === 404) {
       throw new NotFoundException("Media not found on AniList");
     }
+
     if (!response.ok) {
       throw new BadGatewayException(
         `AniList request failed with status ${response.status}`,
@@ -216,6 +230,7 @@ export class AnilistProvider implements CatalogProvider {
       data?: T;
       errors?: { message: string }[];
     };
+
     if (body.errors?.length || !body.data) {
       // AniList returns 200 with an errors array for "not found" on some queries.
       if (
@@ -223,10 +238,12 @@ export class AnilistProvider implements CatalogProvider {
       ) {
         throw new NotFoundException("Media not found on AniList");
       }
+
       throw new BadGatewayException(
         body.errors?.[0]?.message ?? "AniList returned no data",
       );
     }
+
     return body.data;
   }
 }
@@ -264,6 +281,7 @@ function toIsoDate(date?: {
   if (!date?.year) {
     return null;
   }
+
   const month = String(date.month ?? 1).padStart(2, "0");
   const day = String(date.day ?? 1).padStart(2, "0");
   return `${date.year}-${month}-${day}`;

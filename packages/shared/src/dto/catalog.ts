@@ -15,6 +15,8 @@ export interface MediaSummaryDto {
   originalTitle?: string | null;
   year: number | null;
   posterUrl: string | null;
+  /** 18+ title (TMDB `adult` movies, AniList hentai). Restricted per-account. */
+  isAdult: boolean;
 }
 
 export interface SearchResponseDto {
@@ -37,10 +39,31 @@ export interface WatchProvidersDto {
 }
 
 export interface CastMemberDto {
+  /**
+   * Source id of the cast entity (TMDB person id), used to open its detail.
+   * null when the source exposes no linkable entity (e.g. AniList characters),
+   * in which case the member is not clickable.
+   */
+  id: string | null;
   name: string;
   /** Character/role, when known. */
   role: string | null;
   photoUrl: string | null;
+}
+
+/**
+ * Detail of a cast entity (a TMDB person today), fetched live for the cast
+ * modal on the media page. Kept generic so other sources could fill it later.
+ */
+export interface CastDetailDto {
+  name: string;
+  photoUrl: string | null;
+  /** One-line context, e.g. "1985 – Tokyo, Japan" for a person. */
+  subtitle: string | null;
+  /** Biography; may be long or empty. */
+  description: string | null;
+  /** Notable works, linkable to their own media page. */
+  knownFor: MediaSummaryDto[];
 }
 
 /** One community/critic score, kept as a display string (e.g. "8.5", "91%"). */
@@ -124,6 +147,8 @@ export interface MediaDetailDto {
   airingStatus: string | null;
   /** Normalised: the show has finished airing (no more episodes coming). */
   airingFinished: boolean;
+  /** 18+ title (TMDB `adult` movies, AniList hentai). Restricted per-account. */
+  isAdult: boolean;
   seasons: MediaDetailSeasonDto[];
   entry: LibraryEntryDto | null;
 }

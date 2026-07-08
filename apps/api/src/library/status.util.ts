@@ -20,8 +20,8 @@ export function normalizeAiringFinished(status: string | null): boolean {
 }
 
 /**
- * Effective library status. PAUSED and DROPPED are manual overrides that win
- * over everything; every other status is derived from watch progress (+ airing
+ * Effective library status. DROPPED is a manual override that wins over
+ * everything; every other status is derived from watch progress (+ airing
  * status for series/anime), so it can never drift from the actual watch data.
  *
  * - Movies have no episode progress: their stored status is the source of truth
@@ -35,7 +35,7 @@ export function deriveStatus(
   airingFinished: boolean,
   storedStatus: EntryStatus,
 ): EntryStatus {
-  if (storedStatus === "PAUSED" || storedStatus === "DROPPED") {
+  if (storedStatus === "DROPPED") {
     return storedStatus;
   }
 
@@ -47,12 +47,16 @@ export function deriveStatus(
   if (!progress || progress.totalEpisodes === 0) {
     return "PLANNED";
   }
+
   const { watchedEpisodes, totalEpisodes } = progress;
+
   if (watchedEpisodes === 0) {
     return "PLANNED";
   }
+
   if (watchedEpisodes >= totalEpisodes) {
     return airingFinished ? "COMPLETED" : "UP_TO_DATE";
   }
+
   return "WATCHING";
 }

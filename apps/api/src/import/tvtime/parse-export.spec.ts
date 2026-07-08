@@ -41,17 +41,23 @@ describe("parseTvTimeExport", () => {
     expect(shows[0].episodes[0].totalWatches).toBe(3); // 1 + 2 rewatches
   });
 
-  it("ignores season-summary rows", () => {
+  it("counts season-bulk-marked rows as watched episodes", () => {
+    // `bulk_type` only records HOW a watch was entered (individually /
+    // fill-previous / whole-season) — a `season` row is a real watched
+    // episode, not a summary to skip.
     const episodesCsv = [
       EPISODES_HEADER,
-      "Doctor Who,999,1,0,78804,season,2023-12-29 01:07:02",
-      "Doctor Who,295295,1,2,78804,,2023-12-29 01:07:02",
+      "Sakamoto Days,10501942,1,1,423732,,2025-12-22 20:16:37",
+      "Sakamoto Days,10842955,1,20,423732,season,2025-12-26 17:44:02",
+      "Sakamoto Days,10842956,1,21,423732,season,2025-12-26 17:44:02",
+      "Sakamoto Days,10842957,1,22,423732,season,2025-12-26 17:44:02",
     ].join("\n");
 
     const { shows } = parseTvTimeExport({ episodesCsv });
 
-    expect(shows[0].episodes).toHaveLength(1);
-    expect(shows[0].episodes[0].episode).toBe(2);
+    expect(
+      shows[0].episodes.map((e) => e.episode).sort((a, b) => a - b),
+    ).toEqual([1, 20, 21, 22]);
   });
 
   it("adds never-started followed shows as empty watchlist entries", () => {

@@ -62,10 +62,12 @@ function parseRewatches(csv?: string): Map<string, number> {
   for (const row of parseCsv(csv)) {
     const episodeId = row.episode_id?.trim();
     const cpt = toInt(row.cpt);
+
     if (episodeId && cpt !== null && cpt > 0) {
       map.set(episodeId, cpt);
     }
   }
+
   return map;
 }
 
@@ -79,8 +81,9 @@ function parseShows(
 
   // 1. Shows with watched episodes, from the source-of-truth table.
   for (const row of episodesCsv ? parseCsv(episodesCsv) : []) {
-    if (row.bulk_type?.trim() === "season") continue; // Season summary row.
-
+    // `bulk_type` (""/"fill-previous"/"season") only records HOW the watch was
+    // entered — every row with an episode id is a real watched episode. Rows
+    // without one (e.g. the series-follow record) are skipped just below.
     const tvdbId = row.s_id?.trim();
     const episodeId = row.episode_id?.trim();
     const season = toInt(row.season_number);
@@ -88,6 +91,7 @@ function parseShows(
     if (!tvdbId || !episodeId || season === null || episode === null) continue;
 
     let show = byTvdbId.get(tvdbId);
+
     if (!show) {
       show = {
         tvdbId,
@@ -102,6 +106,7 @@ function parseShows(
       (e) => e.season === season && e.episode === episode,
     );
     const watchedAt = toDateOrNull(row.created_at);
+
     if (existing) {
       existing.watchedAt = earliest(existing.watchedAt, watchedAt);
     } else {
@@ -143,6 +148,7 @@ function parseShowNames(csv?: string): Map<string, ShowNameEntry> {
       nbSeen: toInt(row.nb_episodes_seen) ?? 0,
     });
   }
+
   return map;
 }
 
@@ -156,6 +162,7 @@ function parseMovies(csv?: string): ParsedMovie[] {
   if (!csv) return [];
 
   const byTitle = new Map<string, ParsedMovie>();
+
   for (const row of parseCsv(csv)) {
     if (row.entity_type?.trim() !== "movie") continue;
 
@@ -165,6 +172,7 @@ function parseMovies(csv?: string): ParsedMovie[] {
     const watched = row.type?.trim() === "watch";
 
     const existing = byTitle.get(title.toLowerCase());
+
     if (existing) {
       existing.watched ||= watched;
       if (existing.year === null && year !== null) existing.year = year;
@@ -172,6 +180,7 @@ function parseMovies(csv?: string): ParsedMovie[] {
       byTitle.set(title.toLowerCase(), { title, year, watched });
     }
   }
+
   return [...byTitle.values()];
 }
 

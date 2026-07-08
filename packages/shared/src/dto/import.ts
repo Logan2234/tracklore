@@ -29,34 +29,6 @@ export interface StartTvTimeImportDto {
   importMovies?: boolean;
 }
 
-/** One watched episode of a show, identified by its season/episode numbers. */
-export interface EpisodeRefDto {
-  season: number;
-  episode: number;
-}
-
-/**
- * A show whose TVDB id did not resolve to a TMDB series. We keep the watch
- * data from the export so the report can show what would be imported once the
- * show is reconciled (and tell a watchlist entry apart from a started one).
- */
-export interface UnresolvedShowDto {
-  title: string;
-  /** TheTVDB id — the identifier TMDB could not map. */
-  tvdbId: string;
-  /** Distinct watched episodes; empty ⇒ watchlist (never started). */
-  episodes: EpisodeRefDto[];
-}
-
-/** A movie with no confident TMDB match. */
-export interface UnresolvedMovieDto {
-  title: string;
-  /** Release year from the export, when present. */
-  year: number | null;
-  /** true ⇒ already watched (would import as COMPLETED); false ⇒ watchlist. */
-  watched: boolean;
-}
-
 export interface UnmatchedEpisodeDto {
   show: string;
   season: number;
@@ -68,35 +40,29 @@ export interface UnmatchedEpisodeDto {
  * export cannot bloat the response — the counts tell the full story.
  */
 export interface TvTimeImportReport {
-  dryRun: boolean;
-  /** True when the run first wiped the user's library/history (see StartTvTimeImportDto). */
+  /** True when the run first wiped the user's library/history (see ImportCommitRequest). */
   overwrite: boolean;
   shows: {
     total: number;
     imported: number;
     watchlist: number;
-    /** Shows whose TVDB id did not resolve to a TMDB series (sample). */
-    unresolved: UnresolvedShowDto[];
   };
   episodes: {
     watched: number;
     watchesCreated: number;
-    /** Watched episodes with no matching TMDB episode, e.g. TVDB numbering gaps (sample). */
+    /** Watched episodes with no matching catalogue episode, e.g. numbering gaps (sample). */
     unmatched: UnmatchedEpisodeDto[];
   };
   movies: {
     total: number;
     imported: number;
     watchlist: number;
-    /** Titles with no confident TMDB match — validate manually (sample). */
-    unresolved: UnresolvedMovieDto[];
   };
 }
 
 export interface TvTimeImportJobDto {
   id: string;
   status: "running" | "completed" | "failed";
-  dryRun: boolean;
   progress: {
     shows: number;
     totalShows: number;
@@ -105,7 +71,7 @@ export interface TvTimeImportJobDto {
   };
   /** Populated once an analysis job completes (reconciliation plan to review). */
   plan: ImportPlan | null;
-  /** Populated once a commit (or legacy dry-run) job completes. */
+  /** Populated once a commit job completes. */
   report: TvTimeImportReport | null;
   error: string | null;
 }

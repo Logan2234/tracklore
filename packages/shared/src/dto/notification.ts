@@ -13,7 +13,9 @@ export interface NotificationDto {
   episodeNumber: number;
   episodeTitle: string | null;
   read: boolean;
-  /** ISO creation date. */
+  /** ISO date the episode actually aired — show this, not `createdAt`. */
+  airDate: string;
+  /** ISO creation date (when the scan detected it, not when it aired). */
   createdAt: string;
 }
 

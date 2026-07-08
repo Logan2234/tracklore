@@ -72,6 +72,7 @@ function extractFiles(input: Buffer): TvTimeImportFilesDto {
   }
 
   let entries: Map<string, string>;
+
   try {
     entries = readZipEntries(input, new Set(Object.values(FILE_NAMES)));
   } catch (error) {
@@ -90,10 +91,12 @@ function extractFiles(input: Buffer): TvTimeImportFilesDto {
   const missing: string[] = [];
   if (!files.episodesCsv) missing.push(FILE_NAMES.episodesCsv);
   if (!files.showsCsv) missing.push(FILE_NAMES.showsCsv);
+
   if (missing.length > 0) {
     throw new BadRequestException(
       `Missing required file(s) in the archive: ${missing.join(", ")}`,
     );
   }
+
   return files;
 }

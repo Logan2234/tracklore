@@ -1,9 +1,11 @@
-import { IsEmail, IsString } from "class-validator";
+import { IsString, MinLength } from "class-validator";
 import type { LoginRequestDto } from "@tracklore/shared";
 
 export class LoginDto implements LoginRequestDto {
-  @IsEmail()
-  email!: string;
+  // Email or username — checked against both, so no format constraint here.
+  @IsString()
+  @MinLength(1)
+  identifier!: string;
 
   @IsString()
   password!: string;

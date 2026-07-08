@@ -74,6 +74,7 @@ async function runToEnd(service: ImportService, userId: string, jobId: string) {
     if (service.getJob(userId, jobId).status !== "running") break;
     await new Promise((resolve) => setImmediate(resolve));
   }
+
   return service.getJob(userId, jobId);
 }
 

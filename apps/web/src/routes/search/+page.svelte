@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { fly } from "svelte/transition";
+  import { page } from "$app/state";
   import type {
     EntryStatus,
     MediaSummaryDto,
@@ -28,13 +29,12 @@
     WATCHING: "En cours",
     UP_TO_DATE: "À jour",
     COMPLETED: "Terminé",
-    PAUSED: "En pause",
     DROPPED: "Abandonné",
   };
 
   const DEBOUNCE_MS = 300;
 
-  let query = $state("");
+  let query = $state(page.url.searchParams.get("query") ?? "");
   let type = $state<MediaType | undefined>(undefined);
   let results = $state<MediaSummaryDto[]>([]);
   let searched = $state(false);
@@ -174,7 +174,8 @@
     if (value === type) return;
     type = value;
     clearTimeout(debounceTimer);
-    if (query.trim()) void runSearch(true); // eager, no debounce
+    if (query.trim())
+      void runSearch(true); // eager, no debounce
     else clearResults();
   }
 </script>
