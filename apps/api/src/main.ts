@@ -3,6 +3,8 @@ import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter } from "@nestjs/platform-fastify";
 import { AppModule } from "./app.module";
 
+const isDev = process.env.NODE_ENV === "development";
+
 async function bootstrap() {
   const app = await NestFactory.create(
     AppModule,
@@ -41,6 +43,20 @@ async function bootstrap() {
 
   app.setGlobalPrefix("api");
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+
+  // Swagger UI on /docs, dev-only. Dynamically imported so @nestjs/swagger
+  // stays a devDependency and is never loaded in production.
+  if (isDev) {
+    const { SwaggerModule, DocumentBuilder } = await import("@nestjs/swagger");
+    const config = new DocumentBuilder()
+      .setTitle("Tracklore API")
+      .setDescription("REST API contract")
+      .setVersion("0.1.0")
+      .addBearerAuth()
+      .build();
+
+    SwaggerModule.setup("docs", app, SwaggerModule.createDocument(app, config));
+  }
 
   await app.listen(process.env.API_PORT ?? 3000);
 }

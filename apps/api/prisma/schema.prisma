@@ -2,6 +2,15 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// Dev-only: renders an entity-relationship diagram of the schema as a Mermaid
+// markdown file (viewable in GitHub/VS Code). Skipped in the Docker build via
+// DISABLE_ERD so it never runs in prod. The .md target avoids the headless
+// Chromium that the SVG/PNG targets require.
+generator erd {
+  provider = "prisma-erd-generator"
+  output   = "../../../docs/erd.md"
+}
+
 datasource db {
   provider = "postgresql"
 }

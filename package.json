@@ -15,7 +15,10 @@
     "lint": "pnpm --recursive --no-bail lint",
     "lint:fix": "pnpm --recursive --no-bail lint:fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "spelunk": "pnpm --filter \"./apps/api\" spelunk",
+    "clean": "pnpm --recursive --no-bail clean",
+    "clean:dev": "pnpm --recursive --no-bail clean:dev && rm -rf node_modules docs/*"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",

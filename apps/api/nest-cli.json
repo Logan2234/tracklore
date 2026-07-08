@@ -3,6 +3,10 @@
   "collection": "@nestjs/schematics",
   "sourceRoot": "src",
   "compilerOptions": {
-    "deleteOutDir": true
+    "deleteOutDir": true,
+    "plugins": ["@nestjs/swagger"],
+    "manualRestart": true,
+    "builder": "tsc",
+    "tsConfigPath": "tsconfig.build.json"
   }
 }

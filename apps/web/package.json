@@ -5,6 +5,8 @@
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
+    "clean": "rm -rf build",
+    "clean:dev": "rm -rf build node_modules .svelte-kit",
     "dev": "vite dev",
     "build": "vite build",
     "lint": "eslint",

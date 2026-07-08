@@ -31,7 +31,7 @@ export class NotificationService {
       where: { notifyInApp: true },
       select: { id: true },
     });
-    console.log(`Scanning ${users.length} user(s) for new notifications...`);
+
     let created = 0;
 
     for (const { id } of users) {
@@ -106,12 +106,7 @@ export class NotificationService {
     });
 
     const alreadyNotified = new Set(existing.map((n) => n.episodeId));
-    console.log(
-      since,
-      now,
-      alreadyNotified,
-      episodes.map((e) => e.id),
-    );
+
     const toCreate = selectNewEpisodeNotifications(
       episodes.map((e) => ({
         episodeId: e.id,
