@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import type { MediaExternalId, MediaItem, Notification } from "@prisma/client";
 import type {
   MediaType,
@@ -15,7 +16,45 @@ const FEED_LIMIT = 50;
 
 @Injectable()
 export class NotificationService {
+  private readonly logger = new Logger(NotificationService.name);
+
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Hourly: scan every user with in-app notifications enabled, so the feed
+   * fills itself without the client having to poll. Runs are idempotent
+   * (deduped by episode), so overlapping or missed ticks are harmless.
+   */
+  @Cron(CronExpression.EVERY_HOUR)
+  async scanAll(): Promise<number> {
+    const users = await this.prisma.user.findMany({
+      where: { notifyInApp: true },
+      select: { id: true },
+    });
+    console.log(`Scanning ${users.length} user(s) for new notifications...`);
+    let created = 0;
+
+    for (const { id } of users) {
+      try {
+        created += await this.scan(id);
+      } catch (err) {
+        // One user's failure must not abort the batch.
+        this.logger.error(`Notification scan failed for user ${id}`, err);
+      }
+    }
+
+    if (created > 0) {
+      this.logger.log(
+        `Created ${created} notification(s) across ${users.length} user(s)`,
+      );
+    } else {
+      // No new notifications is the common case; keep it at debug level so the
+      // hourly run is observable when wanted without spamming prod logs.
+      this.logger.debug(`Scanned ${users.length} user(s), nothing new`);
+    }
+
+    return created;
+  }
 
   /**
    * Detect episodes of the user's tracked (non-dropped) shows that aired in the
@@ -27,6 +66,7 @@ export class NotificationService {
       where: { id: userId },
       select: { notifyInApp: true },
     });
+
     if (!user?.notifyInApp) return 0;
 
     const now = new Date();
@@ -57,14 +97,21 @@ export class NotificationService {
         },
       },
     });
+
     if (episodes.length === 0) return 0;
 
     const existing = await this.prisma.notification.findMany({
       where: { userId, episodeId: { in: episodes.map((e) => e.id) } },
       select: { episodeId: true },
     });
-    const alreadyNotified = new Set(existing.map((n) => n.episodeId));
 
+    const alreadyNotified = new Set(existing.map((n) => n.episodeId));
+    console.log(
+      since,
+      now,
+      alreadyNotified,
+      episodes.map((e) => e.id),
+    );
     const toCreate = selectNewEpisodeNotifications(
       episodes.map((e) => ({
         episodeId: e.id,
@@ -80,12 +127,14 @@ export class NotificationService {
       })),
       { since, now, alreadyNotified },
     );
+
     if (toCreate.length === 0) return 0;
 
     await this.prisma.notification.createMany({
       data: toCreate.map((n) => ({ userId, ...n })),
       skipDuplicates: true,
     });
+
     return toCreate.length;
   }
 
