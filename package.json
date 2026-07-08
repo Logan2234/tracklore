@@ -14,11 +14,21 @@
     "test": "pnpm --filter \"./apps/*\" test",
     "lint": "pnpm --recursive --no-bail lint",
     "lint:fix": "pnpm --recursive --no-bail lint:fix",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.5",
+    "@eslint/js": "^10.0.1",
+    "@stylistic/eslint-plugin": "^5.10.0",
+    "eslint": "^10.6.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.6",
+    "globals": "^17.7.0",
     "prettier": "^3.9.4",
     "prettier-plugin-svelte": "^4.1.1",
-    "prettier-plugin-tailwindcss": "^0.8.0"
+    "prettier-plugin-tailwindcss": "^0.8.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.62.1"
   }
 }

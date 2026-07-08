@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { login, ApiError } from "$lib/api/client";
+  import { ApiError, login } from "$lib/api/client";
 
   let identifier = $state("");
   let password = $state("");

@@ -1,35 +1,34 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import type {
-    EntryStatus,
-    MediaDetailDto,
-    MediaType,
-  } from "@tracklore/shared";
-  import { isDormant } from "@tracklore/shared";
   import {
+    ApiError,
     deleteLibraryEntry,
     deleteWatch,
     getCastDetail,
     getMediaDetail,
     getMediaExtras,
     rateWatch,
+    unwatchEpisode,
     updateLibraryEntry,
     upsertLibraryEntry,
-    unwatchEpisode,
     watchEpisode,
     watchSeason,
     watchThrough,
-    ApiError,
   } from "$lib/api/client";
+  import Icon from "$lib/components/Icon.svelte";
+  import Poster from "$lib/components/Poster.svelte";
   import type {
     CastDetailDto,
     CastMemberDto,
+    EntryStatus,
+    MediaDetailDto,
     MediaDetailSeasonDto,
     MediaExtrasDto,
+    MediaType,
   } from "@tracklore/shared";
-  import Poster from "$lib/components/Poster.svelte";
-  import Icon from "$lib/components/Icon.svelte";
+  import { isDormant } from "@tracklore/shared";
+  import { SvelteDate } from "svelte/reactivity";
 
   const TYPE_LABELS: Record<MediaType, string> = {
     MOVIE: "Film",
@@ -304,9 +303,9 @@
   // Calendar-day count until an episode's air date; 0 (or negative) once it's
   // aired, matching the backend's `airDate <= now` gate.
   function daysUntilAir(airDate: string): number {
-    const airStart = new Date(airDate);
+    const airStart = new SvelteDate(airDate);
     airStart.setHours(0, 0, 0, 0);
-    const todayStart = new Date();
+    const todayStart = new SvelteDate();
     todayStart.setHours(0, 0, 0, 0);
     return Math.round((airStart.getTime() - todayStart.getTime()) / 86_400_000);
   }
@@ -439,7 +438,7 @@
               </span>
             {/if}
           {/if}
-          {#if entry?.rating !== null}
+          {#if entry?.rating}
             <span
               class="inline-flex items-center gap-1.5 rounded-md bg-accent px-2 py-0.5 font-display text-sm font-bold text-accent-fg">
               <span
@@ -618,7 +617,7 @@
           {#if group.list.length > 0}
             <div class="flex items-center gap-1.5">
               <span class="text-[0.65rem] text-dim">{group.label}</span>
-              {#each group.list.slice(0, 8) as p (p.name)}
+              {#each group.list as p (p.name)}
                 <span
                   title={p.name}
                   class="grid h-6 w-6 place-items-center overflow-hidden rounded bg-surface-2 opacity-80">

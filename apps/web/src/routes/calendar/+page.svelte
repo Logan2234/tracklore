@@ -1,7 +1,8 @@
 <script lang="ts">
-  import type { CalendarEntryDto } from "@tracklore/shared";
-  import { getCalendar, ApiError } from "$lib/api/client";
+  import { ApiError, getCalendar } from "$lib/api/client";
   import Poster from "$lib/components/Poster.svelte";
+  import type { CalendarEntryDto } from "@tracklore/shared";
+  import { SvelteDate } from "svelte/reactivity";
 
   let entries = $state<CalendarEntryDto[]>([]);
   let loading = $state(true);
@@ -24,7 +25,7 @@
   });
 
   function relativeLabel(date: Date): string {
-    const today = new Date();
+    const today = new SvelteDate();
     today.setHours(0, 0, 0, 0);
     const diff = Math.round((date.getTime() - today.getTime()) / 86_400_000);
     if (diff === 0) return "Aujourd'hui";

@@ -25,6 +25,7 @@ import type {
   UpdateUsernameRequestDto,
   UpdateUserRequestDto,
   UpsertLibraryEntryDto,
+  UserDataExportDto,
   UserDto,
   UsernameAvailabilityDto,
 } from "@tracklore/shared";
@@ -199,6 +200,11 @@ export async function updateUsername(
   });
   auth.user = user;
   return user;
+}
+
+/** Full portable dump of the account's data (GDPR "download my data"). */
+export function exportMyData(): Promise<UserDataExportDto> {
+  return request("/users/me/export");
 }
 
 /** Permanently deletes the account and clears local auth state. */

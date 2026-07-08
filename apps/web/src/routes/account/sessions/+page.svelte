@@ -1,15 +1,15 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import type { SessionDto } from "@tracklore/shared";
   import {
     ApiError,
     getSessions,
-    revokeSession,
     revokeOtherSessions,
+    revokeSession,
   } from "$lib/api/client";
   import { auth } from "$lib/auth.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import Modal from "$lib/components/Modal.svelte";
+  import type { SessionDto } from "@tracklore/shared";
+  import { onMount } from "svelte";
 
   let sessions = $state<SessionDto[]>([]);
   let loading = $state(true);

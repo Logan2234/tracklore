@@ -12,18 +12,22 @@ import {
   Query,
   UnauthorizedException,
 } from "@nestjs/common";
-import type { UsernameAvailabilityDto, UserDto } from "@tracklore/shared";
+import type {
+  UserDataExportDto,
+  UserDto,
+  UsernameAvailabilityDto,
+} from "@tracklore/shared";
 import * as bcrypt from "bcryptjs";
 import { BCRYPT_ROUNDS, toUserDto } from "../auth/auth.service";
-import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { JwtPayload } from "../auth/decorators/current-user.decorator";
+import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { PrismaService } from "../prisma/prisma.service";
 import { isAdult } from "./age.util";
 import { ChangeEmailDto } from "./dto/change-email.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { DeleteAccountDto } from "./dto/delete-account.dto";
-import { UpdateUsernameDto } from "./dto/update-username.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
+import { UpdateUsernameDto } from "./dto/update-username.dto";
 
 @Controller("users")
 export class UsersController {
@@ -40,6 +44,84 @@ export class UsersController {
     }
 
     return toUserDto(user);
+  }
+
+  /** Full portable dump of the account's data (GDPR "download my data"). */
+  @Get("me/export")
+  async exportData(
+    @CurrentUser() payload: JwtPayload,
+  ): Promise<UserDataExportDto> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+    });
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    const entries = await this.prisma.libraryEntry.findMany({
+      where: { userId: payload.sub },
+      include: { mediaItem: { include: { externalIds: true } } },
+      orderBy: { createdAt: "asc" },
+    });
+
+    const watches = await this.prisma.episodeWatch.findMany({
+      where: { userId: payload.sub },
+      include: {
+        episode: {
+          include: {
+            season: {
+              include: { mediaItem: { include: { externalIds: true } } },
+            },
+          },
+        },
+      },
+      orderBy: { watchedAt: "asc" },
+    });
+
+    return {
+      exportedAt: new Date().toISOString(),
+      account: toUserDto(user),
+      library: entries.map((entry) => ({
+        media: {
+          type: entry.mediaItem.type,
+          title: entry.mediaItem.title,
+          canonicalSource: entry.mediaItem.canonicalSource,
+          sourceId:
+            entry.mediaItem.externalIds.find(
+              (id) => id.source === entry.mediaItem.canonicalSource,
+            )?.externalId ?? "",
+          externalIds: entry.mediaItem.externalIds.map((id) => ({
+            source: id.source,
+            externalId: id.externalId,
+          })),
+        },
+        status: entry.status,
+        rating: entry.rating,
+        notes: entry.notes,
+        favorite: entry.favorite,
+        startedAt: entry.startedAt?.toISOString() ?? null,
+        finishedAt: entry.finishedAt?.toISOString() ?? null,
+        createdAt: entry.createdAt.toISOString(),
+      })),
+      episodeWatches: watches.map((watch) => {
+        const media = watch.episode.season.mediaItem;
+        return {
+          media: {
+            type: media.type,
+            title: media.title,
+            sourceId:
+              media.externalIds.find(
+                (id) => id.source === media.canonicalSource,
+              )?.externalId ?? "",
+          },
+          seasonNumber: watch.episode.season.number,
+          episodeNumber: watch.episode.number,
+          episodeTitle: watch.episode.title,
+          watchedAt: watch.watchedAt.toISOString(),
+          rating: watch.rating,
+        };
+      }),
+    };
   }
 
   @Patch("me")

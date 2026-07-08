@@ -500,6 +500,28 @@ describe("Tracklore API (e2e)", () => {
     expect(Array.isArray(res.body.similar)).toBe(true);
   });
 
+  it("exports all account data (profile, library, watches)", async () => {
+    const res = await request(http)
+      .get("/api/users/me/export")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+
+    expect(res.body.exportedAt).toBeDefined();
+    expect(res.body.account.email).toBe(user.email);
+    // Never leak the password hash in an export.
+    expect(res.body.account.passwordHash).toBeUndefined();
+
+    // The suite tracked media and watched episodes, so both are present.
+    expect(res.body.library.length).toBeGreaterThan(0);
+    expect(res.body.library[0].media.title).toBeDefined();
+    expect(res.body.library[0].media.sourceId).toBeDefined();
+    expect(res.body.episodeWatches.length).toBeGreaterThan(0);
+    expect(res.body.episodeWatches[0]).toMatchObject({
+      seasonNumber: expect.any(Number),
+      episodeNumber: expect.any(Number),
+    });
+  });
+
   it("rotates refresh tokens: the old one is consumed", async () => {
     const response = await request(http)
       .post("/api/auth/refresh")

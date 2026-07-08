@@ -6,7 +6,6 @@
     changeEmail,
     changePassword,
     checkUsernameAvailable,
-    deleteAccount,
     logout,
     updateMe,
     updateUsername,
@@ -176,7 +175,7 @@
   }
 
   // --- Sécurité: username / email / password, each in its own modal. ---
-  type SecurityModal = "username" | "email" | "password" | "delete" | null;
+  type SecurityModal = "username" | "email" | "password" | null;
   let openModal = $state<SecurityModal>(null);
 
   function closeModal() {
@@ -300,31 +299,6 @@
         err instanceof ApiError ? err.message : "Enregistrement impossible";
     } finally {
       passwordSaving = false;
-    }
-  }
-
-  // --- Suppression du compte (irréversible). ---
-  let deletePasswordInput = $state("");
-  let deleteError = $state("");
-  let deleteSaving = $state(false);
-
-  function openDeleteModal() {
-    deletePasswordInput = "";
-    deleteError = "";
-    openModal = "delete";
-  }
-
-  async function confirmDeleteAccount() {
-    deleteError = "";
-    deleteSaving = true;
-    try {
-      await deleteAccount({ currentPassword: deletePasswordInput });
-      await goto("/login");
-    } catch (err) {
-      deleteError =
-        err instanceof ApiError ? err.message : "Suppression impossible";
-    } finally {
-      deleteSaving = false;
     }
   }
 </script>
@@ -621,19 +595,24 @@
       </a>
     </section>
 
-    <!-- Zone de danger -->
-    <section class="card mt-5 border-danger/40 p-5 md:p-6">
-      <h2 class="mb-1 font-display text-lg font-bold text-danger">
-        Zone de danger
-      </h2>
+    <!-- Données -->
+    <section class="card mt-5 p-5 md:p-6">
+      <h2 class="mb-1 font-display text-lg font-bold">Mes données</h2>
       <p class="mb-4 text-sm text-dim">
-        La suppression du compte efface définitivement ton profil, ta
-        bibliothèque, ton historique de visionnage et tes notifications. Cette
-        action est irréversible.
+        Exporte une copie de tes données, ou supprime définitivement ton compte.
       </p>
-      <button class="btn btn-danger" onclick={openDeleteModal}>
-        Supprimer mon compte
-      </button>
+      <a
+        href="/account/data"
+        class="flex items-center gap-3 rounded-lg border border-border bg-bg p-4 transition-colors hover:border-accent hover:bg-surface-2">
+        <Icon name="download" class="h-6 w-6 text-accent" />
+        <span class="flex-1">
+          <span class="block font-semibold">Export et suppression</span>
+          <span class="text-sm text-dim">
+            Télécharge tes données au format JSON, ou supprime ton compte.
+          </span>
+        </span>
+        <Icon name="chevron-right" class="h-5 w-5 text-dim" />
+      </a>
     </section>
 
     {#if openModal === "username"}
@@ -778,47 +757,6 @@
                 !newPasswordInput ||
                 !confirmPasswordInput}>
               {passwordSaving ? "Enregistrement…" : "Enregistrer"}
-            </button>
-          </div>
-        </form>
-      </Modal>
-    {/if}
-
-    {#if openModal === "delete"}
-      <Modal title="Supprimer le compte" onclose={closeModal}>
-        <form
-          class="flex flex-col gap-3"
-          onsubmit={(e) => {
-            e.preventDefault();
-            confirmDeleteAccount();
-          }}>
-          <p class="text-sm text-dim">
-            Ton compte et toutes les données associées — bibliothèque,
-            historique de visionnage, notes et notifications — seront
-            définitivement supprimés. Cette action ne peut pas être annulée.
-          </p>
-          <label class="block">
-            <span class="mb-1.5 block text-sm font-semibold">
-              Confirme avec ton mot de passe
-            </span>
-            <input
-              type="password"
-              class="input"
-              autocomplete="current-password"
-              bind:value={deletePasswordInput} />
-          </label>
-          {#if deleteError}
-            <p class="text-sm text-danger">{deleteError}</p>
-          {/if}
-          <div class="mt-2 flex justify-end gap-2">
-            <button type="button" class="btn btn-ghost" onclick={closeModal}>
-              Annuler
-            </button>
-            <button
-              type="submit"
-              class="btn btn-danger"
-              disabled={deleteSaving || !deletePasswordInput}>
-              {deleteSaving ? "Suppression…" : "Supprimer définitivement"}
             </button>
           </div>
         </form>

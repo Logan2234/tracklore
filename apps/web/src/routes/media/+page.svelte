@@ -1,13 +1,13 @@
 <script lang="ts">
+  import { ApiError, listLibrary } from "$lib/api/client";
+  import Icon from "$lib/components/Icon.svelte";
+  import Poster from "$lib/components/Poster.svelte";
   import type {
     EntryStatus,
     LibraryEntryDto,
     MediaType,
   } from "@tracklore/shared";
   import { isDormant } from "@tracklore/shared";
-  import { listLibrary, ApiError } from "$lib/api/client";
-  import Poster from "$lib/components/Poster.svelte";
-  import Icon from "$lib/components/Icon.svelte";
 
   // "DORMANT" is not a real status: it's a client-side refinement over WATCHING
   // (nothing watched for a while). Selecting it loads WATCHING then filters.

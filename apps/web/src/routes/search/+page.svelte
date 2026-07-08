@@ -1,15 +1,16 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { fly } from "svelte/transition";
   import { page } from "$app/state";
+  import { ApiError, listLibrary, searchCatalog } from "$lib/api/client";
+  import Icon from "$lib/components/Icon.svelte";
+  import Poster from "$lib/components/Poster.svelte";
   import type {
     EntryStatus,
     MediaSummaryDto,
     MediaType,
   } from "@tracklore/shared";
-  import { listLibrary, searchCatalog, ApiError } from "$lib/api/client";
-  import Poster from "$lib/components/Poster.svelte";
-  import Icon from "$lib/components/Icon.svelte";
+  import { onMount } from "svelte";
+  import { SvelteMap, SvelteSet } from "svelte/reactivity";
+  import { fly } from "svelte/transition";
 
   const TYPE_TABS: { label: string; value: MediaType | undefined }[] = [
     { label: "Tout", value: undefined },
@@ -49,7 +50,7 @@
   // Non-reactive search bookkeeping.
   let lastPage = 0; // last page number fetched for the current search
   let searchId = 0; // bumped on every reset; stale responses are discarded
-  let seen = new Set<string>(); // catalogue keys already shown (cross-page dedup)
+  let seen = new SvelteSet<string>(); // catalogue keys already shown (cross-page dedup)
   let debounceTimer: ReturnType<typeof setTimeout>;
 
   const keyOf = (m: MediaSummaryDto) => `${m.source}:${m.sourceId}`;
@@ -64,7 +65,7 @@
   $effect(() => {
     listLibrary()
       .then((entries) => {
-        tracked = new Map(
+        tracked = new SvelteMap(
           entries.map((e) => [
             trackKey(e.mediaItem.type, e.mediaItem.sourceId),
             e.status,
@@ -82,7 +83,7 @@
     searchId++; // invalidate any in-flight request
     lastPage = 0;
     done = false;
-    seen = new Set();
+    seen = new SvelteSet();
     results = [];
     searched = false;
     error = null;
@@ -106,7 +107,7 @@
       searchId++;
       lastPage = 0;
       done = false;
-      seen = new Set();
+      seen = new SvelteSet();
       results = [];
     }
     const mine = searchId;
