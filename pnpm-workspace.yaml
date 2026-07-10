@@ -4,7 +4,11 @@ packages:
 allowBuilds:
   "@prisma/client": true
   "@prisma/engines": true
+  # prisma-erd-generator pulls puppeteer, but the .md ERD target never launches
+  # a browser, so we skip its Chromium download. @scarf/scarf is opt-in analytics.
+  "@scarf/scarf": false
   prisma: true
+  puppeteer: false
   unrs-resolver: true
 minimumReleaseAgeExclude:
   - "@sveltejs/kit@2.69.0 || 2.69.2"

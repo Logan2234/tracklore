@@ -1,0 +1,30 @@
+import "reflect-metadata";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { NestFactory } from "@nestjs/core";
+import { SpelunkerModule } from "nestjs-spelunker";
+import { AppModule } from "../src/app.module";
+
+// Dumps the module dependency graph as a Mermaid file (docs/modules.md),
+// a free, offline alternative to the (paywalled) NestJS Devtools inspector.
+async function main() {
+  const app = await NestFactory.createApplicationContext(AppModule, {
+    logger: false,
+  });
+  const tree = SpelunkerModule.explore(app);
+  const root = SpelunkerModule.graph(tree);
+  const edges = SpelunkerModule.findGraphEdges(root);
+
+  const lines = [
+    ...new Set(
+      edges.map((e) => `  ${e.from.module.name} --> ${e.to.module.name}`),
+    ),
+  ];
+  const mermaid = ["```mermaid", "graph LR", ...lines, "```", ""].join("\n");
+
+  mkdirSync("../../docs", { recursive: true });
+  writeFileSync("../../docs/modules.md", mermaid);
+  await app.close();
+  process.exit(0);
+}
+
+void main();

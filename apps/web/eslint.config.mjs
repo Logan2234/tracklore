@@ -4,6 +4,9 @@ import ts from "typescript-eslint";
 import { baseConfig } from "../../eslint.config.base.mjs";
 
 export default defineConfig(
+  // The service worker is compiled in SvelteKit's own worker context, which the
+  // typed-lint projectService can't resolve; it is type-checked by svelte-check.
+  { ignores: ["src/service-worker.ts"] },
   ...baseConfig(import.meta.dirname, { browser: true }),
   svelte.configs.recommended,
   svelte.configs.prettier,
@@ -23,6 +26,23 @@ export default defineConfig(
         extraFileExtensions: [".svelte"],
         parser: ts.parser,
       },
+    },
+  },
+  {
+    rules: {
+      // The app navigates with plain string hrefs/goto and is served from the
+      // root — adopting resolve() everywhere is base-path support (a feature),
+      // not lint hygiene, so this stylistic rule doesn't fit the codebase.
+      "svelte/no-navigation-without-resolve": "off",
+      // Reactive collections are updated by immutable reassignment
+      // (`x = new Set(x)`), and plain Date/Set are used locally in pure
+      // helpers — both correct, so SvelteSet/SvelteDate aren't required.
+      "svelte/prefer-svelte-reactivity": "off",
+      // Allow the idiomatic `{#each { length: n } as _, i}` throwaway binding.
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
     },
   },
 );

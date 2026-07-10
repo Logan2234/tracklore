@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import type { MediaExternalId, MediaItem, Notification } from "@prisma/client";
 import type {
   MediaType,
@@ -7,6 +8,7 @@ import type {
 } from "@tracklore/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { selectNewEpisodeNotifications } from "./notification.util";
+import { PushService } from "./push.service";
 
 /** How far back a scan looks, so following an old show never floods the feed. */
 const WINDOW_DAYS = 14;
@@ -15,7 +17,48 @@ const FEED_LIMIT = 50;
 
 @Injectable()
 export class NotificationService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(NotificationService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly push: PushService,
+  ) {}
+
+  /**
+   * Hourly: scan every user with in-app notifications enabled, so the feed
+   * fills itself without the client having to poll. Runs are idempotent
+   * (deduped by episode), so overlapping or missed ticks are harmless.
+   */
+  @Cron(CronExpression.EVERY_HOUR)
+  async scanAll(): Promise<number> {
+    const users = await this.prisma.user.findMany({
+      where: { notifyInApp: true },
+      select: { id: true },
+    });
+
+    let created = 0;
+
+    for (const { id } of users) {
+      try {
+        created += await this.scan(id);
+      } catch (err) {
+        // One user's failure must not abort the batch.
+        this.logger.error(`Notification scan failed for user ${id}`, err);
+      }
+    }
+
+    if (created > 0) {
+      this.logger.log(
+        `Created ${created} notification(s) across ${users.length} user(s)`,
+      );
+    } else {
+      // No new notifications is the common case; keep it at debug level so the
+      // hourly run is observable when wanted without spamming prod logs.
+      this.logger.debug(`Scanned ${users.length} user(s), nothing new`);
+    }
+
+    return created;
+  }
 
   /**
    * Detect episodes of the user's tracked (non-dropped) shows that aired in the
@@ -25,8 +68,9 @@ export class NotificationService {
   async scan(userId: string): Promise<number> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { notifyInApp: true },
+      select: { notifyInApp: true, notifyPush: true },
     });
+
     if (!user?.notifyInApp) return 0;
 
     const now = new Date();
@@ -57,12 +101,14 @@ export class NotificationService {
         },
       },
     });
+
     if (episodes.length === 0) return 0;
 
     const existing = await this.prisma.notification.findMany({
       where: { userId, episodeId: { in: episodes.map((e) => e.id) } },
       select: { episodeId: true },
     });
+
     const alreadyNotified = new Set(existing.map((n) => n.episodeId));
 
     const toCreate = selectNewEpisodeNotifications(
@@ -80,12 +126,26 @@ export class NotificationService {
       })),
       { since, now, alreadyNotified },
     );
+
     if (toCreate.length === 0) return 0;
 
     await this.prisma.notification.createMany({
       data: toCreate.map((n) => ({ userId, ...n })),
       skipDuplicates: true,
     });
+
+    if (user.notifyPush) {
+      await Promise.all(
+        toCreate.map((n) =>
+          this.push.sendToUser(userId, {
+            title: n.mediaTitle,
+            body: `S${n.seasonNumber}E${n.episodeNumber}${n.episodeTitle ? " · " + n.episodeTitle : ""}`,
+            url: `/media/${n.mediaType.toLowerCase()}/${n.sourceId}`,
+          }),
+        ),
+      );
+    }
+
     return toCreate.length;
   }
 

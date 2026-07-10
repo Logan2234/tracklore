@@ -1,0 +1,91 @@
+import { Injectable, Logger } from "@nestjs/common";
+import webpush from "web-push";
+import { PrismaService } from "../prisma/prisma.service";
+
+export interface PushPayload {
+  title: string;
+  body: string;
+  /** Path to open in the app when the notification is clicked (e.g. "/media/…"). */
+  url: string;
+}
+
+@Injectable()
+export class PushService {
+  private readonly logger = new Logger(PushService.name);
+  private readonly enabled: boolean;
+
+  constructor(private readonly prisma: PrismaService) {
+    const { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT } = process.env;
+    this.enabled = Boolean(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
+
+    if (this.enabled) {
+      webpush.setVapidDetails(
+        VAPID_SUBJECT ?? "mailto:admin@example.com",
+        VAPID_PUBLIC_KEY!,
+        VAPID_PRIVATE_KEY!,
+      );
+    } else {
+      // Self-host without HTTPS/VAPID configured: push is a no-op, in-app stays available.
+      this.logger.warn("VAPID keys not set — push notifications are disabled");
+    }
+  }
+
+  publicKey(): string {
+    return this.enabled ? process.env.VAPID_PUBLIC_KEY! : "";
+  }
+
+  async subscribe(
+    userId: string,
+    endpoint: string,
+    p256dh: string,
+    auth: string,
+    userAgent?: string,
+  ): Promise<void> {
+    await this.prisma.pushSubscription.upsert({
+      where: { endpoint },
+      update: { userId, p256dh, auth, userAgent },
+      create: { userId, endpoint, p256dh, auth, userAgent },
+    });
+  }
+
+  async unsubscribe(userId: string, endpoint: string): Promise<void> {
+    await this.prisma.pushSubscription.deleteMany({
+      where: { userId, endpoint },
+    });
+  }
+
+  /** Sends to every device the user has subscribed on; prunes dead subscriptions. */
+  async sendToUser(userId: string, payload: PushPayload): Promise<void> {
+    if (!this.enabled) return;
+
+    const subscriptions = await this.prisma.pushSubscription.findMany({
+      where: { userId },
+    });
+    if (subscriptions.length === 0) return;
+
+    await Promise.all(
+      subscriptions.map(async (sub) => {
+        try {
+          await webpush.sendNotification(
+            {
+              endpoint: sub.endpoint,
+              keys: { p256dh: sub.p256dh, auth: sub.auth },
+            },
+            JSON.stringify(payload),
+          );
+        } catch (err) {
+          const statusCode = (err as { statusCode?: number }).statusCode;
+
+          if (statusCode === 404 || statusCode === 410) {
+            // Subscription expired or was revoked by the browser — stop trying it.
+            await this.prisma.pushSubscription.delete({
+              where: { id: sub.id },
+            });
+          } else {
+            this.logger.error(`Push failed for subscription ${sub.id}`, err);
+          }
+        }
+      }),
+    );
+  }
+}

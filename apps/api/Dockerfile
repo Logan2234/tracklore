@@ -14,7 +14,7 @@ RUN pnpm install --frozen-lockfile --filter @tracklore/api...
 COPY packages/shared packages/shared
 COPY apps/api apps/api
 RUN pnpm --filter @tracklore/shared build \
-  && pnpm --filter @tracklore/api exec prisma generate \
+  && DISABLE_ERD=true pnpm --filter @tracklore/api exec prisma generate \
   && pnpm --filter @tracklore/api build
 
 WORKDIR /app/apps/api
