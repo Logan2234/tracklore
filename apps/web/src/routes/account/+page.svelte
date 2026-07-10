@@ -174,8 +174,7 @@
       setTimeout(() => (testPushStatus = "idle"), 3000);
     } catch (err) {
       testPushStatus = "idle";
-      notifyError =
-        err instanceof ApiError ? err.message : "Envoi impossible";
+      notifyError = err instanceof ApiError ? err.message : "Envoi impossible";
     }
   }
 
