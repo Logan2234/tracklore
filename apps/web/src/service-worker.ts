@@ -5,7 +5,7 @@ declare let self: ServiceWorkerGlobalScope;
 
 // Precache the app shell injected by vite-pwa (injectManifest strategy),
 // preserving the offline behaviour the previous generateSW config provided.
-precacheAndRoute(self.__WB_MANIFEST  ?? []);
+precacheAndRoute(self.__WB_MANIFEST ?? []);
 cleanupOutdatedCaches();
 
 self.skipWaiting();
@@ -30,6 +30,9 @@ self.addEventListener("push", (event) => {
       icon: "/favicon.svg",
       badge: "/favicon.svg",
       data: { url: payload.url },
+      dir: "auto",
+      lang: "fr",
+      tag: "tracklore",
     }),
   );
 });
