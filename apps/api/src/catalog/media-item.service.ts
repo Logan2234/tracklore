@@ -1,4 +1,5 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import type { MediaItem } from "@prisma/client";
 import type {
   CatalogSource,
@@ -18,11 +19,58 @@ const SYNC_TTL_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class MediaItemService {
+  private readonly logger = new Logger(MediaItemService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly tmdbProvider: TmdbProvider,
     private readonly anilistProvider: AnilistProvider,
   ) {}
+
+  /**
+   * Every 6h: re-sync tracked (non-dropped) media whose cache is stale, so
+   * newly announced episodes reach the DB before the notification scan looks
+   * for them. One upsert per distinct MediaItem, regardless of follower count.
+   */
+  @Cron(CronExpression.EVERY_6_HOURS)
+  async refreshStale(): Promise<number> {
+    const staleBefore = new Date(Date.now() - SYNC_TTL_MS);
+    const items = await this.prisma.mediaItem.findMany({
+      where: {
+        lastSyncedAt: { lt: staleBefore },
+        entries: { some: { status: { not: "DROPPED" } } },
+      },
+      include: { externalIds: true },
+    });
+
+    let refreshed = 0;
+
+    for (const item of items) {
+      const sourceId = item.externalIds.find(
+        (ext) => ext.source === item.canonicalSource,
+      )?.externalId;
+      if (!sourceId) continue;
+
+      try {
+        await this.upsertFromSource(
+          item.canonicalSource as CatalogSource,
+          sourceId,
+          item.type as MediaType,
+        );
+        refreshed++;
+      } catch (err) {
+        this.logger.error(`Refresh failed for media ${item.id}`, err);
+      }
+    }
+
+    if (refreshed > 0) {
+      this.logger.log(
+        `Refreshed ${refreshed}/${items.length} stale media item(s)`,
+      );
+    }
+
+    return refreshed;
+  }
 
   providerFor(source: CatalogSource): CatalogProvider {
     return source === "TMDB" ? this.tmdbProvider : this.anilistProvider;
