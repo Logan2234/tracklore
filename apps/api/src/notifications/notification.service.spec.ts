@@ -1,5 +1,6 @@
 import type { PrismaService } from "../prisma/prisma.service";
 import { NotificationService } from "./notification.service";
+import type { PushService } from "./push.service";
 
 describe("NotificationService.scanAll", () => {
   function makeService(userIds: string[]) {
@@ -8,7 +9,8 @@ describe("NotificationService.scanAll", () => {
         findMany: jest.fn().mockResolvedValue(userIds.map((id) => ({ id }))),
       },
     } as unknown as PrismaService;
-    const service = new NotificationService(prisma);
+    const push = { sendToUser: jest.fn() } as never;
+    const service = new NotificationService(prisma, push);
     return { service, prisma };
   }
 
@@ -51,5 +53,58 @@ describe("NotificationService.scanAll", () => {
 
     expect(created).toBe(5);
     expect(scan).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("NotificationService.scan (push)", () => {
+  const episode = {
+    id: "ep1",
+    number: 5,
+    title: "The One With The Finale",
+    airDate: new Date(),
+    season: {
+      number: 2,
+      mediaItem: {
+        title: "Severance",
+        type: "SERIES",
+        canonicalSource: "TMDB",
+        externalIds: [{ source: "TMDB", externalId: "42" }],
+        entries: [{ createdAt: new Date(0) }],
+      },
+    },
+  };
+
+  function makeService(notifyPush: boolean) {
+    const prisma = {
+      user: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ notifyInApp: true, notifyPush }),
+      },
+      episode: { findMany: jest.fn().mockResolvedValue([episode]) },
+      notification: {
+        findMany: jest.fn().mockResolvedValue([]),
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+    } as unknown as PrismaService;
+    const push = { sendToUser: jest.fn() } as unknown as PushService;
+    const service = new NotificationService(prisma, push);
+    return { service, push };
+  }
+
+  it("sends a push per new notification when notifyPush is enabled", async () => {
+    const { service, push } = makeService(true);
+    await service.scan("u1");
+    expect(push.sendToUser).toHaveBeenCalledWith("u1", {
+      title: "Severance",
+      body: "S2E5 · The One With The Finale",
+      url: "/media/series/42",
+    });
+  });
+
+  it("skips push entirely when notifyPush is disabled", async () => {
+    const { service, push } = makeService(false);
+    await service.scan("u1");
+    expect(push.sendToUser).not.toHaveBeenCalled();
   });
 });

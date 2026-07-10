@@ -1,20 +1,71 @@
 import {
+  Body,
   Controller,
+  Delete,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
   Patch,
   Post,
 } from "@nestjs/common";
-import type { NotificationFeedDto } from "@tracklore/shared";
+import type { NotificationFeedDto, PushPublicKeyDto } from "@tracklore/shared";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { JwtPayload } from "../auth/decorators/current-user.decorator";
+import { Public } from "../auth/decorators/public.decorator";
+import { PushSubscriptionDto } from "./dto/push-subscription.dto";
 import { NotificationService } from "./notification.service";
+import { PushService } from "./push.service";
 
 @Controller("notifications")
 export class NotificationController {
-  constructor(private readonly notifications: NotificationService) {}
+  constructor(
+    private readonly notifications: NotificationService,
+    private readonly push: PushService,
+  ) {}
+
+  @Public()
+  @Get("push/public-key")
+  publicKey(): PushPublicKeyDto {
+    return { publicKey: this.push.publicKey() };
+  }
+
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Post("push/subscribe")
+  async subscribe(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: PushSubscriptionDto,
+    @Headers("user-agent") userAgent?: string,
+  ): Promise<void> {
+    await this.push.subscribe(
+      user.sub,
+      dto.endpoint,
+      dto.keys.p256dh,
+      dto.keys.auth,
+      userAgent,
+    );
+  }
+
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Delete("push/subscribe")
+  async unsubscribe(
+    @CurrentUser() user: JwtPayload,
+    @Body("endpoint") endpoint: string,
+  ): Promise<void> {
+    await this.push.unsubscribe(user.sub, endpoint);
+  }
+
+  /** Sends a sample push to the user's devices, to confirm the setup works. */
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Post("push/test")
+  async testPush(@CurrentUser() user: JwtPayload): Promise<void> {
+    await this.push.sendToUser(user.sub, {
+      title: "Tracklore",
+      body: "Les notifications push sont bien activées 🎉",
+      url: "/notifications",
+    });
+  }
 
   /** Detect new episodes of tracked shows; returns the feed with fresh items. */
   @Post("scan")

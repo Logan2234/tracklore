@@ -8,6 +8,7 @@ import type {
 } from "@tracklore/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { selectNewEpisodeNotifications } from "./notification.util";
+import { PushService } from "./push.service";
 
 /** How far back a scan looks, so following an old show never floods the feed. */
 const WINDOW_DAYS = 14;
@@ -18,7 +19,10 @@ const FEED_LIMIT = 50;
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly push: PushService,
+  ) {}
 
   /**
    * Hourly: scan every user with in-app notifications enabled, so the feed
@@ -64,7 +68,7 @@ export class NotificationService {
   async scan(userId: string): Promise<number> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { notifyInApp: true },
+      select: { notifyInApp: true, notifyPush: true },
     });
 
     if (!user?.notifyInApp) return 0;
@@ -129,6 +133,18 @@ export class NotificationService {
       data: toCreate.map((n) => ({ userId, ...n })),
       skipDuplicates: true,
     });
+
+    if (user.notifyPush) {
+      await Promise.all(
+        toCreate.map((n) =>
+          this.push.sendToUser(userId, {
+            title: n.mediaTitle,
+            body: `S${n.seasonNumber}E${n.episodeNumber}${n.episodeTitle ? " · " + n.episodeTitle : ""}`,
+            url: `/media/${n.mediaType.toLowerCase()}/${n.sourceId}`,
+          }),
+        ),
+      );
+    }
 
     return toCreate.length;
   }

@@ -15,7 +15,9 @@ async function main() {
   const edges = SpelunkerModule.findGraphEdges(root);
 
   const lines = [
-    ...new Set(edges.map((e) => `  ${e.from.module.name} --> ${e.to.module.name}`)),
+    ...new Set(
+      edges.map((e) => `  ${e.from.module.name} --> ${e.to.module.name}`),
+    ),
   ];
   const mermaid = ["```mermaid", "graph LR", ...lines, "```", ""].join("\n");
 

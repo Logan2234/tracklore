@@ -9,6 +9,7 @@
     "clean": "rm -rf dist tsconfig.build.tsbuildinfo",
     "clean:dev": "rm -rf dist tsconfig.build.tsbuildinfo node_modules",
     "dev": "cross-env NODE_ENV=development nest start --watch",
+    "graph": "ts-node -r tsconfig-paths/register scripts/graph.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
@@ -39,7 +40,8 @@
     "class-validator": "^0.15.1",
     "fastify": "^5.9.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2"
+    "rxjs": "^7.8.2",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@fastify/static": "^9.1.3",
@@ -50,6 +52,7 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^26.1.0",
     "@types/supertest": "^7.2.0",
+    "@types/web-push": "^3.6.4",
     "cross-env": "^10.1.0",
     "dotenv": "^17.4.2",
     "jest": "^30.4.2",

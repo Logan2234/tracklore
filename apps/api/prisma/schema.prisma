@@ -81,10 +81,27 @@ model User {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  entries        LibraryEntry[]
-  episodeWatches EpisodeWatch[]
-  refreshTokens  RefreshToken[]
-  notifications  Notification[]
+  entries           LibraryEntry[]
+  episodeWatches    EpisodeWatch[]
+  refreshTokens     RefreshToken[]
+  notifications     Notification[]
+  pushSubscriptions PushSubscription[]
+}
+
+// One row per browser/device push subscription (Web Push). endpoint is the
+// natural unique key: re-subscribing the same device updates its keys in place.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // In-app notifications (currently only "new episode out" of a tracked show).

@@ -7,10 +7,12 @@
     changePassword,
     checkUsernameAvailable,
     logout,
+    sendTestPush,
     updateMe,
     updateUsername,
   } from "$lib/api/client";
   import { auth } from "$lib/auth.svelte";
+  import { disablePush, enablePush, isPushSupported } from "$lib/push";
   import { theme } from "$lib/theme.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import Modal from "$lib/components/Modal.svelte";
@@ -127,6 +129,53 @@
     } catch (err) {
       notifyError =
         err instanceof ApiError ? err.message : "Enregistrement impossible";
+    }
+  }
+
+  const pushSupported = isPushSupported();
+  let pushBusy = $state(false);
+
+  // Push needs a browser subscription on top of the server flag: subscribe
+  // (asks permission) before enabling, unsubscribe after disabling.
+  async function togglePush() {
+    if (!auth.user || pushBusy) return;
+    notifyError = "";
+    pushBusy = true;
+    try {
+      if (auth.user.notifyPush) {
+        await disablePush();
+        await updateMe({ notifyPush: false });
+      } else {
+        const ok = await enablePush();
+        if (!ok) {
+          notifyError =
+            "Notifications refusées ou indisponibles sur cet appareil.";
+          return;
+        }
+        await updateMe({ notifyPush: true });
+      }
+    } catch (err) {
+      notifyError =
+        err instanceof ApiError ? err.message : "Enregistrement impossible";
+    } finally {
+      pushBusy = false;
+    }
+  }
+
+  let testPushStatus = $state<"idle" | "sending" | "sent">("idle");
+
+  async function testPush() {
+    if (testPushStatus === "sending") return;
+    notifyError = "";
+    testPushStatus = "sending";
+    try {
+      await sendTestPush();
+      testPushStatus = "sent";
+      setTimeout(() => (testPushStatus = "idle"), 3000);
+    } catch (err) {
+      testPushStatus = "idle";
+      notifyError =
+        err instanceof ApiError ? err.message : "Envoi impossible";
     }
   }
 
@@ -531,24 +580,37 @@
         </div>
         <div class="flex items-center justify-between gap-4 py-3 last:pb-0">
           <div>
-            <p class="font-semibold">
-              Notifications push
-              <span
-                class="ml-1.5 rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-semibold text-dim">
-                Bientôt
-              </span>
-            </p>
+            <p class="font-semibold">Notifications push</p>
             <p class="text-sm text-dim">
-              Pour être alerté même appli fermée, une fois disponible.
+              {#if pushSupported}
+                Pour être alerté d’un nouvel épisode même appli fermée.
+              {:else}
+                Non disponible sur cet appareil ou ce navigateur.
+              {/if}
             </p>
           </div>
           <button
             class="chip shrink-0"
             class:chip-on={auth.user.notifyPush}
-            onclick={() => toggleNotify("notifyPush")}>
-            {auth.user.notifyPush ? "Activé" : "Désactivé"}
+            disabled={!pushSupported || pushBusy}
+            onclick={togglePush}>
+            {pushBusy ? "…" : auth.user.notifyPush ? "Activé" : "Désactivé"}
           </button>
         </div>
+        {#if auth.user.notifyPush}
+          <div class="pb-1">
+            <button
+              class="chip"
+              disabled={testPushStatus === "sending"}
+              onclick={testPush}>
+              {testPushStatus === "sent"
+                ? "Envoyée ✓"
+                : testPushStatus === "sending"
+                  ? "Envoi…"
+                  : "Envoyer une notification test"}
+            </button>
+          </div>
+        {/if}
       </div>
       {#if notifyError}
         <p class="mt-2 text-sm text-danger">{notifyError}</p>

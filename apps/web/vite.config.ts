@@ -19,6 +19,18 @@ export default defineConfig({
     }),
     SvelteKitPWA({
       registerType: "autoUpdate",
+      // Custom service worker (src/sw.ts) so we can handle Web Push `push`
+      // events; injectManifest keeps precaching the app shell for offline use.
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "service-worker.ts",
+      injectManifest: {
+        globPatterns: ["**/*.{js,css,html,svg,woff2}"],
+      },
+      devOptions: {
+        enabled: true,
+        type: "module",
+      },
       manifest: {
         name: "Tracklore",
         short_name: "Tracklore",
@@ -27,13 +39,21 @@ export default defineConfig({
         background_color: "#0c0d10",
         display: "standalone",
         start_url: "/",
-        // TODO: add 192/512 PNG (+ maskable) icons for a fully installable PWA.
         icons: [
+          { src: "/favicon.svg", sizes: "any", type: "image/svg+xml" },
+          { src: "/pwa-192.png", sizes: "192x192", type: "image/png" },
+          { src: "/pwa-512.png", sizes: "512x512", type: "image/png" },
           {
-            src: "/favicon.svg",
-            sizes: "any",
-            type: "image/svg+xml",
-            purpose: "any",
+            src: "/pwa-maskable-192.png",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "maskable",
+          },
+          {
+            src: "/pwa-maskable-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
           },
         ],
       },
