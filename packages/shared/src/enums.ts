@@ -3,10 +3,10 @@
 
 /**
  * Top-level content domain a user can compose their app from. MEDIA groups
- * MOVIE/SERIES/ANIME; BOOKS and GAMES are nav placeholders until their screens
- * land at P3. `User.enabledDomains` records which ones the user keeps visible —
- * the nav filters on it today (see web `isDomainEnabled`); search and
- * notification filtering follow at P3.
+ * MOVIE/SERIES/ANIME; BOOKS and GAMES have their own screens (search, library,
+ * stats, imports) as of P3. `User.enabledDomains` records which ones the user
+ * keeps visible — the nav filters on it today (see web `isDomainEnabled`);
+ * search and notification filtering still follow.
  */
 export const Domain = {
   MEDIA: "MEDIA",
@@ -42,6 +42,55 @@ export const CatalogSource = {
   ANILIST: "ANILIST",
 } as const;
 export type CatalogSource = (typeof CatalogSource)[keyof typeof CatalogSource];
+
+/**
+ * Source a game's catalogue data comes from. IGDB is the only one we fetch from
+ * today; RAWG is reserved so the multi-source seam exists before it lands.
+ */
+export const GameSource = {
+  IGDB: "IGDB",
+  RAWG: "RAWG",
+} as const;
+export type GameSource = (typeof GameSource)[keyof typeof GameSource];
+
+/**
+ * Status of a game in a user's library. Unlike media (whose status is derived
+ * from episode progress), a game's status is entirely user-set: there is no
+ * per-episode progress to infer "playing" or "completed" from. BACKLOG doubles
+ * as the wishlist ("want to play").
+ */
+export const GameStatus = {
+  BACKLOG: "BACKLOG",
+  PLAYING: "PLAYING",
+  COMPLETED: "COMPLETED",
+  DROPPED: "DROPPED",
+} as const;
+export type GameStatus = (typeof GameStatus)[keyof typeof GameStatus];
+
+/**
+ * Source a book's catalogue data comes from. GOOGLE_BOOKS is tried first when a
+ * GOOGLE_BOOKS_API_KEY is configured (richer data), falling back to OPENLIBRARY
+ * (keyless, like AniList) — so a library can hold books from either source.
+ */
+export const BookSource = {
+  GOOGLE_BOOKS: "GOOGLE_BOOKS",
+  OPENLIBRARY: "OPENLIBRARY",
+} as const;
+export type BookSource = (typeof BookSource)[keyof typeof BookSource];
+
+/**
+ * Status of a book in a user's library. Like GameStatus it is entirely
+ * user-set: books have no per-chapter progress to derive "reading"/"read" from
+ * (page progress is tracked separately, on the entry). TO_READ doubles as the
+ * wishlist ("want to read").
+ */
+export const BookStatus = {
+  TO_READ: "TO_READ",
+  READING: "READING",
+  READ: "READ",
+  DROPPED: "DROPPED",
+} as const;
+export type BookStatus = (typeof BookStatus)[keyof typeof BookStatus];
 
 /**
  * Status of a media in a user's library. PLANNED doubles as the watchlist.
