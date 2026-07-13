@@ -19,6 +19,8 @@
     | "download"
     | "bell"
     | "monitor"
+    | "plus"
+    | "trash"
     | "x";
 
   let { name, class: cls = "h-5 w-5" }: { name: IconName; class?: string } =
@@ -87,6 +89,10 @@
   {:else if name === "monitor"}
     <rect x="3" y="4" width="18" height="12" rx="2" />
     <path d="M8 20h8M12 16v4" />
+  {:else if name === "plus"}
+    <path d="M12 5v14M5 12h14" />
+  {:else if name === "trash"}
+    <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" />
   {:else if name === "x"}
     <path d="M6 6l12 12M18 6 6 18" />
   {/if}

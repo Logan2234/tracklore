@@ -188,12 +188,12 @@
         desc: "Films, séries et anime.",
         soon: false,
       },
-      { id: Domain.GAMES, label: "Jeux", desc: "Jeux vidéo.", soon: true },
+      { id: Domain.GAMES, label: "Jeux", desc: "Jeux vidéo.", soon: false },
       {
         id: Domain.BOOKS,
         label: "Livres",
         desc: "Romans, BD, mangas.",
-        soon: true,
+        soon: false,
       },
     ];
 

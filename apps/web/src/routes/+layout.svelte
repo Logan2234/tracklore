@@ -77,7 +77,6 @@
           label: "Jeux",
           icon: "gamepad",
           match: (p) => p.startsWith("/games"),
-          soon: true,
           domain: Domain.GAMES,
         },
         {
@@ -85,7 +84,6 @@
           label: "Livres",
           icon: "book",
           match: (p) => p.startsWith("/books"),
-          soon: true,
           domain: Domain.BOOKS,
         },
       ],

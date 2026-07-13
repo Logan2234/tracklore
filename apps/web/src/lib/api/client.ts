@@ -1,6 +1,17 @@
 import { env } from "$env/dynamic/public";
 import type {
   AuthTokensDto,
+  BookDetailDto,
+  BookEntryDto,
+  BookSearchResponseDto,
+  BookStatsDto,
+  BookStatus,
+  StoryGraphImportCommitRequestDto,
+  StoryGraphImportPreviewDto,
+  StoryGraphImportPreviewRequestDto,
+  StoryGraphImportResultDto,
+  UpdateBookEntryDto,
+  UpsertBookEntryDto,
   CalendarEntryDto,
   CastDetailDto,
   ChangeEmailRequestDto,
@@ -8,6 +19,15 @@ import type {
   DeleteAccountRequestDto,
   EntryStatus,
   EpisodeWatchDto,
+  GameDetailDto,
+  GameEntryDto,
+  GameSearchResponseDto,
+  GameStatsDto,
+  GameStatus,
+  SteamImportCommitRequestDto,
+  SteamImportPreviewDto,
+  SteamImportPreviewRequestDto,
+  SteamImportResultDto,
   ImportCommitRequest,
   LibraryEntryDto,
   LoginRequestDto,
@@ -24,8 +44,10 @@ import type {
   StartTvTimeImportDto,
   StatsDto,
   TvTimeImportJobDto,
+  UpdateGameEntryDto,
   UpdateUsernameRequestDto,
   UpdateUserRequestDto,
+  UpsertGameEntryDto,
   UpsertLibraryEntryDto,
   UserDataExportDto,
   UserDto,
@@ -382,6 +404,124 @@ export function getCalendar(): Promise<CalendarEntryDto[]> {
 
 export function getStats(): Promise<StatsDto> {
   return request("/library/stats");
+}
+
+// --- Games ---
+
+export function searchGames(query: string): Promise<GameSearchResponseDto> {
+  const params = new URLSearchParams({ q: query });
+  return request(`/games/search?${params}`);
+}
+
+export function listGames(
+  filters: { status?: GameStatus } = {},
+): Promise<GameEntryDto[]> {
+  const params = new URLSearchParams();
+  if (filters.status) params.set("status", filters.status);
+  const suffix = params.size > 0 ? `?${params}` : "";
+  return request(`/games${suffix}`);
+}
+
+export function getGameStats(): Promise<GameStatsDto> {
+  return request("/games/stats");
+}
+
+/** Resolve + match a Steam library against IGDB (writes nothing). */
+export function previewSteamImport(
+  body: SteamImportPreviewRequestDto,
+): Promise<SteamImportPreviewDto> {
+  return request("/games/import/steam/preview", { method: "POST", body });
+}
+
+/** Persist the chosen Steam games as library entries. */
+export function commitSteamImport(
+  body: SteamImportCommitRequestDto,
+): Promise<SteamImportResultDto> {
+  return request("/games/import/steam/commit", { method: "POST", body });
+}
+
+/** Game detail (catalogue metadata + the user's library state). */
+export function getGameDetail(
+  source: string,
+  sourceId: string,
+): Promise<GameDetailDto> {
+  return request(`/games/${source.toLowerCase()}/${sourceId}`);
+}
+
+export function upsertGameEntry(
+  body: UpsertGameEntryDto,
+): Promise<GameEntryDto> {
+  return request("/games", { method: "PUT", body });
+}
+
+export function updateGameEntry(
+  entryId: string,
+  body: UpdateGameEntryDto,
+): Promise<GameEntryDto> {
+  return request(`/games/entries/${entryId}`, { method: "PATCH", body });
+}
+
+export function deleteGameEntry(entryId: string): Promise<void> {
+  return request(`/games/entries/${entryId}`, { method: "DELETE" });
+}
+
+// --- Books ---
+
+export function searchBooks(query: string): Promise<BookSearchResponseDto> {
+  const params = new URLSearchParams({ q: query });
+  return request(`/books/search?${params}`);
+}
+
+export function listBooks(
+  filters: { status?: BookStatus } = {},
+): Promise<BookEntryDto[]> {
+  const params = new URLSearchParams();
+  if (filters.status) params.set("status", filters.status);
+  const suffix = params.size > 0 ? `?${params}` : "";
+  return request(`/books${suffix}`);
+}
+
+export function getBookStats(): Promise<BookStatsDto> {
+  return request("/books/stats");
+}
+
+/** Book detail (catalogue metadata + the user's library state). */
+export function getBookDetail(
+  source: string,
+  sourceId: string,
+): Promise<BookDetailDto> {
+  return request(`/books/${source.toLowerCase()}/${sourceId}`);
+}
+
+export function upsertBookEntry(
+  body: UpsertBookEntryDto,
+): Promise<BookEntryDto> {
+  return request("/books", { method: "PUT", body });
+}
+
+export function updateBookEntry(
+  entryId: string,
+  body: UpdateBookEntryDto,
+): Promise<BookEntryDto> {
+  return request(`/books/entries/${entryId}`, { method: "PATCH", body });
+}
+
+export function deleteBookEntry(entryId: string): Promise<void> {
+  return request(`/books/entries/${entryId}`, { method: "DELETE" });
+}
+
+/** Parse + resolve a StoryGraph CSV against Open Library (writes nothing). */
+export function previewStoryGraphImport(
+  body: StoryGraphImportPreviewRequestDto,
+): Promise<StoryGraphImportPreviewDto> {
+  return request("/books/import/storygraph/preview", { method: "POST", body });
+}
+
+/** Persist the chosen StoryGraph books as library entries. */
+export function commitStoryGraphImport(
+  body: StoryGraphImportCommitRequestDto,
+): Promise<StoryGraphImportResultDto> {
+  return request("/books/import/storygraph/commit", { method: "POST", body });
 }
 
 // --- Notifications ---

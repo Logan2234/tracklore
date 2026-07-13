@@ -42,8 +42,12 @@
       label: "Livres",
       icon: "book",
       sources: [
+        {
+          name: "The StoryGraph",
+          description: "Bibliothèque, statuts et notes (export CSV).",
+          href: "/account/import/storygraph",
+        },
         { name: "Goodreads", description: "Bibliothèque et lectures." },
-        { name: "The StoryGraph", description: "Bibliothèque et lectures." },
         { name: "Babelio", description: "Bibliothèque et lectures." },
         { name: "LibraryThing", description: "Bibliothèque et lectures." },
         { name: "Bookwyrm", description: "Bibliothèque et lectures." },
@@ -54,7 +58,11 @@
       label: "Jeux",
       icon: "gamepad",
       sources: [
-        { name: "Steam", description: "Bibliothèque de jeux." },
+        {
+          name: "Steam",
+          description: "Bibliothèque et temps de jeu.",
+          href: "/account/import/steam",
+        },
         { name: "Backloggd", description: "Backlog et jeux terminés." },
       ],
     },
