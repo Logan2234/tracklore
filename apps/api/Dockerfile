@@ -21,4 +21,6 @@ WORKDIR /app/apps/api
 EXPOSE 3000
 
 # Migrations run at boot so a self-host upgrade is just "pull + up".
-CMD ["sh", "-c", "pnpm exec prisma migrate deploy && node dist/main.js"]
+# The build nests output under dist/src (prisma.config.ts at the api root
+# widens tsc's rootDir), so the entrypoint is dist/src/main.js.
+CMD ["sh", "-c", "pnpm exec prisma migrate deploy && node dist/src/main.js"]

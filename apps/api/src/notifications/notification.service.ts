@@ -68,10 +68,14 @@ export class NotificationService {
   async scan(userId: string): Promise<number> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { notifyInApp: true, notifyPush: true },
+      select: { notifyInApp: true, notifyPush: true, enabledDomains: true },
     });
 
     if (!user?.notifyInApp) return 0;
+    // Episode alerts belong to the MEDIA domain: a user who disabled it gets
+    // none. Filtered here (not by hiding the feed) so other notification types
+    // stay available.
+    if (!user.enabledDomains.includes("MEDIA")) return 0;
 
     const now = new Date();
     const since = new Date(now.getTime() - WINDOW_DAYS * 86_400_000);

@@ -115,6 +115,8 @@ interface TmdbPersonDetails {
   deathday?: string | null;
   place_of_birth?: string | null;
   profile_path?: string | null;
+  homepage?: string | null;
+  external_ids?: { imdb_id?: string | null; wikidata_id?: string | null };
   combined_credits?: { cast?: TmdbCreditItem[] };
 }
 
@@ -289,7 +291,7 @@ export class TmdbProvider implements CatalogProvider {
   /** Live detail of a TMDB person for the cast modal. */
   async getPerson(id: string): Promise<CastDetailDto> {
     const p = await this.get<TmdbPersonDetails>(`/person/${id}`, {
-      append_to_response: "combined_credits",
+      append_to_response: "combined_credits,external_ids",
     });
 
     // Most-popular, poster-bearing roles first; dedupe repeat titles.
@@ -311,6 +313,9 @@ export class TmdbProvider implements CatalogProvider {
       subtitle: personSubtitle(p),
       description: p.biography?.trim() || null,
       knownFor,
+      imdbId: p.external_ids?.imdb_id || null,
+      wikidataId: p.external_ids?.wikidata_id || null,
+      homepage: p.homepage?.trim() || null,
     };
   }
 

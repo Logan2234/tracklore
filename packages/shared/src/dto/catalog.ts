@@ -64,6 +64,12 @@ export interface CastDetailDto {
   description: string | null;
   /** Notable works, linkable to their own media page. */
   knownFor: MediaSummaryDto[];
+  /** IMDb person id (`nm…`), for an external link; null when unknown. */
+  imdbId: string | null;
+  /** Wikidata entity id (`Q…`), for an external link; null when unknown. */
+  wikidataId: string | null;
+  /** Personal/official homepage, when the source exposes one. */
+  homepage: string | null;
 }
 
 /** One community/critic score, kept as a display string (e.g. "8.5", "91%"). */
@@ -71,6 +77,8 @@ export interface RatingDto {
   /** Short label: "TMDB", "AniList", "IMDb", "RT", "Metacritic". */
   source: string;
   score: string;
+  /** External link to the score's source, when one is known (e.g. IMDb). */
+  url?: string;
 }
 
 /** Rich, non-persisted extras for the media detail page (fetched live). */

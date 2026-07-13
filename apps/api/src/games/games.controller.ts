@@ -1,0 +1,137 @@
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Put,
+  Query,
+} from "@nestjs/common";
+import {
+  Domain,
+  GameDetailDto,
+  GameEntryDto,
+  GameSearchResponseDto,
+  GameSource,
+  GameStatsDto,
+  GameStatus,
+} from "@tracklore/shared";
+import { CurrentUser } from "../auth/decorators/current-user.decorator";
+import type { JwtPayload } from "../auth/decorators/current-user.decorator";
+import { AgeGateService } from "../users/age-gate.service";
+import { DomainGateService } from "../users/domain-gate.service";
+import { filterAdultContent } from "../users/age.util";
+import { GameItemService } from "./game-item.service";
+import { GameLibraryService } from "./game-library.service";
+import { UpdateGameEntryDto } from "./dto/update-game-entry.dto";
+import { UpsertGameEntryDto } from "./dto/upsert-game-entry.dto";
+
+@Controller("games")
+export class GamesController {
+  constructor(
+    private readonly gameItemService: GameItemService,
+    private readonly gameLibraryService: GameLibraryService,
+    private readonly ageGate: AgeGateService,
+    private readonly domainGate: DomainGateService,
+  ) {}
+
+  /**
+   * Live catalogue search (IGDB). Nothing is persisted. 18+ titles are stripped
+   * unless the account opted in and is confirmed 18+.
+   */
+  @Get("search")
+  async search(
+    @CurrentUser() user: JwtPayload,
+    @Query("q") q?: string,
+  ): Promise<GameSearchResponseDto> {
+    const query = q?.trim();
+
+    if (!query) {
+      throw new BadRequestException("Query 'q' is required");
+    }
+
+    await this.domainGate.assertEnabled(user.sub, Domain.GAMES);
+
+    const [results, allowAdult] = await Promise.all([
+      this.gameItemService.providerFor(GameSource.IGDB).search(query),
+      this.ageGate.allowsAdultContent(user.sub),
+    ]);
+    return { results: filterAdultContent(results, allowAdult) };
+  }
+
+  @Get("stats")
+  async getStats(@CurrentUser() user: JwtPayload): Promise<GameStatsDto> {
+    await this.domainGate.assertEnabled(user.sub, Domain.GAMES);
+    return this.gameLibraryService.getStats(user.sub);
+  }
+
+  @Get()
+  listEntries(
+    @CurrentUser() user: JwtPayload,
+    @Query("status") status?: GameStatus,
+  ): Promise<GameEntryDto[]> {
+    return this.gameLibraryService.listEntries(user.sub, { status });
+  }
+
+  @Put()
+  upsertEntry(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: UpsertGameEntryDto,
+  ): Promise<GameEntryDto> {
+    return this.gameLibraryService.upsertEntry(user.sub, dto);
+  }
+
+  @Get("entries/:id")
+  getEntry(
+    @CurrentUser() user: JwtPayload,
+    @Param("id") entryId: string,
+  ): Promise<GameEntryDto> {
+    return this.gameLibraryService.getEntry(user.sub, entryId);
+  }
+
+  @Patch("entries/:id")
+  updateEntry(
+    @CurrentUser() user: JwtPayload,
+    @Param("id") entryId: string,
+    @Body() dto: UpdateGameEntryDto,
+  ): Promise<GameEntryDto> {
+    return this.gameLibraryService.updateEntry(user.sub, entryId, dto);
+  }
+
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Delete("entries/:id")
+  async deleteEntry(
+    @CurrentUser() user: JwtPayload,
+    @Param("id") entryId: string,
+  ): Promise<void> {
+    await this.gameLibraryService.deleteEntry(user.sub, entryId);
+  }
+
+  /** Game detail page: catalogue metadata + the user's library state. */
+  @Get(":source/:sourceId")
+  getGameDetail(
+    @CurrentUser() user: JwtPayload,
+    @Param("source") sourceParam: string,
+    @Param("sourceId") sourceId: string,
+  ): Promise<GameDetailDto> {
+    return this.gameLibraryService.getGameDetail(
+      user.sub,
+      parseGameSource(sourceParam),
+      sourceId,
+    );
+  }
+}
+
+function parseGameSource(value: string): GameSource {
+  const upper = value.toUpperCase();
+
+  if (upper !== GameSource.IGDB && upper !== GameSource.RAWG) {
+    throw new BadRequestException(`Unknown game source '${value}'`);
+  }
+
+  return upper;
+}

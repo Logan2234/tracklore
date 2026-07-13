@@ -38,6 +38,37 @@ Create a free account on themoviedb.org, then copy the **API Read Access
 Token (v4)** from Settings → API into `TMDB_API_TOKEN`. Anime search (AniList)
 works without any key.
 
+### Mobile access (ngrok)
+
+Install it as a PWA on your phone while the stack keeps running on your
+computer, reachable from anywhere. A public HTTPS URL is required (the service
+worker and Web Push refuse plain HTTP on a real device); [ngrok](https://ngrok.com)
+provides one by tunnelling to the local proxy. Your computer must stay on.
+
+1. Create a free ngrok account, then claim your **one free static domain** at
+   <https://dashboard.ngrok.com/domains> (a stable URL is required for an
+   installed PWA). Copy `ngrok.example.yml` to `ngrok.yml` and fill in your
+   authtoken + domain.
+2. Set that domain **once** in `.env` — the override derives `PUBLIC_API_URL`,
+   `WEB_ORIGIN` and the ngrok header from it:
+
+   ```sh
+   NGROK_DOMAIN=your-domain.ngrok-free.app
+   ```
+
+3. Start the stack with the ngrok override, then the tunnel:
+
+   ```sh
+   docker compose -f docker-compose.yml -f docker-compose.ngrok.yml up -d --build
+   ngrok start tracklore
+   ```
+
+4. Open the domain on your phone → browser menu → *Add to home screen*.
+
+On ngrok's free tier the first page load shows a one-time warning page you
+click through; API calls skip it via `PUBLIC_NGROK`. For daily use by more than
+one person, host the app publicly instead (VPS or a PaaS).
+
 ## Development
 
 ```sh
@@ -64,11 +95,19 @@ pnpm --filter @tracklore/api test:e2e    # full API flow, isolated "e2e" schema
 - **P1.5 — TV Time import** ✓: interactive reconciliation (analyze → review
   collection by collection → commit), matched through TVDB IDs, with manual
   overrides. Source-agnostic pipeline, ready for more import sources.
-- **P2** (current) — push notifications ("new episode out") + Capacitor.
+- **P2** — push notifications ("new episode out") + Capacitor.
   In-app notifications, a periodic scan/refresh of tracked shows and **Web Push**
-  (VAPID, service-worker `push` handler, per-device subscriptions) are shipped;
-  the native (Capacitor) wrapper is still to do.
-- **P3** — games & books modules
+  (VAPID, service-worker `push` handler, per-device subscriptions) are shipped ✓.
+  **Mobile access** is shipped ✓: the app installs as a PWA, and a ready-made
+  ngrok setup (single-origin Caddy proxy) exposes the local stack to your phone
+  from anywhere — see "Mobile access" above. The native (Capacitor) wrapper is
+  still to do.
+- **P3** (current) — games & books modules: games (IGDB, library + statuses +
+  Steam import) and books (Open Library / Google Books, library + reading
+  progress + StoryGraph import) are built, with per-domain stats. A unified
+  global search covers all three domains, and `enabledDomains` is enforced
+  server-side on search/stats and filters notifications. Remaining:
+  game-playtime UI, match-correction for imports, more importers.
 - **P4** — social (friends, activity feed, shared lists)
 - **P5** — hosted offer / entitlements (open core)
 

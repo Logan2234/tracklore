@@ -62,6 +62,9 @@
     label: "Calendrier",
     icon: "calendar",
     match: (p) => p.startsWith("/calendar"),
+    // The calendar only tracks upcoming episodes; games/books have no release
+    // calendar, so it belongs to the MEDIA domain.
+    domain: Domain.MEDIA,
   };
 
   // Grouped rail: global entries (no header), then the collection domains, then
@@ -77,7 +80,6 @@
           label: "Jeux",
           icon: "gamepad",
           match: (p) => p.startsWith("/games"),
-          soon: true,
           domain: Domain.GAMES,
         },
         {
@@ -85,7 +87,6 @@
           label: "Livres",
           icon: "book",
           match: (p) => p.startsWith("/books"),
-          soon: true,
           domain: Domain.BOOKS,
         },
       ],
@@ -118,6 +119,8 @@
   });
 
   // Once logged in, detect new episodes of tracked shows and load the feed.
+  // Domain filtering happens server-side (a MEDIA-disabled user gets no episode
+  // notifications), so the feed stays available for other notification types.
   $effect(() => {
     if (ready && auth.isLoggedIn) void notifications.refresh(true);
   });

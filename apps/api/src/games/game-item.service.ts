@@ -1,0 +1,151 @@
+import { Injectable } from "@nestjs/common";
+import type { GameItem } from "@prisma/client";
+import type { GameDetailsDto, GameSource } from "@tracklore/shared";
+import { PrismaService } from "../prisma/prisma.service";
+import { IgdbProvider } from "./providers/igdb.provider";
+import type {
+  GameCatalogProvider,
+  ProviderGameDetails,
+} from "./providers/game-provider.types";
+
+// A cached game referenced by users is refreshed at most once a day.
+const SYNC_TTL_MS = 24 * 60 * 60 * 1000;
+
+@Injectable()
+export class GameItemService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly igdbProvider: IgdbProvider,
+  ) {}
+
+  providerFor(source: GameSource): GameCatalogProvider {
+    // IGDB is the only source wired today; the switch keeps the seam explicit
+    // for when RAWG lands.
+    switch (source) {
+      case "IGDB":
+      case "RAWG":
+      default:
+        return this.igdbProvider;
+    }
+  }
+
+  /** Live details straight from the provider — nothing is persisted. */
+  async getLiveDetails(
+    source: GameSource,
+    sourceId: string,
+  ): Promise<GameDetailsDto> {
+    const details = await this.providerFor(source).getDetails(sourceId);
+    return {
+      ...details.summary,
+      overview: details.overview,
+      backdropUrl: details.backdropUrl,
+      genres: details.genres,
+      platforms: details.platforms,
+      releaseDate: details.releaseDate,
+      website: details.website,
+    };
+  }
+
+  /**
+   * On-demand cache entry point: called when a user starts referencing a game.
+   * Fetches from the canonical source and persists the game with its external
+   * IDs. Throttled by lastSyncedAt (24h TTL).
+   */
+  async upsertFromSource(
+    source: GameSource,
+    sourceId: string,
+  ): Promise<GameItem> {
+    const existingRef = await this.prisma.gameExternalId.findUnique({
+      where: { source_externalId: { source, externalId: sourceId } },
+      include: { gameItem: true },
+    });
+
+    if (
+      existingRef &&
+      Date.now() - existingRef.gameItem.lastSyncedAt.getTime() < SYNC_TTL_MS
+    ) {
+      return existingRef.gameItem;
+    }
+
+    const details = await this.providerFor(source).getDetails(sourceId);
+    return this.persistDetails(source, details);
+  }
+
+  /**
+   * Persist a game from details already fetched from the provider (create or
+   * refresh). Lets a bulk importer resolve many games in a couple of provider
+   * calls, then persist them here without one round-trip per game.
+   */
+  async persistDetails(
+    source: GameSource,
+    details: ProviderGameDetails,
+  ): Promise<GameItem> {
+    const canonicalId = details.externalIds.find(
+      (ext) => ext.source === source,
+    )?.externalId;
+    if (!canonicalId) {
+      throw new Error(`Provider details for ${source} carry no ${source} id`);
+    }
+
+    const existingRef = await this.prisma.gameExternalId.findUnique({
+      where: { source_externalId: { source, externalId: canonicalId } },
+    });
+    return existingRef
+      ? this.refresh(existingRef.gameItemId, details)
+      : this.createFresh(source, details);
+  }
+
+  private async createFresh(
+    source: GameSource,
+    details: ProviderGameDetails,
+  ): Promise<GameItem> {
+    return this.prisma.gameItem.create({
+      data: {
+        ...this.baseFields(details),
+        canonicalSource: source,
+        externalIds: {
+          create: details.externalIds.map((ext) => ({
+            source: ext.source,
+            externalId: ext.externalId,
+          })),
+        },
+      },
+    });
+  }
+
+  private async refresh(
+    gameItemId: string,
+    details: ProviderGameDetails,
+  ): Promise<GameItem> {
+    const item = await this.prisma.gameItem.update({
+      where: { id: gameItemId },
+      data: this.baseFields(details),
+    });
+
+    for (const ext of details.externalIds) {
+      await this.prisma.gameExternalId.upsert({
+        where: {
+          source_externalId: { source: ext.source, externalId: ext.externalId },
+        },
+        update: { gameItemId },
+        create: { gameItemId, source: ext.source, externalId: ext.externalId },
+      });
+    }
+
+    return item;
+  }
+
+  private baseFields(details: ProviderGameDetails) {
+    return {
+      title: details.summary.title,
+      coverUrl: details.summary.coverUrl,
+      backdropUrl: details.backdropUrl,
+      overview: details.overview,
+      releaseDate: details.releaseDate ? new Date(details.releaseDate) : null,
+      genres: details.genres,
+      platforms: details.platforms,
+      isAdult: details.summary.isAdult,
+      lastSyncedAt: new Date(),
+    };
+  }
+}

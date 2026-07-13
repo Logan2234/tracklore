@@ -20,8 +20,10 @@ import type {
   MediaType,
   StatsDto,
 } from "@tracklore/shared";
+import { Domain } from "@tracklore/shared";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { JwtPayload } from "../auth/decorators/current-user.decorator";
+import { DomainGateService } from "../users/domain-gate.service";
 import { RateWatchDto } from "./dto/rate-watch.dto";
 import { UpdateEntryDto } from "./dto/update-entry.dto";
 import { UpsertEntryDto } from "./dto/upsert-entry.dto";
@@ -30,7 +32,10 @@ import { LibraryService } from "./library.service";
 
 @Controller("library")
 export class LibraryController {
-  constructor(private readonly libraryService: LibraryService) {}
+  constructor(
+    private readonly libraryService: LibraryService,
+    private readonly domainGate: DomainGateService,
+  ) {}
 
   @Get()
   listEntries(
@@ -55,7 +60,8 @@ export class LibraryController {
   }
 
   @Get("stats")
-  getStats(@CurrentUser() user: JwtPayload): Promise<StatsDto> {
+  async getStats(@CurrentUser() user: JwtPayload): Promise<StatsDto> {
+    await this.domainGate.assertEnabled(user.sub, Domain.MEDIA);
     return this.libraryService.getStats(user.sub);
   }
 

@@ -45,7 +45,11 @@ describe("OmdbService", () => {
     ) as unknown as typeof fetch;
 
     await expect(service("key").getRatings("tt1375666")).resolves.toEqual([
-      { source: "IMDb", score: "8.5/10" },
+      {
+        source: "IMDb",
+        score: "8.5/10",
+        url: "https://www.imdb.com/title/tt1375666/",
+      },
       { source: "RT", score: "91%" },
       { source: "Metacritic", score: "78/100" },
     ]);
