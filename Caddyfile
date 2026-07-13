@@ -1,0 +1,18 @@
+# Single-origin reverse proxy used to put `web` and `api` behind one URL.
+# ngrok (and later a VPS) only need to point at this one endpoint, and the
+# browser sees a single origin, so CORS becomes same-origin.
+#
+# TLS is terminated upstream (by ngrok, or by a real cert on a VPS), so Caddy
+# itself serves plain HTTP on :80 inside the compose network.
+:80 {
+	# The NestJS API mounts every route under the `api` global prefix
+	# (see apps/api/src/main.ts), so forward `/api/*` untouched.
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	# Everything else is the SvelteKit web app.
+	handle {
+		reverse_proxy web:3000
+	}
+}

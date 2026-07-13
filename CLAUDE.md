@@ -95,6 +95,10 @@ self-contained adapter-node `build/` output.
   pnpm blocks dependency build scripts by default: allow-list them in
   `pnpm-workspace.yaml` (`allowBuilds`) when a package needs a postinstall.
 - Roadmap (README): P1 MVP ✓ → P1.5 TV Time import ✓ → P2 push/Capacitor
-  (Web Push ✓, native Capacitor TODO) → **P3 games & books (current)** →
-  P4 social → P5 hosted/entitlements. Don't implement ahead of the current
-  phase.
+  (Web Push ✓, self-host mobile access via PWA + ngrok ✓, native Capacitor
+  TODO) → **P3 games & books (current)** → P4 social → P5 hosted/entitlements.
+  Don't implement ahead of the current phase.
+- Mobile: the app installs as a PWA. `docker-compose.ngrok.yml` + `Caddyfile`
+  put web+api behind one origin and expose it via ngrok for phone access (set
+  `NGROK_DOMAIN` in `.env`); see README "Mobile access". Single-user; a 2nd
+  user means moving to a public host (VPS/PaaS).

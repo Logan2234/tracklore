@@ -4,6 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#0c0d10" />
+    <!-- @vite-pwa/sveltekit does not inject the manifest link (SvelteKit owns
+         the head), so link it here — without it the browser only offers a
+         plain shortcut (address bar stays) instead of a real PWA install. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
     <script>
       // Apply the saved (or system) theme before first paint to avoid a flash.
       try {
