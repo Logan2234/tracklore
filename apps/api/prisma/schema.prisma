@@ -55,6 +55,38 @@ enum EntryStatus {
   UP_TO_DATE
 }
 
+// Source a game's catalogue data comes from. IGDB is the only one we fetch
+// from today; RAWG is reserved so the multi-source seam exists before it lands.
+enum GameSource {
+  IGDB
+  RAWG
+}
+
+// A game's library status. Unlike EntryStatus it is entirely user-set: games
+// have no per-episode progress to derive "playing"/"completed" from.
+enum GameStatus {
+  BACKLOG
+  PLAYING
+  COMPLETED
+  DROPPED
+}
+
+// Source a book's catalogue data comes from. OPENLIBRARY is the only one we
+// fetch from today (keyless); GOOGLE_BOOKS is reserved for the multi-source seam.
+enum BookSource {
+  OPENLIBRARY
+  GOOGLE_BOOKS
+}
+
+// A book's library status. Like GameStatus it is entirely user-set; page
+// progress is tracked separately on the entry. TO_READ doubles as the wishlist.
+enum BookStatus {
+  TO_READ
+  READING
+  READ
+  DROPPED
+}
+
 model User {
   id                String    @id @default(cuid())
   email             String    @unique
@@ -86,6 +118,8 @@ model User {
   refreshTokens     RefreshToken[]
   notifications     Notification[]
   pushSubscriptions PushSubscription[]
+  gameEntries       GameEntry[]
+  bookEntries       BookEntry[]
 }
 
 // One row per browser/device push subscription (Web Push). endpoint is the
@@ -252,4 +286,120 @@ model EpisodeWatch {
   episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
 
   @@index([userId, episodeId])
+}
+
+// On-demand cache for games, mirroring MediaItem: a game exists here only once
+// at least one user references it. Games have no seasons/episodes, so there is
+// no progress model — the library entry's status is user-set.
+model GameItem {
+  id              String     @id @default(cuid())
+  canonicalSource GameSource
+  title           String
+  coverUrl        String?
+  backdropUrl     String?
+  overview        String?
+  releaseDate     DateTime?
+  genres          String[]
+  platforms       String[]
+  // 18+ title (IGDB "Erotic" theme). Restricted per-account, like MediaItem.
+  isAdult         Boolean    @default(false)
+  metadata        Json       @default("{}")
+  lastSyncedAt    DateTime   @default(now())
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  externalIds GameExternalId[]
+  entries     GameEntry[]
+}
+
+model GameExternalId {
+  id         String     @id @default(cuid())
+  gameItemId String
+  source     GameSource
+  externalId String
+
+  gameItem GameItem @relation(fields: [gameItemId], references: [id], onDelete: Cascade)
+
+  @@unique([source, externalId])
+  @@index([gameItemId])
+}
+
+model GameEntry {
+  id         String     @id @default(cuid())
+  userId     String
+  gameItemId String
+  status     GameStatus @default(BACKLOG)
+  // 0–10, half-points allowed.
+  rating     Float?
+  notes      String?
+  favorite   Boolean    @default(false)
+  // Total time played, in minutes. Imported from Steam (playtime_forever);
+  // manually editable. No session history yet — this is the running total.
+  playtimeMinutes Int    @default(0)
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gameItem GameItem @relation(fields: [gameItemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, gameItemId])
+}
+
+// On-demand cache for books, mirroring GameItem: a book exists here only once
+// at least one user references it. Books have no chapter model — the library
+// entry's status is user-set and page progress lives on the entry.
+model BookItem {
+  id              String     @id @default(cuid())
+  canonicalSource BookSource
+  title           String
+  authors         String[]
+  coverUrl        String?
+  overview        String?
+  releaseDate     DateTime?
+  genres          String[]
+  // Number of pages, when the source knows it.
+  pageCount       Int?
+  metadata        Json       @default("{}")
+  lastSyncedAt    DateTime   @default(now())
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  externalIds BookExternalId[]
+  entries     BookEntry[]
+}
+
+model BookExternalId {
+  id         String     @id @default(cuid())
+  bookItemId String
+  source     BookSource
+  externalId String
+
+  bookItem BookItem @relation(fields: [bookItemId], references: [id], onDelete: Cascade)
+
+  @@unique([source, externalId])
+  @@index([bookItemId])
+}
+
+model BookEntry {
+  id         String     @id @default(cuid())
+  userId     String
+  bookItemId String
+  status     BookStatus @default(TO_READ)
+  // 0–10, half-points allowed.
+  rating     Float?
+  notes      String?
+  favorite   Boolean    @default(false)
+  // Current reading position, in pages. No session history — running position.
+  currentPage Int       @default(0)
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookItem BookItem @relation(fields: [bookItemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bookItemId])
 }
