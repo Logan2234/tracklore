@@ -13,6 +13,9 @@
     getStats,
     ApiError,
   } from "$lib/api/client";
+  import { auth } from "$lib/auth.svelte";
+  import { isDomainEnabled } from "$lib/domains";
+  import { Domain } from "@tracklore/shared";
 
   let stats = $state<StatsDto | null>(null);
   let gameStats = $state<GameStatsDto | null>(null);
@@ -20,13 +23,27 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
 
+  const mediaOn = $derived(isDomainEnabled(Domain.MEDIA));
+  const gamesOn = $derived(isDomainEnabled(Domain.GAMES));
+  const booksOn = $derived(isDomainEnabled(Domain.BOOKS));
+
+  // Only query the domains the user keeps enabled — the API 403s the others.
+  // Waits for the profile so a disabled domain is never fetched. Re-runs when a
+  // domain is toggled in /account.
   $effect(() => {
-    Promise.all([getStats(), getGameStats(), getBookStats()])
-      .then(([s, g, b]) => {
-        stats = s;
-        gameStats = g;
-        bookStats = b;
-      })
+    if (!auth.user) return;
+    loading = true;
+    error = null;
+
+    const jobs: Promise<unknown>[] = [];
+    if (mediaOn) jobs.push(getStats().then((s) => (stats = s)));
+    else stats = null;
+    if (gamesOn) jobs.push(getGameStats().then((g) => (gameStats = g)));
+    else gameStats = null;
+    if (booksOn) jobs.push(getBookStats().then((b) => (bookStats = b)));
+    else bookStats = null;
+
+    Promise.all(jobs)
       .catch((err) => {
         error =
           err instanceof ApiError ? err.message : "Statistiques indisponibles";
@@ -151,14 +168,17 @@
   const bookCount = (status: BookStatus): number =>
     bookStats ? bookStats[BOOK_STATUS_KEY[status]] : 0;
 
+  // A disabled domain counts as "empty" so it neither renders its section nor
+  // blocks the global empty state.
   const mediaEmpty = $derived(
-    !!stats &&
-      stats.episodesWatched === 0 &&
-      stats.moviesWatched === 0 &&
-      stats.seriesCompleted === 0,
+    !mediaOn ||
+      (!!stats &&
+        stats.episodesWatched === 0 &&
+        stats.moviesWatched === 0 &&
+        stats.seriesCompleted === 0),
   );
-  const gamesEmpty = $derived(!!gameStats && gameStats.totalGames === 0);
-  const booksEmpty = $derived(!!bookStats && bookStats.totalBooks === 0);
+  const gamesEmpty = $derived(!gamesOn || (!!gameStats && gameStats.totalGames === 0));
+  const booksEmpty = $derived(!booksOn || (!!bookStats && bookStats.totalBooks === 0));
   const allEmpty = $derived(mediaEmpty && gamesEmpty && booksEmpty);
 </script>
 

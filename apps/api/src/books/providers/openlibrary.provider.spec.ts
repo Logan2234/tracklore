@@ -92,6 +92,7 @@ describe("OpenLibraryProvider", () => {
               key: "/works/OL27482W",
               title: "The Hobbit",
               author_name: ["J.R.R. Tolkien"],
+              author_key: ["OL26320A"],
               first_publish_year: 1937,
               cover_i: 14627509,
               number_of_pages_median: 310,
@@ -103,6 +104,10 @@ describe("OpenLibraryProvider", () => {
       {
         match: "/works/OL27482W.json",
         payload: { description: { value: "A hobbit goes on an adventure." } },
+      },
+      {
+        match: "/authors/OL26320A.json",
+        payload: { remote_ids: { wikidata: "Q892" } },
       },
     ]);
 
@@ -121,6 +126,7 @@ describe("OpenLibraryProvider", () => {
       genres: ["Fantasy", "Fiction", "Classics"],
       pageCount: 310,
       releaseDate: null,
+      authorWikidataId: "Q892",
       externalIds: [{ source: "OPENLIBRARY", externalId: "OL27482W" }],
     });
   });

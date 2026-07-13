@@ -12,6 +12,7 @@ import {
   Query,
 } from "@nestjs/common";
 import {
+  Domain,
   GameDetailDto,
   GameEntryDto,
   GameSearchResponseDto,
@@ -22,6 +23,7 @@ import {
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { JwtPayload } from "../auth/decorators/current-user.decorator";
 import { AgeGateService } from "../users/age-gate.service";
+import { DomainGateService } from "../users/domain-gate.service";
 import { filterAdultContent } from "../users/age.util";
 import { GameItemService } from "./game-item.service";
 import { GameLibraryService } from "./game-library.service";
@@ -34,6 +36,7 @@ export class GamesController {
     private readonly gameItemService: GameItemService,
     private readonly gameLibraryService: GameLibraryService,
     private readonly ageGate: AgeGateService,
+    private readonly domainGate: DomainGateService,
   ) {}
 
   /**
@@ -51,6 +54,8 @@ export class GamesController {
       throw new BadRequestException("Query 'q' is required");
     }
 
+    await this.domainGate.assertEnabled(user.sub, Domain.GAMES);
+
     const [results, allowAdult] = await Promise.all([
       this.gameItemService.providerFor(GameSource.IGDB).search(query),
       this.ageGate.allowsAdultContent(user.sub),
@@ -59,7 +64,8 @@ export class GamesController {
   }
 
   @Get("stats")
-  getStats(@CurrentUser() user: JwtPayload): Promise<GameStatsDto> {
+  async getStats(@CurrentUser() user: JwtPayload): Promise<GameStatsDto> {
+    await this.domainGate.assertEnabled(user.sub, Domain.GAMES);
     return this.gameLibraryService.getStats(user.sub);
   }
 

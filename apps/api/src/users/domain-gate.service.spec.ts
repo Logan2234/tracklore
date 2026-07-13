@@ -1,0 +1,38 @@
+import { ForbiddenException } from "@nestjs/common";
+import { Domain } from "@tracklore/shared";
+import { PrismaService } from "../prisma/prisma.service";
+import { DomainGateService } from "./domain-gate.service";
+
+describe("DomainGateService", () => {
+  function makeService(enabledDomains: Domain[] | null) {
+    const prisma = {
+      user: {
+        findUnique: jest.fn().mockResolvedValue(
+          enabledDomains === null ? null : { enabledDomains },
+        ),
+      },
+    } as unknown as PrismaService;
+    return new DomainGateService(prisma);
+  }
+
+  it("resolves when the domain is enabled", async () => {
+    const service = makeService([Domain.MEDIA, Domain.GAMES]);
+    await expect(
+      service.assertEnabled("u1", Domain.GAMES),
+    ).resolves.toBeUndefined();
+  });
+
+  it("throws 403 when the domain is disabled", async () => {
+    const service = makeService([Domain.MEDIA]);
+    await expect(service.assertEnabled("u1", Domain.BOOKS)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+  });
+
+  it("throws 403 when the user does not exist", async () => {
+    const service = makeService(null);
+    await expect(service.assertEnabled("nope", Domain.MEDIA)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+  });
+});

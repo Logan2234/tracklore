@@ -9,6 +9,7 @@ import {
 import {
   CastDetailDto,
   CatalogSource,
+  Domain,
   MediaDetailsDto,
   MediaExtrasDto,
   MediaType,
@@ -17,6 +18,7 @@ import {
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { JwtPayload } from "../auth/decorators/current-user.decorator";
 import { AgeGateService } from "../users/age-gate.service";
+import { DomainGateService } from "../users/domain-gate.service";
 import { filterAdultContent } from "../users/age.util";
 import { MediaItemService } from "./media-item.service";
 import { rankBySearchRelevance } from "./search-ranking";
@@ -27,6 +29,7 @@ export class CatalogController {
   constructor(
     private readonly mediaItemService: MediaItemService,
     private readonly ageGate: AgeGateService,
+    private readonly domainGate: DomainGateService,
   ) {}
 
   /**
@@ -39,6 +42,8 @@ export class CatalogController {
     @CurrentUser() user: JwtPayload,
     @Query() query: SearchQueryDto,
   ): Promise<SearchResponseDto> {
+    await this.domainGate.assertEnabled(user.sub, Domain.MEDIA);
+
     const wantTmdb = query.type === undefined || query.type !== MediaType.ANIME;
     const wantAnilist =
       query.type === undefined || query.type === MediaType.ANIME;

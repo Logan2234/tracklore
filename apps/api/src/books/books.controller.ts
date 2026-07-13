@@ -18,9 +18,11 @@ import {
   BookSource,
   BookStatsDto,
   BookStatus,
+  Domain,
 } from "@tracklore/shared";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { JwtPayload } from "../auth/decorators/current-user.decorator";
+import { DomainGateService } from "../users/domain-gate.service";
 import { BookItemService } from "./book-item.service";
 import { BookLibraryService } from "./book-library.service";
 import { UpdateBookEntryDto } from "./dto/update-book-entry.dto";
@@ -31,11 +33,13 @@ export class BooksController {
   constructor(
     private readonly bookItemService: BookItemService,
     private readonly bookLibraryService: BookLibraryService,
+    private readonly domainGate: DomainGateService,
   ) {}
 
   /** Live catalogue search (Google Books, falling back to Open Library). */
   @Get("search")
   async search(
+    @CurrentUser() user: JwtPayload,
     @Query("q") q?: string,
   ): Promise<BookSearchResponseDto> {
     const query = q?.trim();
@@ -44,12 +48,15 @@ export class BooksController {
       throw new BadRequestException("Query 'q' is required");
     }
 
+    await this.domainGate.assertEnabled(user.sub, Domain.BOOKS);
+
     const results = await this.bookItemService.search(query);
     return { results };
   }
 
   @Get("stats")
-  getStats(@CurrentUser() user: JwtPayload): Promise<BookStatsDto> {
+  async getStats(@CurrentUser() user: JwtPayload): Promise<BookStatsDto> {
+    await this.domainGate.assertEnabled(user.sub, Domain.BOOKS);
     return this.bookLibraryService.getStats(user.sub);
   }
 

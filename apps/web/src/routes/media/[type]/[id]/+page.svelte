@@ -468,13 +468,19 @@
         {#if extras && extras.ratings.length > 0}
           <div class="mt-2.5 flex flex-wrap gap-1.5">
             {#each extras.ratings as r (r.source)}
-              <span
+              <svelte:element
+                this={r.url ? "a" : "span"}
+                href={r.url}
+                target={r.url ? "_blank" : undefined}
+                rel={r.url ? "noopener noreferrer" : undefined}
                 class="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-semibold {RATING_STYLES[
                   r.source
-                ] ?? 'bg-surface-2 text-fg'}">
+                ] ?? 'bg-surface-2 text-fg'} {r.url
+                  ? 'transition-opacity hover:opacity-80'
+                  : ''}">
                 <span>{r.source}</span>
                 <span class="tabular-nums opacity-90">{r.score}</span>
-              </span>
+              </svelte:element>
             {/each}
           </div>
         {/if}
@@ -938,6 +944,34 @@
         {#if castLoading}
           <p class="timecode mt-4 text-sm">Chargement…</p>
         {:else if castDetail}
+          {#if castDetail.imdbId || castDetail.wikidataId || castDetail.homepage}
+            <div class="mt-4 flex flex-wrap gap-2">
+              {#if castDetail.homepage}
+                <a
+                  href={castDetail.homepage}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="rounded-full border border-border px-2.5 py-0.5 text-xs font-semibold text-dim transition-colors hover:border-accent hover:text-accent"
+                  >Site officiel ↗</a>
+              {/if}
+              {#if castDetail.imdbId}
+                <a
+                  href={`https://www.imdb.com/name/${castDetail.imdbId}/`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="rounded-full border border-border px-2.5 py-0.5 text-xs font-semibold text-dim transition-colors hover:border-accent hover:text-accent"
+                  >IMDb ↗</a>
+              {/if}
+              {#if castDetail.wikidataId}
+                <a
+                  href={`https://www.wikidata.org/wiki/${castDetail.wikidataId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="rounded-full border border-border px-2.5 py-0.5 text-xs font-semibold text-dim transition-colors hover:border-accent hover:text-accent"
+                  >Wikidata ↗</a>
+              {/if}
+            </div>
+          {/if}
           {#if castDetail.description}
             <p
               class="mt-4 text-sm leading-relaxed whitespace-pre-line text-fg/90">

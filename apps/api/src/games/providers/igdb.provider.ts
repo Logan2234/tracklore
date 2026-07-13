@@ -30,6 +30,14 @@ interface IgdbNamed {
   name: string;
 }
 
+interface IgdbWebsite {
+  url: string;
+  // Official site is category 1 (legacy) / type 1 (newer enum); IGDB is
+  // migrating from `category` to `type`, so we read both.
+  category?: number;
+  type?: number;
+}
+
 interface IgdbGame {
   id: number;
   name: string;
@@ -40,6 +48,7 @@ interface IgdbGame {
   genres?: IgdbNamed[];
   platforms?: IgdbNamed[];
   themes?: number[];
+  websites?: IgdbWebsite[];
 }
 
 interface TwitchToken {
@@ -76,7 +85,7 @@ export class IgdbProvider implements GameCatalogProvider {
   }
 
   private static readonly DETAIL_FIELDS =
-    "name, summary, first_release_date, cover.image_id, artworks.image_id, genres.name, platforms.name, themes";
+    "name, summary, first_release_date, cover.image_id, artworks.image_id, genres.name, platforms.name, themes, websites.url, websites.category, websites.type";
 
   async getDetails(sourceId: string): Promise<ProviderGameDetails> {
     const games = await this.query<IgdbGame[]>(
@@ -147,6 +156,9 @@ export class IgdbProvider implements GameCatalogProvider {
       releaseDate: game.first_release_date
         ? new Date(game.first_release_date * 1000).toISOString()
         : null,
+      website:
+        game.websites?.find((w) => w.category === 1 || w.type === 1)?.url ??
+        null,
       externalIds: [{ source: GameSource.IGDB, externalId: String(game.id) }],
     };
   }

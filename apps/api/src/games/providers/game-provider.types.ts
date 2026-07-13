@@ -13,6 +13,7 @@ export interface ProviderGameDetails {
   genres: string[];
   platforms: string[];
   releaseDate: string | null;
+  website: string | null;
   externalIds: ProviderGameExternalId[];
 }
 

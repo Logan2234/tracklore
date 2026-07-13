@@ -91,6 +91,8 @@ export class GoogleBooksProvider implements BookCatalogProvider {
       genres: info.categories ?? [],
       pageCount: info.pageCount ?? null,
       releaseDate: toIsoDate(info.publishedDate),
+      // Google Books exposes no author Wikidata id.
+      authorWikidataId: null,
       externalIds: [{ source: BookSource.GOOGLE_BOOKS, externalId: volume.id }],
     };
   }

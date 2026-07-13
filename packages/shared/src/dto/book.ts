@@ -25,6 +25,8 @@ export interface BookDetailsDto extends BookSummaryDto {
   pageCount: number | null;
   /** ISO first-publication date; null when the source has none. */
   releaseDate: string | null;
+  /** Wikidata id (`Q…`) of the primary author, for an external link; null when unknown. */
+  authorWikidataId: string | null;
 }
 
 /** A persisted book referenced by at least one user (on-demand cache). */

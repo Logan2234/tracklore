@@ -7,8 +7,9 @@ import { auth } from "./auth.svelte";
  * user changes. Falls back to "enabled" when the user or field is missing, so
  * nothing is hidden before the profile has loaded.
  *
- * Only the nav consumes it today; search and notification filtering will reuse
- * this same helper at P3.
+ * The nav and the global search consume it today; notification filtering will
+ * reuse this same helper next. The API enforces the same gate server-side (see
+ * `DomainGateService`).
  */
 export function isDomainEnabled(domain: Domain): boolean {
   const enabled = auth.user?.enabledDomains;

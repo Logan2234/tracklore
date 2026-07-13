@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { UsersModule } from "../users/users.module";
 import { BookItemService } from "./book-item.service";
 import { BookLibraryService } from "./book-library.service";
 import { BooksController } from "./books.controller";
@@ -8,6 +9,7 @@ import { GoogleBooksProvider } from "./providers/google-books.provider";
 import { OpenLibraryProvider } from "./providers/openlibrary.provider";
 
 @Module({
+  imports: [UsersModule],
   controllers: [BooksController, StoryGraphImportController],
   providers: [
     BookItemService,

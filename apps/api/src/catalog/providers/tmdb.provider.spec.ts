@@ -181,6 +181,8 @@ describe("TmdbProvider", () => {
         deathday: null,
         place_of_birth: "Hollywood, California, USA",
         profile_path: "/bc.jpg",
+        homepage: "https://bryancranston.com",
+        external_ids: { imdb_id: "nm0186505", wikidata_id: "Q193815" },
         combined_credits: {
           cast: [
             // No poster → filtered out.
@@ -220,6 +222,9 @@ describe("TmdbProvider", () => {
     expect(person.description).toBe("An American actor."); // trimmed
     expect(person.subtitle).toBe("1956 · Hollywood, California, USA");
     expect(person.photoUrl).toBe("https://image.tmdb.org/t/p/w185/bc.jpg");
+    expect(person.imdbId).toBe("nm0186505");
+    expect(person.wikidataId).toBe("Q193815");
+    expect(person.homepage).toBe("https://bryancranston.com");
     // Sorted by popularity desc (Inception 80 > Breaking Bad 50), deduped,
     // the poster-less credit dropped, types mapped from media_type.
     expect(

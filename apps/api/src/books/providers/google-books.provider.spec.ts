@@ -112,6 +112,7 @@ describe("GoogleBooksProvider", () => {
       genres: ["Fiction", "Fantasy"],
       pageCount: 310,
       releaseDate: "1937-09-21T00:00:00.000Z",
+      authorWikidataId: null,
       externalIds: [{ source: "GOOGLE_BOOKS", externalId: "vol1" }],
     });
   });

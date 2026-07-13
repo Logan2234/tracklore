@@ -22,3 +22,5 @@ coverage/
 # OS / editors
 .DS_Store
 Thumbs.db
+
+ngrok.yml

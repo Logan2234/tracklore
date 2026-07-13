@@ -39,10 +39,16 @@ export class OmdbService {
       const data = (await response.json()) as OmdbResponse;
       if (data.Response !== "True" || !data.Ratings) return [];
 
-      return data.Ratings.map((r) => ({
-        source: SOURCE_LABELS[r.Source] ?? r.Source,
-        score: r.Value,
-      }));
+      return data.Ratings.map((r) => {
+        const source = SOURCE_LABELS[r.Source] ?? r.Source;
+        // Only IMDb has a deducible per-title URL (from the id we queried with);
+        // RT/Metacritic expose no reliable deep link.
+        const url =
+          source === "IMDb"
+            ? `https://www.imdb.com/title/${imdbId}/`
+            : undefined;
+        return { source, score: r.Value, ...(url ? { url } : {}) };
+      });
     } catch {
       return []; // network / parse hiccup → no ratings, no error
     }

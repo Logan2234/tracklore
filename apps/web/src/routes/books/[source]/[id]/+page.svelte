@@ -146,16 +146,6 @@
               {STATUS_META[entry.status].label}
             </span>
           {/if}
-          {#if entry?.rating}
-            <span
-              class="inline-flex items-center gap-1.5 rounded-md bg-accent px-2 py-0.5 font-display text-sm font-bold text-accent-fg">
-              <span
-                class="font-mono text-[0.5rem] font-bold tracking-widest opacity-75">
-                NOTE
-              </span>
-              {entry.rating}
-            </span>
-          {/if}
         </div>
         <h1
           class="mt-2 font-display text-3xl font-extrabold tracking-tight text-balance md:text-4xl">
@@ -164,6 +154,14 @@
         {#if detail.authors.length > 0}
           <p class="mt-1.5 font-display text-lg font-semibold text-dim">
             {detail.authors.join(", ")}
+            {#if detail.authorWikidataId}
+              <a
+                href={`https://www.wikidata.org/wiki/${detail.authorWikidataId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="align-middle text-xs font-semibold text-accent hover:underline"
+                >Wikidata ↗</a>
+            {/if}
           </p>
         {/if}
         <p class="timecode mt-1.5 text-sm">

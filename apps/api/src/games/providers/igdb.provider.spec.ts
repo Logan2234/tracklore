@@ -93,6 +93,10 @@ describe("IgdbProvider", () => {
           artworks: [{ image_id: "ar1" }],
           genres: [{ name: "Shooter" }, { name: "Adventure" }],
           platforms: [{ name: "PC (Microsoft Windows)" }, { name: "PS4" }],
+          websites: [
+            { url: "https://twitter.com/rockstargames", category: 5 },
+            { url: "https://www.rockstargames.com/V/", category: 1 },
+          ],
         },
       ],
     });
@@ -114,6 +118,7 @@ describe("IgdbProvider", () => {
       genres: ["Shooter", "Adventure"],
       platforms: ["PC (Microsoft Windows)", "PS4"],
       releaseDate: "2013-09-17T00:00:00.000Z",
+      website: "https://www.rockstargames.com/V/",
       externalIds: [{ source: "IGDB", externalId: "1020" }],
     });
   });

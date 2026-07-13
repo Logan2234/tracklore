@@ -25,6 +25,8 @@ export interface GameDetailsDto extends GameSummaryDto {
   platforms: string[];
   /** ISO first-release date; null when the source has none. */
   releaseDate: string | null;
+  /** Official website of the game, when the source exposes one. */
+  website: string | null;
 }
 
 /** A persisted game referenced by at least one user (on-demand cache). */

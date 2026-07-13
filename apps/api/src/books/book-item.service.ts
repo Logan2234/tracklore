@@ -83,6 +83,7 @@ export class BookItemService {
       genres: details.genres,
       pageCount: details.pageCount,
       releaseDate: details.releaseDate,
+      authorWikidataId: details.authorWikidataId,
     };
   }
 

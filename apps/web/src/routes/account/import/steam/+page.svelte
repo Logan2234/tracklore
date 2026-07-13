@@ -139,7 +139,11 @@
     <p class="mb-6 max-w-xl text-sm text-dim">
       Récupère ta bibliothèque et ton temps de jeu Steam. Ton profil et les
       détails des jeux doivent être <strong class="text-fg">publics</strong> le temps
-      de l'import (Steam → Confidentialité).
+      de l'import (<a
+        href="https://steamcommunity.com/my/edit/settings"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="font-semibold text-accent hover:underline">réglages de confidentialité ↗</a>).
     </p>
 
     <label class="mb-2 block text-sm font-semibold" for="steamId">
@@ -161,8 +165,12 @@
       </button>
     </div>
     <p class="mt-2 text-xs text-dim">
-      Le SteamID64 se trouve via un outil comme steamid.io si ton profil n'a pas
-      d'URL personnalisée.
+      Le SteamID64 se trouve via un outil comme <a
+        href="https://steamid.io"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="font-semibold text-accent hover:underline">steamid.io ↗</a> si ton
+      profil n'a pas d'URL personnalisée.
     </p>
   {:else if step === "review" && preview}
     <p class="mb-1 text-sm text-dim">

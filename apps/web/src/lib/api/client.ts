@@ -88,6 +88,13 @@ async function request<T>(
     headers.Authorization = `Bearer ${auth.accessToken}`;
   }
 
+  // When served through an ngrok free tunnel, requests without this header get
+  // ngrok's HTML warning page instead of the JSON response. Same-origin, so no
+  // CORS preflight; the header is ignored by any non-ngrok backend.
+  if (env.PUBLIC_NGROK === "true") {
+    headers["ngrok-skip-browser-warning"] = "true";
+  }
+
   const response = await fetch(`${API_URL}${path}`, {
     method: options.method ?? "GET",
     headers,

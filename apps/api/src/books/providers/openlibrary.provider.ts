@@ -10,8 +10,9 @@ const BASE_URL = "https://openlibrary.org";
 const COVERS_URL = "https://covers.openlibrary.org/b/id";
 
 // Fields the search endpoint returns for both list and single-work lookups.
+// `author_key` lets the detail view resolve the author's Wikidata id.
 const SEARCH_FIELDS =
-  "key,title,author_name,first_publish_year,cover_i,number_of_pages_median,subject";
+  "key,title,author_name,author_key,first_publish_year,cover_i,number_of_pages_median,subject";
 
 // Subjects come back long and noisy (dozens per work); keep a handful so genre
 // display and stats stay meaningful.
@@ -21,6 +22,7 @@ interface OpenLibraryDoc {
   key: string; // "/works/OL27482W".
   title?: string;
   author_name?: string[];
+  author_key?: string[]; // "OL23919A"; parallel to author_name.
   first_publish_year?: number;
   cover_i?: number;
   number_of_pages_median?: number;
@@ -34,6 +36,10 @@ interface OpenLibrarySearch {
 interface OpenLibraryWork {
   // Description is either a plain string or a { type, value } typed-text block.
   description?: string | { value: string };
+}
+
+interface OpenLibraryAuthor {
+  remote_ids?: { wikidata?: string };
 }
 
 /**
@@ -98,10 +104,19 @@ export class OpenLibraryProvider implements BookCatalogProvider {
       pageCount: doc.number_of_pages_median ?? null,
       // Open Library exposes only a publication year, no full date.
       releaseDate: null,
+      authorWikidataId: await this.authorWikidataId(doc.author_key?.[0]),
       externalIds: [
         { source: BookSource.OPENLIBRARY, externalId: sourceId },
       ],
     };
+  }
+
+  /** Best-effort: the primary author's Wikidata id, for an external link. */
+  private async authorWikidataId(key?: string): Promise<string | null> {
+    if (!key) return null;
+    return this.get<OpenLibraryAuthor>(`${BASE_URL}/authors/${key}.json`)
+      .then((a) => a.remote_ids?.wikidata ?? null)
+      .catch(() => null);
   }
 
   private toSummary(doc: OpenLibraryDoc): BookSummaryDto {

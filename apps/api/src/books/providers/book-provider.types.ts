@@ -12,6 +12,7 @@ export interface ProviderBookDetails {
   genres: string[];
   pageCount: number | null;
   releaseDate: string | null;
+  authorWikidataId: string | null;
   externalIds: ProviderBookExternalId[];
 }
 

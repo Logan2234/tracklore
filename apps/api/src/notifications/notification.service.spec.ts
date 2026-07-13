@@ -74,12 +74,15 @@ describe("NotificationService.scan (push)", () => {
     },
   };
 
-  function makeService(notifyPush: boolean) {
+  function makeService(
+    notifyPush: boolean,
+    enabledDomains: string[] = ["MEDIA", "BOOKS", "GAMES"],
+  ) {
     const prisma = {
       user: {
         findUnique: jest
           .fn()
-          .mockResolvedValue({ notifyInApp: true, notifyPush }),
+          .mockResolvedValue({ notifyInApp: true, notifyPush, enabledDomains }),
       },
       episode: { findMany: jest.fn().mockResolvedValue([episode]) },
       notification: {
@@ -89,7 +92,7 @@ describe("NotificationService.scan (push)", () => {
     } as unknown as PrismaService;
     const push = { sendToUser: jest.fn() } as unknown as PushService;
     const service = new NotificationService(prisma, push);
-    return { service, push };
+    return { service, push, prisma };
   }
 
   it("sends a push per new notification when notifyPush is enabled", async () => {
@@ -105,6 +108,15 @@ describe("NotificationService.scan (push)", () => {
   it("skips push entirely when notifyPush is disabled", async () => {
     const { service, push } = makeService(false);
     await service.scan("u1");
+    expect(push.sendToUser).not.toHaveBeenCalled();
+  });
+
+  it("creates no episode notifications when the MEDIA domain is disabled", async () => {
+    const { service, push, prisma } = makeService(true, ["BOOKS", "GAMES"]);
+    const created = await service.scan("u1");
+    expect(created).toBe(0);
+    // Filtered before any episode lookup or push.
+    expect(prisma.episode.findMany).not.toHaveBeenCalled();
     expect(push.sendToUser).not.toHaveBeenCalled();
   });
 });

@@ -143,10 +143,15 @@
 
   {#if step === "input"}
     <p class="mb-6 max-w-xl text-sm text-dim">
-      Exporte ta bibliothèque depuis StoryGraph (<strong class="text-fg"
-        >Manage Account → Export StoryGraph Library</strong>) puis dépose le
-      fichier <code class="text-fg">.csv</code> ici. On associe chaque livre au
-      catalogue Open Library ; tu choisis ensuite quoi importer.
+      <a
+        href="https://app.thestorygraph.com/user-export"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="font-semibold text-accent hover:underline"
+        >Exporte ta bibliothèque depuis StoryGraph ↗</a> (Manage Account → Export
+      StoryGraph Library) puis dépose le fichier
+      <code class="text-fg">.csv</code> ici. On associe chaque livre au catalogue
+      Open Library ; tu choisis ensuite quoi importer.
     </p>
 
     <label

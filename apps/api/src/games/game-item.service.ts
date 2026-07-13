@@ -42,6 +42,7 @@ export class GameItemService {
       genres: details.genres,
       platforms: details.platforms,
       releaseDate: details.releaseDate,
+      website: details.website,
     };
   }
 

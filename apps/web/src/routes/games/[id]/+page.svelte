@@ -157,16 +157,6 @@
               {STATUS_META[entry.status].label}
             </span>
           {/if}
-          {#if entry?.rating}
-            <span
-              class="inline-flex items-center gap-1.5 rounded-md bg-accent px-2 py-0.5 font-display text-sm font-bold text-accent-fg">
-              <span
-                class="font-mono text-[0.5rem] font-bold tracking-widest opacity-75">
-                NOTE
-              </span>
-              {entry.rating}
-            </span>
-          {/if}
         </div>
         <h1
           class="mt-2 font-display text-3xl font-extrabold tracking-tight text-balance md:text-4xl">
@@ -196,6 +186,16 @@
       <p class="mt-6 max-w-2xl whitespace-pre-line text-dim">
         {detail.overview}
       </p>
+    {/if}
+
+    {#if detail.website}
+      <a
+        href={detail.website}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-accent hover:underline">
+        Site officiel ↗
+      </a>
     {/if}
 
     <!-- Actions -->
