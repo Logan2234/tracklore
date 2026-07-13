@@ -94,6 +94,7 @@ self-contained adapter-node `build/` output.
 - New runtime deps: prefer none — HTTP calls use global `fetch` (Node ≥22).
   pnpm blocks dependency build scripts by default: allow-list them in
   `pnpm-workspace.yaml` (`allowBuilds`) when a package needs a postinstall.
-- Roadmap (README): P1 MVP ✓ → P1.5 TV Time import → P2 Capacitor/push →
-  P3 games & books → P4 social → P5 hosted/entitlements. Don't implement
-  ahead of the current phase.
+- Roadmap (README): P1 MVP ✓ → P1.5 TV Time import ✓ → P2 push/Capacitor
+  (Web Push ✓, native Capacitor TODO) → **P3 games & books (current)** →
+  P4 social → P5 hosted/entitlements. Don't implement ahead of the current
+  phase.

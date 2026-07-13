@@ -64,11 +64,15 @@ pnpm --filter @tracklore/api test:e2e    # full API flow, isolated "e2e" schema
 - **P1.5 — TV Time import** ✓: interactive reconciliation (analyze → review
   collection by collection → commit), matched through TVDB IDs, with manual
   overrides. Source-agnostic pipeline, ready for more import sources.
-- **P2** (current) — push notifications ("new episode out") + Capacitor.
+- **P2** — push notifications ("new episode out") + Capacitor.
   In-app notifications, a periodic scan/refresh of tracked shows and **Web Push**
-  (VAPID, service-worker `push` handler, per-device subscriptions) are shipped;
+  (VAPID, service-worker `push` handler, per-device subscriptions) are shipped ✓;
   the native (Capacitor) wrapper is still to do.
-- **P3** — games & books modules
+- **P3** (current) — games & books modules: games (IGDB, library + statuses +
+  Steam import) and books (Open Library / Google Books, library + reading
+  progress + StoryGraph import) are built, with per-domain stats. Remaining:
+  wire `enabledDomains` to search/notification filtering, game-playtime UI, more
+  importers.
 - **P4** — social (friends, activity feed, shared lists)
 - **P5** — hosted offer / entitlements (open core)
 
