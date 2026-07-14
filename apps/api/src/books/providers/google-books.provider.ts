@@ -166,7 +166,10 @@ export class GoogleBooksProvider implements BookCatalogProvider {
 
 /** Google Books' own average rating (1–5), when known. */
 function toRatings(info: GoogleVolumeInfo): RatingDto[] {
-  if (info.averageRating == null) return [];
+  if (info.averageRating === null || info.averageRating === undefined) {
+    return [];
+  }
+
   const count = info.ratingsCount ? ` (${info.ratingsCount})` : "";
   return [{ source: "Google Books", score: `${info.averageRating}/5${count}` }];
 }

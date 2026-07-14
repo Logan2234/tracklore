@@ -287,9 +287,7 @@ describe("AuthService.requestPasswordReset", () => {
 describe("AuthService.resetPassword", () => {
   it("throws UnauthorizedException when the token is unknown", async () => {
     const { service, prisma } = makeService();
-    (prisma.passwordResetToken.findUnique as jest.Mock).mockResolvedValue(
-      null,
-    );
+    (prisma.passwordResetToken.findUnique as jest.Mock).mockResolvedValue(null);
 
     await expect(
       service.resetPassword("bad-token", "new-password"),
@@ -320,10 +318,7 @@ describe("AuthService.resetPassword", () => {
     const updateArgs = (prisma.user.update as jest.Mock).mock.calls[0][0];
     expect(updateArgs.where).toEqual({ id: "user-1" });
     expect(
-      await bcrypt.compare(
-        "brand-new-password",
-        updateArgs.data.passwordHash,
-      ),
+      await bcrypt.compare("brand-new-password", updateArgs.data.passwordHash),
     ).toBe(true);
     expect(prisma.passwordResetToken.deleteMany).toHaveBeenCalledWith({
       where: { userId: "user-1" },
