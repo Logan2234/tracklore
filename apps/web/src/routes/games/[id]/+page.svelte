@@ -198,8 +198,7 @@
       await deleteGameReplay(replayId);
       await reload();
     } catch (err) {
-      error =
-        err instanceof ApiError ? err.message : "Impossible de supprimer";
+      error = err instanceof ApiError ? err.message : "Impossible de supprimer";
     } finally {
       saving = false;
     }
@@ -397,6 +396,34 @@
               placeholder="Un boss, une astuce, ta config…"
               onChange={(v) => patch({ notes: v })} />
 
+            <div class="flex items-center justify-between gap-2">
+              <span class="timecode text-[0.62rem] tracking-[0.18em] uppercase">
+                Temps de jeu
+              </span>
+              <div class="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  inputmode="decimal"
+                  aria-label="Temps de jeu en heures"
+                  class="input w-20 text-right text-sm"
+                  disabled={saving}
+                  value={Math.round((entry.playtimeMinutes / 60) * 10) / 10}
+                  onchange={(e) => {
+                    const hours = parseFloat(e.currentTarget.value);
+                    if (Number.isFinite(hours) && hours >= 0) {
+                      patch({ playtimeMinutes: Math.round(hours * 60) });
+                    } else {
+                      e.currentTarget.value = String(
+                        Math.round((entry.playtimeMinutes / 60) * 10) / 10,
+                      );
+                    }
+                  }} />
+                <span class="text-xs text-dim">h</span>
+              </div>
+            </div>
+
             <hr class="border-border" />
 
             <OwnershipField
@@ -512,9 +539,7 @@
       <!-- Details panel, desktop position: sidebar next to the main column. -->
       {#snippet detailsPanel()}
         <div class="card p-4">
-          <h2 class="font-display text-sm font-bold tracking-tight">
-            Détails
-          </h2>
+          <h2 class="font-display text-sm font-bold tracking-tight">Détails</h2>
           <dl class="mt-3 flex flex-col gap-3">
             {#if detail && detail.developers.length > 0}
               <div>

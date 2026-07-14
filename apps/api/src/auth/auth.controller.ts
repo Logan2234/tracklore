@@ -6,7 +6,11 @@ import {
   HttpStatus,
   Post,
 } from "@nestjs/common";
-import type { AuthTokensDto, ForgotPasswordResponseDto } from "@tracklore/shared";
+import { Throttle } from "@nestjs/throttler";
+import type {
+  AuthTokensDto,
+  ForgotPasswordResponseDto,
+} from "@tracklore/shared";
 import { AuthResult, AuthService } from "./auth.service";
 import { Public } from "./decorators/public.decorator";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
@@ -20,6 +24,8 @@ import { ResetPasswordDto } from "./dto/reset-password.dto";
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  // Brute-force / abuse guards on top of the global 60 req/min default.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post("register")
   register(
     @Body() dto: RegisterDto,
@@ -28,6 +34,7 @@ export class AuthController {
     return this.authService.register(dto, userAgent);
   }
 
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post("login")
   login(
@@ -49,6 +56,7 @@ export class AuthController {
     await this.authService.logout(dto.refreshToken);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post("forgot-password")
   async forgotPassword(
@@ -57,6 +65,7 @@ export class AuthController {
     return { token: await this.authService.requestPasswordReset(dto.email) };
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.NO_CONTENT)
   @Post("reset-password")
   async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
