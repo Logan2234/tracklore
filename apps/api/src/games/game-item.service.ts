@@ -91,6 +91,7 @@ export class GameItemService {
     const canonicalId = details.externalIds.find(
       (ext) => ext.source === source,
     )?.externalId;
+
     if (!canonicalId) {
       throw new Error(`Provider details for ${source} carry no ${source} id`);
     }

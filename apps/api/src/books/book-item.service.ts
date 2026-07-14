@@ -36,14 +36,20 @@ export class BookItemService {
    * Resolve one book (an ISBN and/or a free-text query) to a single catalogue
    * work: ISBN first, then by query.
    */
-  async resolve(isbn: string | null, query: string): Promise<BookSummaryDto | null> {
+  async resolve(
+    isbn: string | null,
+    query: string,
+  ): Promise<BookSummaryDto | null> {
     if (isbn) {
       const byIsbn = await this.googleBooksProvider
         .searchByIsbn(isbn)
         .catch(() => null);
       if (byIsbn) return byIsbn;
     }
-    const results = await this.googleBooksProvider.search(query).catch(() => []);
+
+    const results = await this.googleBooksProvider
+      .search(query)
+      .catch(() => []);
     return results[0] ?? null;
   }
 
@@ -103,6 +109,7 @@ export class BookItemService {
     const canonicalId = details.externalIds.find(
       (ext) => ext.source === source,
     )?.externalId;
+
     if (!canonicalId) {
       throw new Error(`Provider details for ${source} carry no ${source} id`);
     }

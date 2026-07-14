@@ -35,7 +35,8 @@
 {#if open}
   <div class="flex flex-col gap-1.5">
     <div class="flex items-center">
-      <span class="timecode text-[0.62rem] tracking-[0.18em] uppercase">Prise de note</span>
+      <span class="timecode text-[0.62rem] tracking-[0.18em] uppercase"
+        >Prise de note</span>
       <button
         type="button"
         class="ml-auto font-mono text-[0.68rem] text-dim transition-colors hover:text-danger"

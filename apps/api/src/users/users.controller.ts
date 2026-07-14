@@ -54,6 +54,7 @@ export class UsersController {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
     });
+
     if (!user) {
       throw new NotFoundException("User not found");
     }

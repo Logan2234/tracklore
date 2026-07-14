@@ -57,11 +57,7 @@
       class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-dim">
       <Icon name="search" class="h-5 w-5" />
     </span>
-    <input
-      type="search"
-      {placeholder}
-      bind:value={query}
-      class="input pl-10" />
+    <input type="search" {placeholder} bind:value={query} class="input pl-10" />
   </div>
 
   {#if enabledTabs.length > 1}

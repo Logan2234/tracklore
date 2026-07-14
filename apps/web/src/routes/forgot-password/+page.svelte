@@ -36,13 +36,15 @@
     </div>
 
     <div class="card flex flex-col gap-4 p-7">
-      <h1 class="font-display text-xl font-bold">Réinitialiser le mot de passe</h1>
+      <h1 class="font-display text-xl font-bold">
+        Réinitialiser le mot de passe
+      </h1>
 
       {#if !submitted}
         <p class="text-sm text-dim">
-          Indique l'email de ton compte. Un lien de réinitialisation sera
-          généré (valable 1h) — cette instance n'envoie pas d'email, le lien
-          s'affiche directement ici.
+          Indique l'email de ton compte. Un lien de réinitialisation sera généré
+          (valable 1h) — cette instance n'envoie pas d'email, le lien s'affiche
+          directement ici.
         </p>
         <form onsubmit={submit} class="flex flex-col gap-4">
           <input
@@ -60,7 +62,9 @@
         <p class="text-sm text-dim">
           Voici ton lien de réinitialisation, valable 1h :
         </p>
-        <a href={resetUrl} class="break-all text-sm font-semibold text-accent hover:underline">
+        <a
+          href={resetUrl}
+          class="break-all text-sm font-semibold text-accent hover:underline">
           {resetUrl}
         </a>
       {:else}

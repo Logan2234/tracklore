@@ -42,6 +42,7 @@ export function aggregateBookStats(books: BookStatInput[]): BookStatsDto {
     for (const genre of book.genres) {
       genreCounts.set(genre, (genreCounts.get(genre) ?? 0) + 1);
     }
+
     for (const author of book.authors) {
       authorCounts.set(author, (authorCounts.get(author) ?? 0) + 1);
     }

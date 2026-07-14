@@ -13,9 +13,7 @@ import { StoryGraphImportService } from "./storygraph-import.service";
 
 @Controller("books/import/storygraph")
 export class StoryGraphImportController {
-  constructor(
-    private readonly storyGraphImport: StoryGraphImportService,
-  ) {}
+  constructor(private readonly storyGraphImport: StoryGraphImportService) {}
 
   /** Parse + resolve a StoryGraph CSV against Google Books. Writes nothing. */
   @Post("preview")

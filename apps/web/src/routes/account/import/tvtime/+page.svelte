@@ -336,13 +336,15 @@
     <section class="card p-5 md:p-6">
       <p class="mb-5 text-sm text-dim">
         Dépose l’archive <code
-          class="rounded bg-bg px-1.5 py-0.5 font-mono text-xs">.zip</code> de ton
+          class="rounded bg-bg px-1.5 py-0.5 font-mono text-xs">.zip</code>
+        de ton
         <a
           href="https://gdpr.tvtime.com/gdpr/self-service"
           target="_blank"
           rel="noopener noreferrer"
-          class="font-semibold text-accent hover:underline">export GDPR TV Time ↗</a>.
-        On l’analyse pour te laisser trier collection par collection avant
+          class="font-semibold text-accent hover:underline"
+          >export GDPR TV Time ↗</a
+        >. On l’analyse pour te laisser trier collection par collection avant
         d’écrire quoi que ce soit.
       </p>
 

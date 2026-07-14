@@ -42,6 +42,7 @@ export function aggregateGameStats(games: GameStatInput[]): GameStatsDto {
     for (const genre of game.genres) {
       genreCounts.set(genre, (genreCounts.get(genre) ?? 0) + 1);
     }
+
     for (const platform of game.platforms) {
       platformCounts.set(platform, (platformCounts.get(platform) ?? 0) + 1);
     }

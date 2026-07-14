@@ -169,6 +169,7 @@ export class IgdbProvider implements GameCatalogProvider {
         "/external_games",
         `fields game, uid; where external_game_source = 1 & uid = (${uidList}); limit 500;`,
       );
+
       for (const row of rows) {
         // First match wins; IGDB can list several rows per game/appid.
         if (!byAppId.has(row.uid)) byAppId.set(row.uid, String(row.game));
@@ -303,15 +304,18 @@ export class IgdbProvider implements GameCatalogProvider {
 /** IGDB's own user rating + critic aggregate (both 0–100), when present. */
 function toRatings(game: IgdbGame): RatingDto[] {
   const ratings: RatingDto[] = [];
-  if (game.rating != null) {
+
+  if (game.rating !== null && game.rating !== undefined) {
     ratings.push({ source: "IGDB", score: `${Math.round(game.rating)}%` });
   }
-  if (game.aggregated_rating != null) {
+
+  if (game.aggregated_rating !== null && game.aggregated_rating !== undefined) {
     ratings.push({
       source: "Critiques",
       score: `${Math.round(game.aggregated_rating)}%`,
     });
   }
+
   return ratings;
 }
 
@@ -329,8 +333,10 @@ function uniqueCompanyNames(
 /** Split an array into consecutive slices of at most `size` items. */
 function chunkArray<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = [];
+
   for (let i = 0; i < items.length; i += size) {
     chunks.push(items.slice(i, i + size));
   }
+
   return chunks;
 }

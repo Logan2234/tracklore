@@ -15,12 +15,13 @@
 
   const pips = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
   // Rounded so a legacy 8.5 lights the "9" pip; picking always yields an integer.
-  const selected = $derived(value == null ? null : Math.round(value));
+  const selected = $derived(value === null ? null : Math.round(value));
 </script>
 
 <div class="flex flex-col gap-2">
   <div class="flex items-center gap-2">
-    <span class="timecode text-[0.62rem] tracking-[0.18em] uppercase">{label}</span>
+    <span class="timecode text-[0.62rem] tracking-[0.18em] uppercase"
+      >{label}</span>
     <button
       type="button"
       class="ml-auto font-mono text-[0.7rem] text-dim transition-colors hover:text-danger {selected ===

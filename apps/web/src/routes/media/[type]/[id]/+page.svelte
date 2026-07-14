@@ -59,7 +59,8 @@
   const STATUS_DESC: Record<EntryStatus, string> = {
     PLANNED: "Dans ta liste, pas encore commencé.",
     WATCHING: "Tu regardes ce titre en ce moment.",
-    UP_TO_DATE: "Tu as vu tous les épisodes disponibles ; en attente de nouveaux.",
+    UP_TO_DATE:
+      "Tu as vu tous les épisodes disponibles ; en attente de nouveaux.",
     COMPLETED: "Tu as terminé ce titre.",
     DROPPED: "Tu as arrêté et ne comptes pas le reprendre.",
   };
@@ -554,7 +555,9 @@
             type="button"
             aria-pressed={entry.favorite}
             disabled={saving}
-            title={entry.favorite ? "Retirer des coups de cœur" : "Coup de cœur"}
+            title={entry.favorite
+              ? "Retirer des coups de cœur"
+              : "Coup de cœur"}
             aria-label={entry.favorite
               ? "Retirer des coups de cœur"
               : "Coup de cœur"}

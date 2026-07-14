@@ -7,9 +7,11 @@ describe("DomainGateService", () => {
   function makeService(enabledDomains: Domain[] | null) {
     const prisma = {
       user: {
-        findUnique: jest.fn().mockResolvedValue(
-          enabledDomains === null ? null : { enabledDomains },
-        ),
+        findUnique: jest
+          .fn()
+          .mockResolvedValue(
+            enabledDomains === null ? null : { enabledDomains },
+          ),
       },
     } as unknown as PrismaService;
     return new DomainGateService(prisma);
@@ -24,15 +26,15 @@ describe("DomainGateService", () => {
 
   it("throws 403 when the domain is disabled", async () => {
     const service = makeService([Domain.MEDIA]);
-    await expect(service.assertEnabled("u1", Domain.BOOKS)).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(
+      service.assertEnabled("u1", Domain.BOOKS),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it("throws 403 when the user does not exist", async () => {
     const service = makeService(null);
-    await expect(service.assertEnabled("nope", Domain.MEDIA)).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(
+      service.assertEnabled("nope", Domain.MEDIA),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

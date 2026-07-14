@@ -28,7 +28,11 @@
 <Modal {title} onclose={onCancel}>
   <p class="text-dim">{message}</p>
   <div class="mt-5 flex justify-end gap-2">
-    <button type="button" class="btn btn-ghost" disabled={busy} onclick={onCancel}>
+    <button
+      type="button"
+      class="btn btn-ghost"
+      disabled={busy}
+      onclick={onCancel}>
       {cancelLabel}
     </button>
     <button

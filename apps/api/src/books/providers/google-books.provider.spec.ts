@@ -87,12 +87,14 @@ describe("GoogleBooksProvider", () => {
       totalItems: 1,
       items: [{ id: "vol1", volumeInfo: { title: "By ISBN" } }],
     });
-    await expect(providerWith("k").searchByIsbn("9780141196107")).resolves.toMatchObject(
-      { sourceId: "vol1", title: "By ISBN" },
-    );
+    await expect(
+      providerWith("k").searchByIsbn("9780141196107"),
+    ).resolves.toMatchObject({ sourceId: "vol1", title: "By ISBN" });
 
     mockFetch({ totalItems: 0 });
-    await expect(providerWith("k").searchByIsbn("0000000000")).resolves.toBeNull();
+    await expect(
+      providerWith("k").searchByIsbn("0000000000"),
+    ).resolves.toBeNull();
   });
 
   it("maps details, stripping HTML and keeping only full dates", async () => {

@@ -93,13 +93,15 @@
     "DROPPED",
   ];
   // BookStatsDto keys, in the same order as BOOK_STATUS_ORDER.
-  const BOOK_STATUS_KEY: Record<BookStatus, "toRead" | "reading" | "read" | "dropped"> =
-    {
-      TO_READ: "toRead",
-      READING: "reading",
-      READ: "read",
-      DROPPED: "dropped",
-    };
+  const BOOK_STATUS_KEY: Record<
+    BookStatus,
+    "toRead" | "reading" | "read" | "dropped"
+  > = {
+    TO_READ: "toRead",
+    READING: "reading",
+    READ: "read",
+    DROPPED: "dropped",
+  };
 
   const tiles = $derived(
     stats
@@ -177,8 +179,12 @@
         stats.moviesWatched === 0 &&
         stats.seriesCompleted === 0),
   );
-  const gamesEmpty = $derived(!gamesOn || (!!gameStats && gameStats.totalGames === 0));
-  const booksEmpty = $derived(!booksOn || (!!bookStats && bookStats.totalBooks === 0));
+  const gamesEmpty = $derived(
+    !gamesOn || (!!gameStats && gameStats.totalGames === 0),
+  );
+  const booksEmpty = $derived(
+    !booksOn || (!!bookStats && bookStats.totalBooks === 0),
+  );
   const allEmpty = $derived(mediaEmpty && gamesEmpty && booksEmpty);
 </script>
 

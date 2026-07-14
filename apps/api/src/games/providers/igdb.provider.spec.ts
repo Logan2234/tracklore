@@ -187,7 +187,9 @@ describe("IgdbProvider", () => {
     }));
     mockFetchByUrl({
       "id.twitch.tv": TOKEN_RESPONSE,
-      "/games": [{ id: 1020, name: "Grand Theft Auto V", similar_games: similar }],
+      "/games": [
+        { id: 1020, name: "Grand Theft Auto V", similar_games: similar },
+      ],
     });
 
     const details = await provider.getDetails("1020");
@@ -261,7 +263,10 @@ describe("IgdbProvider", () => {
           franchises: [
             // Includes the game itself (1020) and one overlap with the 2nd
             // franchise (3000) — both must be excluded/deduped.
-            { name: "GTA", games: [{ id: 1020, name: "Grand Theft Auto V" }, ...gtaGames] },
+            {
+              name: "GTA",
+              games: [{ id: 1020, name: "Grand Theft Auto V" }, ...gtaGames],
+            },
             {
               name: "Rockstar Universe",
               games: [

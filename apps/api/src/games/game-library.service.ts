@@ -208,6 +208,7 @@ export class GameLibraryService {
         "This title is restricted to accounts with adult content enabled",
       );
     }
+
     details.similarGames = filterAdultContent(details.similarGames, allowAdult);
     details.franchiseGames = filterAdultContent(
       details.franchiseGames,

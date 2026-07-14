@@ -39,7 +39,9 @@
     const jobs: Promise<unknown>[] = [];
 
     if (mediaOn) {
-      jobs.push(listLibrary({ status: "WATCHING" }).then((w) => (watching = w)));
+      jobs.push(
+        listLibrary({ status: "WATCHING" }).then((w) => (watching = w)),
+      );
       jobs.push(getCalendar().then((c) => (upcoming = c)));
     } else {
       watching = [];
@@ -209,7 +211,8 @@
           <h2 class="font-display text-lg font-bold">À venir</h2>
           <a
             href="/calendar"
-            class="text-sm font-semibold text-dim hover:text-fg">Calendrier →</a>
+            class="text-sm font-semibold text-dim hover:text-fg"
+            >Calendrier →</a>
         </div>
         <div class="grid gap-3 sm:grid-cols-3">
           {#each week as e (e.mediaItem.id + epCode(e))}

@@ -63,7 +63,7 @@ provides one by tunnelling to the local proxy. Your computer must stay on.
    ngrok start tracklore
    ```
 
-4. Open the domain on your phone → browser menu → *Add to home screen*.
+4. Open the domain on your phone → browser menu → _Add to home screen_.
 
 On ngrok's free tier the first page load shows a one-time warning page you
 click through; API calls skip it via `PUBLIC_NGROK`. For daily use by more than
@@ -103,11 +103,13 @@ pnpm --filter @tracklore/api test:e2e    # full API flow, isolated "e2e" schema
   from anywhere — see "Mobile access" above. The native (Capacitor) wrapper is
   still to do.
 - **P3** (current) — games & books modules: games (IGDB, library + statuses +
-  Steam import) and books (Google Books, library + reading progress +
-  StoryGraph import) are built, with per-domain stats. A unified
-  global search covers all three domains, and `enabledDomains` is enforced
-  server-side on search/stats and filters notifications. Remaining:
-  game-playtime UI, match-correction for imports, more importers.
+  playtime + Steam import) and books (Google Books/Open Library, library +
+  reading progress + StoryGraph import) are built, with per-domain stats and
+  community ratings. A unified global search covers all three domains, and
+  `enabledDomains` is enforced server-side on search/stats and filters
+  notifications. Manual match-correction is available on Steam and
+  StoryGraph imports. Remaining: more import sources (Goodreads, Babelio,
+  Backloggd), e2e coverage for games/books.
 - **P4** — social (friends, activity feed, shared lists)
 - **P5** — hosted offer / entitlements (open core)
 

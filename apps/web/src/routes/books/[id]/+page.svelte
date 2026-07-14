@@ -162,8 +162,7 @@
       await deleteBookReplay(replayId);
       await reload();
     } catch (err) {
-      error =
-        err instanceof ApiError ? err.message : "Impossible de supprimer";
+      error = err instanceof ApiError ? err.message : "Impossible de supprimer";
     } finally {
       saving = false;
     }
@@ -447,9 +446,7 @@
 
         {#if detail.sameAuthorBooks.length > 0}
           <section class="mt-10">
-            <h2 class="mb-3 font-display text-xl font-bold">
-              Du même auteur
-            </h2>
+            <h2 class="mb-3 font-display text-xl font-bold">Du même auteur</h2>
             <div
               class="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pt-2 pb-2 md:mx-0 md:px-0">
               {#each detail.sameAuthorBooks as book (book.sourceId)}
@@ -479,9 +476,7 @@
       <!-- Details panel, desktop position: sidebar next to the main column. -->
       {#snippet detailsPanel()}
         <div class="card p-4">
-          <h2 class="font-display text-sm font-bold tracking-tight">
-            Détails
-          </h2>
+          <h2 class="font-display text-sm font-bold tracking-tight">Détails</h2>
           <dl class="mt-3 flex flex-col gap-3">
             {#if detail?.publisher}
               <div>
