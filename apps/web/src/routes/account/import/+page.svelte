@@ -47,7 +47,11 @@
           description: "Bibliothèque, statuts et notes (export CSV).",
           href: "/account/import/storygraph",
         },
-        { name: "Goodreads", description: "Bibliothèque et lectures." },
+        {
+          name: "Goodreads",
+          description: "Bibliothèque, statuts et notes (export CSV).",
+          href: "/account/import/goodreads",
+        },
         { name: "Babelio", description: "Bibliothèque et lectures." },
         { name: "LibraryThing", description: "Bibliothèque et lectures." },
         { name: "Bookwyrm", description: "Bibliothèque et lectures." },

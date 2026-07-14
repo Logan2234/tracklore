@@ -1,0 +1,235 @@
+import type { BookSummaryDto } from "@tracklore/shared";
+import { GoodreadsImportService } from "./goodreads-import.service";
+import type { BookItemService } from "../book-item.service";
+import type { PrismaService } from "../../prisma/prisma.service";
+
+const HEADER =
+  "Book Id,Title,Author,Author l-f,Additional Authors,ISBN,ISBN13,My Rating,Average Rating,Publisher,Binding,Number of Pages,Year Published,Original Publication Year,Date Read,Date Added,Bookshelves,Bookshelves with positions,Exclusive Shelf,My Review,Spoiler,Private Notes,Read Count,Owned Copies";
+
+function summary(over: Partial<BookSummaryDto> = {}): BookSummaryDto {
+  return {
+    source: "GOOGLE_BOOKS",
+    sourceId: "G1W",
+    title: "A Book",
+    authors: ["Someone"],
+    year: 2000,
+    coverUrl: null,
+    ...over,
+  };
+}
+
+describe("GoodreadsImportService", () => {
+  function setup(
+    overrides: {
+      resolve?: jest.Mock;
+      getDetails?: jest.Mock;
+      inLibraryRefs?: {
+        source: string;
+        externalId: string;
+        bookItemId: string;
+      }[];
+      ownedEntries?: { bookItemId: string }[];
+      /** Null (default) simulates a first-time import; non-null simulates a re-run. */
+      existingEntry?: { id: string } | null;
+    } = {},
+  ) {
+    const getDetails = overrides.getDetails ?? jest.fn();
+    const bookItemService = {
+      resolve: overrides.resolve ?? jest.fn().mockResolvedValue(null),
+      providerFor: jest.fn().mockReturnValue({ getDetails }),
+      persistDetails: jest.fn().mockResolvedValue({ id: "item-1" }),
+    };
+    const upsert = jest.fn().mockResolvedValue({ id: "entry-1" });
+    const createMany = jest.fn().mockResolvedValue({ count: 0 });
+    const prisma = {
+      bookExternalId: {
+        findMany: jest.fn().mockResolvedValue(overrides.inLibraryRefs ?? []),
+      },
+      bookEntry: {
+        findMany: jest.fn().mockResolvedValue(overrides.ownedEntries ?? []),
+        findUnique: jest
+          .fn()
+          .mockResolvedValue(overrides.existingEntry ?? null),
+        upsert,
+      },
+      bookReplay: { createMany },
+    };
+
+    const service = new GoodreadsImportService(
+      prisma as unknown as PrismaService,
+      bookItemService as unknown as BookItemService,
+    );
+    return { service, bookItemService, upsert, createMany };
+  }
+
+  it("resolves each row and reports the unmatched ones", async () => {
+    const resolve = jest
+      .fn()
+      .mockResolvedValueOnce(
+        summary({ source: "GOOGLE_BOOKS", sourceId: "G-1", title: "First" }),
+      )
+      .mockResolvedValueOnce(
+        summary({ source: "GOOGLE_BOOKS", sourceId: "G-2", title: "Second" }),
+      )
+      .mockResolvedValueOnce(null); // Unmatched.
+    const { service } = setup({ resolve });
+
+    const csv = [
+      HEADER,
+      '1,Résister,Salomé Saqué,"Saqué, Salomé",,="",="9782228937597",4,3.90,,Paperback,,,,2025/03/31,2025/01/01,read,,read,,0,,1,1',
+      '2,Findable,Author One,"One, Author",,="",="",0,0,,,,,,,2025/01/01,to-read,,to-read,,0,,0,0',
+      '3,Nowhere,Author Two,"Two, Author",,="",="",0,0,,,,,,,2025/01/01,to-read,,to-read,,0,,0,0',
+    ].join("\n");
+
+    const preview = await service.preview("user-1", csv);
+
+    expect(preview.totalRows).toBe(3);
+    expect(preview.matched.map((m) => [m.source, m.sourceId])).toEqual([
+      ["GOOGLE_BOOKS", "G-1"],
+      ["GOOGLE_BOOKS", "G-2"],
+    ]);
+    expect(preview.unmatched).toEqual([
+      expect.objectContaining({ csvTitle: "Nowhere" }),
+    ]);
+    // The ISBN row keeps its mapped reading metadata, including ownership
+    // (paperback + owned → PHYSICAL) and the read count (1).
+    expect(preview.matched[0]).toMatchObject({
+      csvTitle: "Résister",
+      status: "READ",
+      rating: 8,
+      finishedAt: "2025-03-31T00:00:00.000Z",
+      ownershipStatus: "PHYSICAL",
+      readCount: 1,
+    });
+  });
+
+  it("flags books already in the user's library by (source, id)", async () => {
+    const { service } = setup({
+      resolve: jest
+        .fn()
+        .mockResolvedValue(
+          summary({ source: "GOOGLE_BOOKS", sourceId: "G-DUP" }),
+        ),
+      inLibraryRefs: [
+        { source: "GOOGLE_BOOKS", externalId: "G-DUP", bookItemId: "item-dup" },
+      ],
+      ownedEntries: [{ bookItemId: "item-dup" }],
+    });
+
+    const csv = [
+      HEADER,
+      '1,Dup,Author,"Author, Some",,="",="9782228937597",4,0,,Paperback,,,,2025/07/23,2025/01/01,read,,read,,0,,0,1',
+    ].join("\n");
+
+    const preview = await service.preview("user-1", csv);
+    expect(preview.matched[0].alreadyInLibrary).toBe(true);
+  });
+
+  it("persists via the book's own source, marking finished ones fully read", async () => {
+    const getDetails = jest.fn().mockResolvedValue({
+      summary: summary({ source: "GOOGLE_BOOKS", sourceId: "G-1" }),
+      overview: null,
+      genres: [],
+      pageCount: 320,
+      releaseDate: null,
+      externalIds: [{ source: "GOOGLE_BOOKS", externalId: "G-1" }],
+    });
+    const { service, bookItemService, upsert } = setup({ getDetails });
+
+    const result = await service.commit("user-1", [
+      {
+        source: "GOOGLE_BOOKS",
+        sourceId: "G-1",
+        status: "READ",
+        rating: 8,
+        notes: "loved it",
+        startedAt: null,
+        finishedAt: "2025-03-31T00:00:00.000Z",
+        ownershipStatus: "PHYSICAL",
+        readCount: 1,
+      },
+    ]);
+
+    expect(result.imported).toBe(1);
+    expect(bookItemService.providerFor).toHaveBeenCalled();
+    const data = upsert.mock.calls[0][0].create;
+    expect(data).toMatchObject({
+      status: "READ",
+      rating: 8,
+      notes: "loved it",
+      currentPage: 320, // Finished + known length → full progress.
+      ownershipStatus: "PHYSICAL",
+    });
+    expect(data.finishedAt).toEqual(new Date("2025-03-31T00:00:00.000Z"));
+  });
+
+  it("backfills replays from the read count on a first-time import", async () => {
+    const getDetails = jest.fn().mockResolvedValue({
+      summary: summary({ source: "GOOGLE_BOOKS", sourceId: "G-1" }),
+      overview: null,
+      genres: [],
+      pageCount: 320,
+      releaseDate: null,
+      externalIds: [{ source: "GOOGLE_BOOKS", externalId: "G-1" }],
+    });
+    const { service, createMany } = setup({ getDetails, existingEntry: null });
+
+    await service.commit("user-1", [
+      {
+        source: "GOOGLE_BOOKS",
+        sourceId: "G-1",
+        status: "READ",
+        rating: null,
+        notes: null,
+        startedAt: null,
+        finishedAt: "2025-03-31T00:00:00.000Z",
+        ownershipStatus: "NONE",
+        readCount: 3,
+      },
+    ]);
+
+    expect(createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          bookEntryId: "entry-1",
+          finishedAt: new Date("2025-03-31T00:00:00.000Z"),
+        },
+        {
+          bookEntryId: "entry-1",
+          finishedAt: new Date("2025-03-31T00:00:00.000Z"),
+        },
+      ],
+    });
+  });
+
+  it("does not backfill replays when the entry already exists", async () => {
+    const getDetails = jest.fn().mockResolvedValue({
+      summary: summary({ source: "GOOGLE_BOOKS", sourceId: "G-1" }),
+      overview: null,
+      genres: [],
+      pageCount: 320,
+      releaseDate: null,
+      externalIds: [{ source: "GOOGLE_BOOKS", externalId: "G-1" }],
+    });
+    const { service, createMany } = setup({
+      getDetails,
+      existingEntry: { id: "entry-1" },
+    });
+
+    await service.commit("user-1", [
+      {
+        source: "GOOGLE_BOOKS",
+        sourceId: "G-1",
+        status: "READ",
+        rating: null,
+        notes: null,
+        startedAt: null,
+        finishedAt: "2025-03-31T00:00:00.000Z",
+        ownershipStatus: "NONE",
+        readCount: 3,
+      },
+    ]);
+
+    expect(createMany).not.toHaveBeenCalled();
+  });
+});
