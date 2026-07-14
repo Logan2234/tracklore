@@ -277,6 +277,18 @@
       {/if}
     </p>
 
+    {#if preview.apiErrorCount > 0}
+      <p
+        class="mb-4 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+        {preview.apiErrorCount} livre{preview.apiErrorCount > 1 ? "s" : ""} n'{preview.apiErrorCount >
+        1
+          ? "ont"
+          : "a"} pas pu être vérifié{preview.apiErrorCount > 1 ? "s" : ""} à cause
+        d'une erreur de l'API Google Books (quota, panne…), pas d'une vraie
+        absence de résultat. Relance l'import plus tard pour les récupérer.
+      </p>
+    {/if}
+
     {#if rows.length === 0}
       <div
         class="mt-6 rounded-xl border border-dashed border-border px-6 py-12 text-center text-dim">

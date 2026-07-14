@@ -39,6 +39,25 @@ function mockFetchByUrl(routes: [string, unknown][]): jest.Mock {
   return fn;
 }
 
+/** Returns a different status/payload on each successive call, in order. */
+function mockFetchSequence(
+  responses: { status: number; payload?: unknown }[],
+): jest.Mock {
+  let call = 0;
+  const fn = jest.fn(() => {
+    const { status, payload } = responses[Math.min(call, responses.length - 1)];
+    call++;
+    return Promise.resolve(
+      new Response(JSON.stringify(payload ?? {}), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+  });
+  global.fetch = fn as unknown as typeof fetch;
+  return fn;
+}
+
 function providerWith(key: string): GoogleBooksProvider {
   const config = {
     getOrThrow: jest.fn().mockReturnValue(key),
@@ -203,5 +222,27 @@ describe("GoogleBooksProvider", () => {
     await expect(providerWith("k").getDetails("404")).rejects.toThrow(
       "Book not found on Google Books",
     );
+  });
+
+  it("retries a 429 rate limit and succeeds once the quota frees up", async () => {
+    const fn = mockFetchSequence([
+      { status: 429 },
+      { status: 200, payload: { totalItems: 0 } },
+    ]);
+
+    const result = await providerWith("k").search("dune");
+
+    expect(fn).toHaveBeenCalledTimes(2);
+    expect(result).toEqual([]);
+  });
+
+  it("gives up after exhausting retries on repeated 429s", async () => {
+    const fn = mockFetchSequence([{ status: 429 }]);
+
+    await expect(providerWith("k").search("dune")).rejects.toThrow(
+      "Google Books request failed with status 429",
+    );
+    // 3 attempts total (1 initial + 2 retries), not an unbounded loop.
+    expect(fn).toHaveBeenCalledTimes(3);
   });
 });

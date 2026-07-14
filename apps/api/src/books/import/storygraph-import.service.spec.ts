@@ -103,6 +103,30 @@ describe("StoryGraphImportService", () => {
     });
   });
 
+  it("counts API failures separately from genuine non-matches", async () => {
+    const resolve = jest
+      .fn()
+      .mockResolvedValueOnce(
+        summary({ source: "GOOGLE_BOOKS", sourceId: "G-1", title: "First" }),
+      )
+      .mockRejectedValueOnce(new Error("rate limited"))
+      .mockResolvedValueOnce(null); // Genuinely not found.
+    const { service } = setup({ resolve });
+
+    const csv = [
+      HEADER,
+      'First,X,"",,digital,to-read,2025/01/01,"","",0,"",,,,,,,,"","","","",Yes',
+      'Second,X,"",,digital,to-read,2025/01/01,"","",0,"",,,,,,,,"","","","",Yes',
+      'Third,X,"",,digital,to-read,2025/01/01,"","",0,"",,,,,,,,"","","","",Yes',
+    ].join("\n");
+
+    const preview = await service.preview("user-1", csv);
+
+    expect(preview.matched).toHaveLength(1);
+    expect(preview.unmatched).toHaveLength(2); // Both the API failure and the real miss.
+    expect(preview.apiErrorCount).toBe(1);
+  });
+
   it("flags books already in the user's library by (source, id)", async () => {
     const { service } = setup({
       resolve: jest

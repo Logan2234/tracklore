@@ -138,30 +138,53 @@ export class GoogleBooksProvider implements BookCatalogProvider {
   }
 
   /**
-   * GET a Google Books path, appending the (required) API key. Google Books
-   * serves the odd transient 5xx, so a single retry is made before giving up.
+   * GET a Google Books path, appending the (required) API key. Retries
+   * transient failures (429 rate limit, 5xx) with backoff — a bulk import
+   * can fire hundreds of calls in a burst and easily trips the API's
+   * per-100-seconds quota; honours `Retry-After` when Google sends one.
    */
   private async get<T>(path: string): Promise<T> {
     const key = this.configService.getOrThrow<string>("GOOGLE_BOOKS_API_KEY");
     const sep = path.includes("?") ? "&" : "?";
     const url = `${API_URL}${path}${sep}key=${key}`;
 
-    let response = await fetch(url, {
-      headers: { Accept: "application/json" },
-    });
+    let lastStatus = 0;
 
-    if (response.status >= 500) {
-      response = await fetch(url, { headers: { Accept: "application/json" } });
+    for (let attempt = 1; attempt <= GET_MAX_ATTEMPTS; attempt++) {
+      const response = await fetch(url, {
+        headers: { Accept: "application/json" },
+      });
+
+      if (response.ok) return (await response.json()) as T;
+
+      lastStatus = response.status;
+      const transient = response.status === 429 || response.status >= 500;
+      if (transient && attempt < GET_MAX_ATTEMPTS) {
+        await sleep(retryDelayMs(response.headers.get("Retry-After"), attempt));
+        continue;
+      }
+      break;
     }
 
-    if (!response.ok) {
-      throw new BadGatewayException(
-        `Google Books request failed with status ${response.status}`,
-      );
-    }
-
-    return (await response.json()) as T;
+    throw new BadGatewayException(
+      `Google Books request failed with status ${lastStatus}`,
+    );
   }
+}
+
+const GET_MAX_ATTEMPTS = 3;
+
+/** `Retry-After` (seconds) when Google sends one; else exponential backoff. */
+function retryDelayMs(retryAfterHeader: string | null, attempt: number): number {
+  const retryAfterSec = Number(retryAfterHeader);
+  if (Number.isFinite(retryAfterSec) && retryAfterSec > 0) {
+    return retryAfterSec * 1000;
+  }
+  return 500 * 2 ** (attempt - 1); // 500ms, then 1000ms.
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /** Google Books' own average rating (1–5), when known. */

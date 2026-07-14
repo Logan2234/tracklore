@@ -92,7 +92,7 @@ describe("GoodreadsImportService", () => {
       expect.objectContaining({ csvTitle: "Nowhere" }),
     ]);
     // The ISBN row keeps its mapped reading metadata, including ownership
-    // (paperback + owned → PHYSICAL) and the read count (1).
+    // (Binding "Paperback" → PHYSICAL) and the read count (1).
     expect(preview.matched[0]).toMatchObject({
       csvTitle: "Résister",
       status: "READ",
@@ -101,6 +101,30 @@ describe("GoodreadsImportService", () => {
       ownershipStatus: "PHYSICAL",
       readCount: 1,
     });
+  });
+
+  it("counts API failures separately from genuine non-matches", async () => {
+    const resolve = jest
+      .fn()
+      .mockResolvedValueOnce(
+        summary({ source: "GOOGLE_BOOKS", sourceId: "G-1", title: "First" }),
+      )
+      .mockRejectedValueOnce(new Error("rate limited"))
+      .mockResolvedValueOnce(null); // Genuinely not found.
+    const { service } = setup({ resolve });
+
+    const csv = [
+      HEADER,
+      '1,First,X,X,,,,0,0,,,,,,,2025/01/01,to-read,,to-read,,0,,0,0',
+      '2,Second,X,X,,,,0,0,,,,,,,2025/01/01,to-read,,to-read,,0,,0,0',
+      '3,Third,X,X,,,,0,0,,,,,,,2025/01/01,to-read,,to-read,,0,,0,0',
+    ].join("\n");
+
+    const preview = await service.preview("user-1", csv);
+
+    expect(preview.matched).toHaveLength(1);
+    expect(preview.unmatched).toHaveLength(2); // Both the API failure and the real miss.
+    expect(preview.apiErrorCount).toBe(1);
   });
 
   it("flags books already in the user's library by (source, id)", async () => {

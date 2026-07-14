@@ -33,7 +33,7 @@ export class GoodreadsImportService {
     const resolved = await mapWithConcurrency(
       rows,
       RESOLVE_CONCURRENCY,
-      async (row) => ({ row, summary: await this.resolve(row) }),
+      async (row) => ({ row, ...(await this.resolve(row)) }),
     );
 
     const summaries = resolved
@@ -43,6 +43,7 @@ export class GoodreadsImportService {
 
     const matched: GoodreadsMatchedBookDto[] = [];
     const unmatched: GoodreadsUnmatchedBookDto[] = [];
+    const apiErrorCount = resolved.filter((r) => r.apiError).length;
 
     for (const { row, summary } of resolved) {
       if (!summary) {
@@ -79,7 +80,7 @@ export class GoodreadsImportService {
       });
     }
 
-    return { totalRows: rows.length, matched, unmatched };
+    return { totalRows: rows.length, matched, unmatched, apiErrorCount };
   }
 
   /**
@@ -146,10 +147,21 @@ export class GoodreadsImportService {
     return { imported };
   }
 
-  /** Resolve one row to a catalogue work: by ISBN first, then title+author. */
-  private resolve(row: ParsedGoodreadsRow): Promise<BookSummaryDto | null> {
+  /**
+   * Resolve one row to a catalogue work: by ISBN first, then title+author.
+   * An API failure (rate limit, outage) is reported as `apiError` instead of
+   * a plain "not found", so the preview can tell the two apart.
+   */
+  private async resolve(
+    row: ParsedGoodreadsRow,
+  ): Promise<{ summary: BookSummaryDto | null; apiError: boolean }> {
     const query = [row.title, row.authors[0]].filter(Boolean).join(" ");
-    return this.bookItemService.resolve(row.isbn, query);
+    try {
+      const summary = await this.bookItemService.resolve(row.isbn, query);
+      return { summary, apiError: false };
+    } catch {
+      return { summary: null, apiError: true };
+    }
   }
 
   /** `source|externalId` keys (of the given set) the user already tracks. */

@@ -34,22 +34,20 @@ export class BookItemService {
 
   /**
    * Resolve one book (an ISBN and/or a free-text query) to a single catalogue
-   * work: ISBN first, then by query.
+   * work: ISBN first, then by query. Unlike `search()`, this does NOT swallow
+   * provider errors — a bulk import needs to tell "the API call failed" apart
+   * from "genuinely no match", so callers catch and handle it themselves.
    */
   async resolve(
     isbn: string | null,
     query: string,
   ): Promise<BookSummaryDto | null> {
     if (isbn) {
-      const byIsbn = await this.googleBooksProvider
-        .searchByIsbn(isbn)
-        .catch(() => null);
+      const byIsbn = await this.googleBooksProvider.searchByIsbn(isbn);
       if (byIsbn) return byIsbn;
     }
 
-    const results = await this.googleBooksProvider
-      .search(query)
-      .catch(() => []);
+    const results = await this.googleBooksProvider.search(query);
     return results[0] ?? null;
   }
 

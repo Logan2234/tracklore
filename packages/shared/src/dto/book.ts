@@ -177,6 +177,12 @@ export interface StoryGraphImportPreviewDto {
   matched: StoryGraphMatchedBookDto[];
   /** Rows Google Books had no volume for — may be associated manually. */
   unmatched: StoryGraphUnmatchedBookDto[];
+  /**
+   * How many of `unmatched` failed because the Google Books call itself
+   * errored (rate limit, outage) rather than genuinely finding no volume —
+   * distinguishes "retry the import later" from "needs manual matching".
+   */
+  apiErrorCount: number;
 }
 
 /** One book the user chose to import, with the reading metadata to assign it. */
@@ -262,6 +268,12 @@ export interface GoodreadsImportPreviewDto {
   matched: GoodreadsMatchedBookDto[];
   /** Rows Google Books had no volume for — may be associated manually. */
   unmatched: GoodreadsUnmatchedBookDto[];
+  /**
+   * How many of `unmatched` failed because the Google Books call itself
+   * errored (rate limit, outage) rather than genuinely finding no volume —
+   * distinguishes "retry the import later" from "needs manual matching".
+   */
+  apiErrorCount: number;
 }
 
 /** One book the user chose to import, with the reading metadata to assign it. */
