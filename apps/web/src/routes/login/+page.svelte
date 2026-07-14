@@ -45,6 +45,10 @@
         bind:value={password}
         required
         class="input" />
+      <a
+        href="/forgot-password"
+        class="-mt-2 text-right text-sm text-dim hover:text-accent hover:underline"
+        >Mot de passe oublié ?</a>
       {#if error}<p class="text-sm text-danger">{error}</p>{/if}
       <button type="submit" class="btn btn-primary" disabled={loading}>
         {loading ? "Connexion…" : "Se connecter"}

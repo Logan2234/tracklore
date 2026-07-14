@@ -1,4 +1,5 @@
 import {
+  GameOwnershipStatus,
   GameStatus,
   UpdateGameEntryDto as UpdateGameEntryContract,
 } from "@tracklore/shared";
@@ -47,4 +48,13 @@ export class UpdateGameEntryDto implements UpdateGameEntryContract {
   @IsOptional()
   @IsDateString()
   finishedAt?: string | null;
+
+  @IsOptional()
+  @IsIn(Object.values(GameOwnershipStatus))
+  ownershipStatus?: GameOwnershipStatus;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  ownershipSource?: string | null;
 }

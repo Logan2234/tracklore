@@ -151,7 +151,7 @@
         >Exporte ta bibliothèque depuis StoryGraph ↗</a> (Manage Account → Export
       StoryGraph Library) puis dépose le fichier
       <code class="text-fg">.csv</code> ici. On associe chaque livre au catalogue
-      Open Library ; tu choisis ensuite quoi importer.
+      Google Books ; tu choisis ensuite quoi importer.
     </p>
 
     <label

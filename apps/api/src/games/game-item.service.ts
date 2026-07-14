@@ -39,10 +39,18 @@ export class GameItemService {
       ...details.summary,
       overview: details.overview,
       backdropUrl: details.backdropUrl,
+      screenshots: details.screenshots,
       genres: details.genres,
       platforms: details.platforms,
       releaseDate: details.releaseDate,
       website: details.website,
+      similarGames: details.similarGames,
+      developers: details.developers,
+      publishers: details.publishers,
+      gameModes: details.gameModes,
+      playerPerspectives: details.playerPerspectives,
+      franchiseGames: details.franchiseGames,
+      ratings: details.ratings,
     };
   }
 

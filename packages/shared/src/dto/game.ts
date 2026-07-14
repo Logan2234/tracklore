@@ -1,4 +1,5 @@
-import type { GameSource, GameStatus } from "../enums";
+import type { GameOwnershipStatus, GameSource, GameStatus } from "../enums";
+import type { RatingDto } from "./catalog";
 
 /** A game as returned by a live catalogue search (not persisted). */
 export interface GameSummaryDto {
@@ -21,12 +22,26 @@ export interface GameDetailsDto extends GameSummaryDto {
   overview: string | null;
   /** Wide artwork/screenshot for the detail header, when available. */
   backdropUrl: string | null;
+  /** Screenshot gallery, for the detail page's lightbox carousel. */
+  screenshots: string[];
   genres: string[];
   platforms: string[];
   /** ISO first-release date; null when the source has none. */
   releaseDate: string | null;
   /** Official website of the game, when the source exposes one. */
   website: string | null;
+  /** IGDB's own "similar games" recommendations, capped to a handful. */
+  similarGames: GameSummaryDto[];
+  developers: string[];
+  publishers: string[];
+  /** Solo/coop/multiplayer… */
+  gameModes: string[];
+  /** First/third person, VR… */
+  playerPerspectives: string[];
+  /** Other games from the same franchise(s), excluding this one. */
+  franchiseGames: GameSummaryDto[];
+  /** IGDB's own user rating + critic aggregate, when known. */
+  ratings: RatingDto[];
 }
 
 /** A persisted game referenced by at least one user (on-demand cache). */
@@ -37,6 +52,13 @@ export interface GameItemDto {
   canonicalSource: GameSource;
   /** External ID in `canonicalSource`, used to address the game detail page. */
   sourceId: string;
+}
+
+/** One completed replay, beyond the entry's own (first) completion. */
+export interface GameReplayDto {
+  id: string;
+  /** ISO date the replay was completed. */
+  finishedAt: string;
 }
 
 export interface GameEntryDto {
@@ -53,6 +75,18 @@ export interface GameEntryDto {
   finishedAt: string | null;
   /** When the entry was added to the library (ISO). */
   createdAt: string;
+  /** Completed replays beyond the first, most recent first. */
+  replays: GameReplayDto[];
+  /** How the user holds this game, if set (NONE = unset). */
+  ownershipStatus: GameOwnershipStatus;
+  /** Free-form detail for DIGITAL/SUBSCRIPTION (e.g. "Steam"); null otherwise. */
+  ownershipSource: string | null;
+}
+
+/** Body for logging a completed replay. */
+export interface AddGameReplayDto {
+  /** ISO date; defaults to now. */
+  finishedAt?: string;
 }
 
 /** Body for creating/updating a library entry from a catalogue game. */
@@ -75,6 +109,8 @@ export interface UpdateGameEntryDto {
   playtimeMinutes?: number;
   startedAt?: string | null;
   finishedAt?: string | null;
+  ownershipStatus?: GameOwnershipStatus;
+  ownershipSource?: string | null;
 }
 
 /**

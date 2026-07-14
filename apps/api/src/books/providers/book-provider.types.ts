@@ -1,4 +1,8 @@
-import type { BookSource, BookSummaryDto } from "@tracklore/shared";
+import type {
+  BookSource,
+  BookSummaryDto,
+  RatingDto,
+} from "@tracklore/shared";
 
 export interface ProviderBookExternalId {
   source: BookSource;
@@ -9,10 +13,17 @@ export interface ProviderBookExternalId {
 export interface ProviderBookDetails {
   summary: BookSummaryDto;
   overview: string | null;
+  subtitle: string | null;
+  publisher: string | null;
   genres: string[];
   pageCount: number | null;
   releaseDate: string | null;
-  authorWikidataId: string | null;
+  /** Permalink to the volume's page on the source, when it exposes one. */
+  website: string | null;
+  /** Other books by the primary author, standing in for "similar titles". */
+  sameAuthorBooks: BookSummaryDto[];
+  /** Google Books' own average rating, when known. */
+  ratings: RatingDto[];
   externalIds: ProviderBookExternalId[];
 }
 

@@ -103,8 +103,8 @@ pnpm --filter @tracklore/api test:e2e    # full API flow, isolated "e2e" schema
   from anywhere — see "Mobile access" above. The native (Capacitor) wrapper is
   still to do.
 - **P3** (current) — games & books modules: games (IGDB, library + statuses +
-  Steam import) and books (Open Library / Google Books, library + reading
-  progress + StoryGraph import) are built, with per-domain stats. A unified
+  Steam import) and books (Google Books, library + reading progress +
+  StoryGraph import) are built, with per-domain stats. A unified
   global search covers all three domains, and `enabledDomains` is enforced
   server-side on search/stats and filters notifications. Remaining:
   game-playtime UI, match-correction for imports, more importers.

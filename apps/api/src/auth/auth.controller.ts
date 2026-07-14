@@ -6,12 +6,14 @@ import {
   HttpStatus,
   Post,
 } from "@nestjs/common";
-import type { AuthTokensDto } from "@tracklore/shared";
+import type { AuthTokensDto, ForgotPasswordResponseDto } from "@tracklore/shared";
 import { AuthResult, AuthService } from "./auth.service";
 import { Public } from "./decorators/public.decorator";
+import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { LoginDto } from "./dto/login.dto";
 import { RefreshDto } from "./dto/refresh.dto";
 import { RegisterDto } from "./dto/register.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
 
 @Public()
 @Controller("auth")
@@ -45,5 +47,19 @@ export class AuthController {
   @Post("logout")
   async logout(@Body() dto: RefreshDto): Promise<void> {
     await this.authService.logout(dto.refreshToken);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post("forgot-password")
+  async forgotPassword(
+    @Body() dto: ForgotPasswordDto,
+  ): Promise<ForgotPasswordResponseDto> {
+    return { token: await this.authService.requestPasswordReset(dto.email) };
+  }
+
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Post("reset-password")
+  async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
+    await this.authService.resetPassword(dto.token, dto.newPassword);
   }
 }

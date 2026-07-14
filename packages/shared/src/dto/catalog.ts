@@ -89,6 +89,11 @@ export interface MediaExtrasDto {
   similar: MediaSummaryDto[];
   /** Community/critic scores (TMDB/AniList always; IMDb/RT/Metacritic via OMDb). */
   ratings: RatingDto[];
+  /**
+   * Backdrop gallery for the lightbox carousel (TMDB only — AniList exposes no
+   * screenshot gallery beyond the poster/banner already shown on the page).
+   */
+  images: string[];
 }
 
 export interface EpisodeDto {

@@ -12,7 +12,7 @@ import { parseStoryGraphCsv } from "./storygraph-parse";
 import type { ParsedStoryGraphRow } from "./storygraph-parse";
 
 // Rows are resolved against the catalogue a few at a time — fast enough for a
-// typical export while staying polite to a free, unauthenticated API.
+// typical export while staying polite to the Google Books API.
 const RESOLVE_CONCURRENCY = 5;
 
 @Injectable()
@@ -23,7 +23,7 @@ export class StoryGraphImportService {
   ) {}
 
   /**
-   * Parse the CSV and resolve every row against Open Library — writing nothing.
+   * Parse the CSV and resolve every row against Google Books — writing nothing.
    * Each row keeps its StoryGraph reading metadata (status/rating/notes/dates).
    */
   async preview(
@@ -81,7 +81,7 @@ export class StoryGraphImportService {
 
     for (const book of books) {
       const details = await this.bookItemService
-        .providerFor(book.source)
+        .providerFor()
         .getDetails(book.sourceId)
         .catch(() => null);
       if (!details) continue;

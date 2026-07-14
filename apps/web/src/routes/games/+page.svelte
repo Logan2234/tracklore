@@ -1,5 +1,6 @@
 <script lang="ts">
   import { ApiError, listGames } from "$lib/api/client";
+  import Combobox from "$lib/components/Combobox.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import Poster from "$lib/components/Poster.svelte";
   import type { GameEntryDto, GameStatus } from "@tracklore/shared";
@@ -17,22 +18,34 @@
     "DROPPED",
   ];
 
-  const STATUS_TABS: { label: string; value: GameStatus | undefined }[] = [
-    { label: "Tout", value: undefined },
-    ...STATUS_ORDER.map((value) => ({ label: STATUS_LABELS[value], value })),
-  ];
+  const STATUS_OPTIONS = STATUS_ORDER.map((value) => ({
+    label: STATUS_LABELS[value],
+    value,
+  }));
 
-  type SortKey = "added" | "title" | "rating";
+  type SortKey =
+    | "added"
+    | "title"
+    | "rating"
+    | "playtime"
+    | "finished"
+    | "started"
+    | "status";
   const SORTS: { label: string; value: SortKey }[] = [
     { label: "Ajout récent", value: "added" },
-    { label: "Titre A→Z", value: "title" },
+    { label: "Titre", value: "title" },
     { label: "Note", value: "rating" },
+    { label: "Temps de jeu", value: "playtime" },
+    { label: "Terminé récemment", value: "finished" },
+    { label: "Commencé récemment", value: "started" },
+    { label: "Statut", value: "status" },
   ];
 
   let entries = $state<GameEntryDto[]>([]);
-  let statusFilter = $state<GameStatus | undefined>(undefined);
+  let statuses = $state<GameStatus[]>([]);
   let favoritesOnly = $state(false);
   let sort = $state<SortKey>("added");
+  let reversed = $state(false);
   let query = $state("");
   let loading = $state(true);
   let error = $state<string | null>(null);
@@ -52,34 +65,48 @@
       });
   });
 
+  const time = (iso: string | null) => (iso ? new Date(iso).getTime() : 0);
+
+  // Base comparator per criterion (its natural order); the direction toggle
+  // reverses the whole list.
+  function compare(a: GameEntryDto, b: GameEntryDto): number {
+    switch (sort) {
+      case "title":
+        return a.game.title.localeCompare(b.game.title, "fr");
+      case "rating":
+        return (b.rating ?? -1) - (a.rating ?? -1);
+      case "playtime":
+        return b.playtimeMinutes - a.playtimeMinutes;
+      case "finished":
+        return time(b.finishedAt) - time(a.finishedAt);
+      case "started":
+        return time(b.startedAt) - time(a.startedAt);
+      case "status":
+        return STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status);
+      case "added":
+        return b.createdAt.localeCompare(a.createdAt);
+    }
+    return 0;
+  }
+
   const shown = $derived.by(() => {
     const q = query.trim().toLowerCase();
     const list = entries.filter((e) => {
-      if (statusFilter && e.status !== statusFilter) return false;
+      if (statuses.length > 0 && !statuses.includes(e.status)) return false;
       if (favoritesOnly && !e.favorite) return false;
       if (q && !e.game.title.toLowerCase().includes(q)) return false;
       return true;
     });
-    const sorted = [...list];
-    switch (sort) {
-      case "title":
-        sorted.sort((a, b) => a.game.title.localeCompare(b.game.title, "fr"));
-        break;
-      case "rating":
-        sorted.sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1));
-        break;
-      case "added":
-        sorted.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-        break;
-    }
+    const sorted = [...list].sort(compare);
+    if (reversed) sorted.reverse();
     return sorted;
   });
 
   const hasQuery = $derived(query.trim() !== "");
-  const hasFilters = $derived(statusFilter !== undefined || favoritesOnly);
+  const hasFilters = $derived(statuses.length > 0 || favoritesOnly);
 
   function clearFilters() {
-    statusFilter = undefined;
+    statuses = [];
     favoritesOnly = false;
   }
 </script>
@@ -106,32 +133,34 @@
       class="input pl-10" />
   </div>
 
-  <div class="mb-2 flex flex-wrap gap-2">
-    {#each STATUS_TABS as tab (tab.label)}
-      <button
-        class="chip"
-        class:chip-on={statusFilter === tab.value}
-        onclick={() => (statusFilter = tab.value)}>
-        {tab.label}
-      </button>
-    {/each}
-  </div>
-
   <div class="mb-7 flex flex-wrap items-center gap-2">
+    <Combobox
+      label="Statut"
+      multiselect
+      options={STATUS_OPTIONS}
+      values={statuses}
+      onChange={(v) => (statuses = v as GameStatus[])} />
     <button
       class="chip inline-flex items-center gap-1"
       class:chip-on={favoritesOnly}
       onclick={() => (favoritesOnly = !favoritesOnly)}>
       <Icon name="star" class="h-3.5 w-3.5" /> Favoris
     </button>
-    <span class="ml-auto flex items-center gap-2 text-sm text-dim">
-      Trier
-      <select bind:value={sort} class="input h-9 w-auto py-0 pr-8 text-sm">
-        {#each SORTS as s (s.value)}
-          <option value={s.value}>{s.label}</option>
-        {/each}
-      </select>
-    </span>
+    <div class="ml-auto flex items-center gap-2">
+      <Combobox
+        label="Trier"
+        options={SORTS}
+        values={[sort]}
+        onChange={(v) => (sort = v[0] as SortKey)} />
+      <button
+        type="button"
+        class="chip px-2.5 font-mono"
+        title={reversed ? "Ordre inversé" : "Ordre par défaut"}
+        aria-label="Inverser le sens du tri"
+        onclick={() => (reversed = !reversed)}>
+        {reversed ? "↑" : "↓"}
+      </button>
+    </div>
   </div>
 
   {#if error}

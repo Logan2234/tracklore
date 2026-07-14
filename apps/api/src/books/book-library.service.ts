@@ -7,12 +7,14 @@ import type {
   BookEntry,
   BookExternalId,
   BookItem,
+  BookReplay,
   Prisma,
 } from "@prisma/client";
 import type {
   BookDetailDto,
   BookEntryDto,
   BookItemDto,
+  BookReplayDto,
   BookSource,
   BookStatsDto,
   BookStatus,
@@ -20,12 +22,15 @@ import type {
 import { PrismaService } from "../prisma/prisma.service";
 import { BookItemService } from "./book-item.service";
 import { aggregateBookStats } from "./book-stats.util";
+import { AddBookReplayDto } from "./dto/add-book-replay.dto";
 import { UpdateBookEntryDto } from "./dto/update-book-entry.dto";
 import { UpsertBookEntryDto } from "./dto/upsert-book-entry.dto";
 
-// Entries always need the book + its external IDs (canonical sourceId).
+// Entries always need the book + its external IDs (canonical sourceId), plus
+// its replay history, most recent first.
 const ENTRY_INCLUDE = {
   bookItem: { include: { externalIds: true } },
+  replays: { orderBy: { finishedAt: "desc" } },
 } satisfies Prisma.BookEntryInclude;
 
 type EntryWithBook = Prisma.BookEntryGetPayload<{
@@ -107,6 +112,8 @@ export class BookLibraryService {
           dto.finishedAt === undefined
             ? undefined
             : toDateOrNull(dto.finishedAt),
+        ownershipStatus: dto.ownershipStatus,
+        ownershipSource: dto.ownershipSource,
       },
       include: ENTRY_INCLUDE,
     });
@@ -117,6 +124,45 @@ export class BookLibraryService {
   async deleteEntry(userId: string, entryId: string): Promise<void> {
     await this.assertEntryOwnership(userId, entryId);
     await this.prisma.bookEntry.delete({ where: { id: entryId } });
+  }
+
+  /** Log a completed reread (a completion beyond the entry's first one). */
+  async addReplay(
+    userId: string,
+    entryId: string,
+    dto: AddBookReplayDto,
+  ): Promise<BookEntryDto> {
+    await this.assertEntryOwnership(userId, entryId);
+
+    await this.prisma.bookReplay.create({
+      data: {
+        bookEntryId: entryId,
+        finishedAt: dto.finishedAt ? new Date(dto.finishedAt) : undefined,
+      },
+    });
+
+    const entry = await this.prisma.bookEntry.findUniqueOrThrow({
+      where: { id: entryId },
+      include: ENTRY_INCLUDE,
+    });
+    return toEntryDto(entry);
+  }
+
+  async deleteReplay(userId: string, replayId: string): Promise<void> {
+    const replay = await this.prisma.bookReplay.findUnique({
+      where: { id: replayId },
+      include: { bookEntry: true },
+    });
+
+    if (!replay) {
+      throw new NotFoundException("Replay not found");
+    }
+
+    if (replay.bookEntry.userId !== userId) {
+      throw new ForbiddenException("This replay belongs to another user");
+    }
+
+    await this.prisma.bookReplay.delete({ where: { id: replayId } });
   }
 
   /** Aggregated stats for the user's book library. */
@@ -216,7 +262,14 @@ function toEntryDto(entry: EntryWithBook): BookEntryDto {
     startedAt: entry.startedAt?.toISOString() ?? null,
     finishedAt: entry.finishedAt?.toISOString() ?? null,
     createdAt: entry.createdAt.toISOString(),
+    replays: entry.replays.map(toReplayDto),
+    ownershipStatus: entry.ownershipStatus,
+    ownershipSource: entry.ownershipSource,
   };
+}
+
+function toReplayDto(replay: BookReplay): BookReplayDto {
+  return { id: replay.id, finishedAt: replay.finishedAt.toISOString() };
 }
 
 function toDateOrNull(value: string | null): Date | null {

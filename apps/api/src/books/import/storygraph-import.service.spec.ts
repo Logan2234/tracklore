@@ -8,8 +8,8 @@ const HEADER =
 
 function summary(over: Partial<BookSummaryDto> = {}): BookSummaryDto {
   return {
-    source: "OPENLIBRARY",
-    sourceId: "OL1W",
+    source: "GOOGLE_BOOKS",
+    sourceId: "G1W",
     title: "A Book",
     authors: ["Someone"],
     year: 2000,
@@ -53,10 +53,10 @@ describe("StoryGraphImportService", () => {
     const resolve = jest
       .fn()
       .mockResolvedValueOnce(
-        summary({ source: "GOOGLE_BOOKS", sourceId: "G-1", title: "By Google" }),
+        summary({ source: "GOOGLE_BOOKS", sourceId: "G-1", title: "First" }),
       )
       .mockResolvedValueOnce(
-        summary({ source: "OPENLIBRARY", sourceId: "OL-2", title: "By OL" }),
+        summary({ source: "GOOGLE_BOOKS", sourceId: "G-2", title: "Second" }),
       )
       .mockResolvedValueOnce(null); // Unmatched.
     const { service } = setup({ resolve });
@@ -73,7 +73,7 @@ describe("StoryGraphImportService", () => {
     expect(preview.totalRows).toBe(3);
     expect(preview.matched.map((m) => [m.source, m.sourceId])).toEqual([
       ["GOOGLE_BOOKS", "G-1"],
-      ["OPENLIBRARY", "OL-2"],
+      ["GOOGLE_BOOKS", "G-2"],
     ]);
     expect(preview.unmatched).toEqual(["Nowhere"]);
     // The ISBN row keeps its mapped reading metadata.
@@ -129,7 +129,7 @@ describe("StoryGraphImportService", () => {
     ]);
 
     expect(result.imported).toBe(1);
-    expect(bookItemService.providerFor).toHaveBeenCalledWith("GOOGLE_BOOKS");
+    expect(bookItemService.providerFor).toHaveBeenCalled();
     const data = upsert.mock.calls[0][0].create;
     expect(data).toMatchObject({
       status: "READ",

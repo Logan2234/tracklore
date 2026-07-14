@@ -24,7 +24,6 @@ import { Domain } from "@tracklore/shared";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { JwtPayload } from "../auth/decorators/current-user.decorator";
 import { DomainGateService } from "../users/domain-gate.service";
-import { RateWatchDto } from "./dto/rate-watch.dto";
 import { UpdateEntryDto } from "./dto/update-entry.dto";
 import { UpsertEntryDto } from "./dto/upsert-entry.dto";
 import { WatchEpisodeDto } from "./dto/watch-episode.dto";
@@ -133,24 +132,5 @@ export class LibraryController {
     @Param("episodeId") episodeId: string,
   ): Promise<void> {
     await this.libraryService.unwatchEpisode(user.sub, episodeId);
-  }
-
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @Patch("watches/:id")
-  async rateWatch(
-    @CurrentUser() user: JwtPayload,
-    @Param("id") watchId: string,
-    @Body() dto: RateWatchDto,
-  ): Promise<void> {
-    await this.libraryService.rateWatch(user.sub, watchId, dto.rating);
-  }
-
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @Delete("watches/:id")
-  async deleteWatch(
-    @CurrentUser() user: JwtPayload,
-    @Param("id") watchId: string,
-  ): Promise<void> {
-    await this.libraryService.deleteWatch(user.sub, watchId);
   }
 }

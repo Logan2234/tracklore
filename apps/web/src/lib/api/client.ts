@@ -19,6 +19,7 @@ import type {
   DeleteAccountRequestDto,
   EntryStatus,
   EpisodeWatchDto,
+  ForgotPasswordResponseDto,
   GameDetailDto,
   GameEntryDto,
   GameSearchResponseDto,
@@ -179,6 +180,28 @@ export async function register(body: RegisterRequestDto): Promise<void> {
   );
   auth.setTokens(result.tokens);
   auth.user = result.user;
+}
+
+/** Generates a reset token for the account (null if the email is unknown). */
+export function forgotPassword(
+  email: string,
+): Promise<ForgotPasswordResponseDto> {
+  return request("/auth/forgot-password", {
+    method: "POST",
+    body: { email },
+    withAuth: false,
+  });
+}
+
+export function resetPassword(
+  token: string,
+  newPassword: string,
+): Promise<void> {
+  return request("/auth/reset-password", {
+    method: "POST",
+    body: { token, newPassword },
+    withAuth: false,
+  });
 }
 
 export async function login(body: LoginRequestDto): Promise<void> {
@@ -350,7 +373,15 @@ export function upsertLibraryEntry(
 export function updateLibraryEntry(
   entryId: string,
   body: Partial<
-    Pick<LibraryEntryDto, "status" | "rating" | "notes" | "favorite">
+    Pick<
+      LibraryEntryDto,
+      | "status"
+      | "rating"
+      | "notes"
+      | "favorite"
+      | "ownershipStatus"
+      | "ownershipSource"
+    >
   >,
 ): Promise<LibraryEntryDto> {
   return request(`/library/entries/${entryId}`, { method: "PATCH", body });
@@ -360,13 +391,10 @@ export function deleteLibraryEntry(entryId: string): Promise<void> {
   return request(`/library/entries/${entryId}`, { method: "DELETE" });
 }
 
-export function watchEpisode(
-  episodeId: string,
-  rating?: number,
-): Promise<EpisodeWatchDto> {
+export function watchEpisode(episodeId: string): Promise<EpisodeWatchDto> {
   return request(`/library/episodes/${episodeId}/watches`, {
     method: "POST",
-    body: rating === undefined ? {} : { rating },
+    body: {},
   });
 }
 
@@ -387,22 +415,6 @@ export function unwatchEpisode(episodeId: string): Promise<void> {
   return request(`/library/episodes/${episodeId}/watches`, {
     method: "DELETE",
   });
-}
-
-/** Set (or clear, with null) the rating of a single viewing. */
-export function rateWatch(
-  watchId: string,
-  rating: number | null,
-): Promise<void> {
-  return request(`/library/watches/${watchId}`, {
-    method: "PATCH",
-    body: { rating },
-  });
-}
-
-/** Delete one specific viewing (by its id). */
-export function deleteWatch(watchId: string): Promise<void> {
-  return request(`/library/watches/${watchId}`, { method: "DELETE" });
 }
 
 export function getCalendar(): Promise<CalendarEntryDto[]> {
@@ -472,6 +484,18 @@ export function deleteGameEntry(entryId: string): Promise<void> {
   return request(`/games/entries/${entryId}`, { method: "DELETE" });
 }
 
+/** Log a completed replay (a completion beyond the entry's first one). */
+export function addGameReplay(entryId: string): Promise<GameEntryDto> {
+  return request(`/games/entries/${entryId}/replays`, {
+    method: "POST",
+    body: {},
+  });
+}
+
+export function deleteGameReplay(replayId: string): Promise<void> {
+  return request(`/games/replays/${replayId}`, { method: "DELETE" });
+}
+
 // --- Books ---
 
 export function searchBooks(query: string): Promise<BookSearchResponseDto> {
@@ -517,7 +541,19 @@ export function deleteBookEntry(entryId: string): Promise<void> {
   return request(`/books/entries/${entryId}`, { method: "DELETE" });
 }
 
-/** Parse + resolve a StoryGraph CSV against Open Library (writes nothing). */
+/** Log a completed reread (a completion beyond the entry's first one). */
+export function addBookReplay(entryId: string): Promise<BookEntryDto> {
+  return request(`/books/entries/${entryId}/replays`, {
+    method: "POST",
+    body: {},
+  });
+}
+
+export function deleteBookReplay(replayId: string): Promise<void> {
+  return request(`/books/replays/${replayId}`, { method: "DELETE" });
+}
+
+/** Parse + resolve a StoryGraph CSV against Google Books (writes nothing). */
 export function previewStoryGraphImport(
   body: StoryGraphImportPreviewRequestDto,
 ): Promise<StoryGraphImportPreviewDto> {

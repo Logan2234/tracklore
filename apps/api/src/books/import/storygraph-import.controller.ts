@@ -17,7 +17,7 @@ export class StoryGraphImportController {
     private readonly storyGraphImport: StoryGraphImportService,
   ) {}
 
-  /** Parse + resolve a StoryGraph CSV against Open Library. Writes nothing. */
+  /** Parse + resolve a StoryGraph CSV against Google Books. Writes nothing. */
   @Post("preview")
   preview(
     @CurrentUser() user: JwtPayload,

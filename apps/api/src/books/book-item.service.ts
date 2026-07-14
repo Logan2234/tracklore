@@ -7,7 +7,6 @@ import type {
 } from "@tracklore/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { GoogleBooksProvider } from "./providers/google-books.provider";
-import { OpenLibraryProvider } from "./providers/openlibrary.provider";
 import type {
   BookCatalogProvider,
   ProviderBookDetails,
@@ -21,54 +20,31 @@ export class BookItemService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly googleBooksProvider: GoogleBooksProvider,
-    private readonly openLibraryProvider: OpenLibraryProvider,
   ) {}
 
-  providerFor(source: BookSource): BookCatalogProvider {
-    switch (source) {
-      case "GOOGLE_BOOKS":
-        return this.googleBooksProvider;
-      case "OPENLIBRARY":
-      default:
-        return this.openLibraryProvider;
-    }
+  /** Google Books is the only source today. */
+  providerFor(): BookCatalogProvider {
+    return this.googleBooksProvider;
   }
 
-  /**
-   * Providers to try, in priority order: Google Books first when a key is
-   * configured (richer data), then Open Library (keyless fallback). Without a
-   * key, Google is skipped entirely so we never hit its exhausted keyless quota.
-   */
-  private orderedProviders(): BookCatalogProvider[] {
-    return this.googleBooksProvider.isConfigured()
-      ? [this.googleBooksProvider, this.openLibraryProvider]
-      : [this.openLibraryProvider];
-  }
-
-  /** Free-text catalogue search: first provider that returns any result wins. */
+  /** Free-text catalogue search. */
   async search(query: string): Promise<BookSummaryDto[]> {
-    for (const provider of this.orderedProviders()) {
-      const results = await provider.search(query).catch(() => []);
-      if (results.length > 0) return results;
-    }
-    return [];
+    return this.googleBooksProvider.search(query).catch(() => []);
   }
 
   /**
    * Resolve one book (an ISBN and/or a free-text query) to a single catalogue
-   * work. Each provider is tried ISBN-first, then by query; the first hit — from
-   * Google Books when available, else Open Library — is returned.
+   * work: ISBN first, then by query.
    */
   async resolve(isbn: string | null, query: string): Promise<BookSummaryDto | null> {
-    for (const provider of this.orderedProviders()) {
-      if (isbn) {
-        const byIsbn = await provider.searchByIsbn(isbn).catch(() => null);
-        if (byIsbn) return byIsbn;
-      }
-      const results = await provider.search(query).catch(() => []);
-      if (results[0]) return results[0];
+    if (isbn) {
+      const byIsbn = await this.googleBooksProvider
+        .searchByIsbn(isbn)
+        .catch(() => null);
+      if (byIsbn) return byIsbn;
     }
-    return null;
+    const results = await this.googleBooksProvider.search(query).catch(() => []);
+    return results[0] ?? null;
   }
 
   /** Live details straight from the provider — nothing is persisted. */
@@ -76,14 +52,18 @@ export class BookItemService {
     source: BookSource,
     sourceId: string,
   ): Promise<BookDetailsDto> {
-    const details = await this.providerFor(source).getDetails(sourceId);
+    const details = await this.providerFor().getDetails(sourceId);
     return {
       ...details.summary,
       overview: details.overview,
+      subtitle: details.subtitle,
+      publisher: details.publisher,
       genres: details.genres,
       pageCount: details.pageCount,
       releaseDate: details.releaseDate,
-      authorWikidataId: details.authorWikidataId,
+      website: details.website,
+      sameAuthorBooks: details.sameAuthorBooks,
+      ratings: details.ratings,
     };
   }
 
@@ -108,7 +88,7 @@ export class BookItemService {
       return existingRef.bookItem;
     }
 
-    const details = await this.providerFor(source).getDetails(sourceId);
+    const details = await this.providerFor().getDetails(sourceId);
     return this.persistDetails(source, details);
   }
 

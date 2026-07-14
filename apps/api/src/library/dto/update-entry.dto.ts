@@ -1,4 +1,4 @@
-import { EntryStatus } from "@tracklore/shared";
+import { EntryStatus, MediaOwnershipStatus } from "@tracklore/shared";
 import {
   IsBoolean,
   IsDateString,
@@ -38,4 +38,13 @@ export class UpdateEntryDto {
   @IsOptional()
   @IsDateString()
   finishedAt?: string | null;
+
+  @IsOptional()
+  @IsIn(Object.values(MediaOwnershipStatus))
+  ownershipStatus?: MediaOwnershipStatus;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  ownershipSource?: string | null;
 }

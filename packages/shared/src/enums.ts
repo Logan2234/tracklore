@@ -68,13 +68,23 @@ export const GameStatus = {
 export type GameStatus = (typeof GameStatus)[keyof typeof GameStatus];
 
 /**
- * Source a book's catalogue data comes from. GOOGLE_BOOKS is tried first when a
- * GOOGLE_BOOKS_API_KEY is configured (richer data), falling back to OPENLIBRARY
- * (keyless, like AniList) — so a library can hold books from either source.
+ * How the user holds a game, if at all. NONE (default, unset) is the vast
+ * majority of entries — this is opt-in. DIGITAL/SUBSCRIPTION pair with a
+ * free-form `ownershipSource` (e.g. "Steam", "Xbox Game Pass").
  */
+export const GameOwnershipStatus = {
+  NONE: "NONE",
+  PHYSICAL: "PHYSICAL",
+  DIGITAL: "DIGITAL",
+  SUBSCRIPTION: "SUBSCRIPTION",
+  BORROWED: "BORROWED",
+} as const;
+export type GameOwnershipStatus =
+  (typeof GameOwnershipStatus)[keyof typeof GameOwnershipStatus];
+
+/** Source a book's catalogue data comes from. Google Books only. */
 export const BookSource = {
   GOOGLE_BOOKS: "GOOGLE_BOOKS",
-  OPENLIBRARY: "OPENLIBRARY",
 } as const;
 export type BookSource = (typeof BookSource)[keyof typeof BookSource];
 
@@ -91,6 +101,21 @@ export const BookStatus = {
   DROPPED: "DROPPED",
 } as const;
 export type BookStatus = (typeof BookStatus)[keyof typeof BookStatus];
+
+/**
+ * How the user holds a book, if at all. NONE (default, unset) is the vast
+ * majority of entries — this is opt-in. DIGITAL/AUDIO pair with a free-form
+ * `ownershipSource` (e.g. "Kindle", "Audible").
+ */
+export const BookOwnershipStatus = {
+  NONE: "NONE",
+  PHYSICAL: "PHYSICAL",
+  DIGITAL: "DIGITAL",
+  AUDIO: "AUDIO",
+  BORROWED: "BORROWED",
+} as const;
+export type BookOwnershipStatus =
+  (typeof BookOwnershipStatus)[keyof typeof BookOwnershipStatus];
 
 /**
  * Status of a media in a user's library. PLANNED doubles as the watchlist.
@@ -110,3 +135,18 @@ export const EntryStatus = {
   UP_TO_DATE: "UP_TO_DATE",
 } as const;
 export type EntryStatus = (typeof EntryStatus)[keyof typeof EntryStatus];
+
+/**
+ * How the user holds a movie/series/anime, if at all. NONE (default, unset)
+ * is the vast majority of entries — this is opt-in. DIGITAL/STREAMING pair
+ * with a free-form `ownershipSource` (e.g. "Apple TV", "Netflix").
+ */
+export const MediaOwnershipStatus = {
+  NONE: "NONE",
+  PHYSICAL: "PHYSICAL",
+  DIGITAL: "DIGITAL",
+  STREAMING: "STREAMING",
+  BORROWED: "BORROWED",
+} as const;
+export type MediaOwnershipStatus =
+  (typeof MediaOwnershipStatus)[keyof typeof MediaOwnershipStatus];

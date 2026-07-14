@@ -1,4 +1,5 @@
-import type { BookSource, BookStatus } from "../enums";
+import type { BookOwnershipStatus, BookSource, BookStatus } from "../enums";
+import type { RatingDto } from "./catalog";
 
 /** A book as returned by a live catalogue search (not persisted). */
 export interface BookSummaryDto {
@@ -19,14 +20,20 @@ export interface BookSearchResponseDto {
 /** Full book details, fetched live from the source. */
 export interface BookDetailsDto extends BookSummaryDto {
   overview: string | null;
+  subtitle: string | null;
+  publisher: string | null;
   /** Subjects/genres the source tags the book with. */
   genres: string[];
   /** Number of pages, when known. */
   pageCount: number | null;
   /** ISO first-publication date; null when the source has none. */
   releaseDate: string | null;
-  /** Wikidata id (`Q…`) of the primary author, for an external link; null when unknown. */
-  authorWikidataId: string | null;
+  /** Permalink to the volume's Google Books page, when known. */
+  website: string | null;
+  /** Other books by the primary author — stands in for "similar titles". */
+  sameAuthorBooks: BookSummaryDto[];
+  /** Google Books' own average rating, when known. */
+  ratings: RatingDto[];
 }
 
 /** A persisted book referenced by at least one user (on-demand cache). */
@@ -39,6 +46,13 @@ export interface BookItemDto {
   canonicalSource: BookSource;
   /** External ID in `canonicalSource`, used to address the book detail page. */
   sourceId: string;
+}
+
+/** One completed reread, beyond the entry's own (first) completion. */
+export interface BookReplayDto {
+  id: string;
+  /** ISO date the reread was completed. */
+  finishedAt: string;
 }
 
 export interface BookEntryDto {
@@ -55,6 +69,18 @@ export interface BookEntryDto {
   finishedAt: string | null;
   /** When the entry was added to the library (ISO). */
   createdAt: string;
+  /** Completed rereads beyond the first, most recent first. */
+  replays: BookReplayDto[];
+  /** How the user holds this book, if set (NONE = unset). */
+  ownershipStatus: BookOwnershipStatus;
+  /** Free-form detail for DIGITAL/AUDIO (e.g. "Kindle"); null otherwise. */
+  ownershipSource: string | null;
+}
+
+/** Body for logging a completed reread. */
+export interface AddBookReplayDto {
+  /** ISO date; defaults to now. */
+  finishedAt?: string;
 }
 
 /** Body for creating/updating a library entry from a catalogue book. */
@@ -77,6 +103,8 @@ export interface UpdateBookEntryDto {
   currentPage?: number;
   startedAt?: string | null;
   finishedAt?: string | null;
+  ownershipStatus?: BookOwnershipStatus;
+  ownershipSource?: string | null;
 }
 
 /**
@@ -97,12 +125,11 @@ export interface BookGenreCountDto {
 // --- StoryGraph import ---
 
 /**
- * One CSV row from a StoryGraph export matched to an Open Library work (preview
+ * One CSV row from a StoryGraph export matched to a Google Books volume (preview
  * step). The reading metadata (status/rating/notes/dates) is already mapped from
  * the row; the user only chooses whether to import it and may tweak the status.
  */
 export interface StoryGraphMatchedBookDto {
-  /** Catalogue the book was resolved against (Google Books or Open Library). */
   source: BookSource;
   /** Catalogue id in `source` — the identity used to persist the book. */
   sourceId: string;
@@ -127,9 +154,9 @@ export interface StoryGraphMatchedBookDto {
 export interface StoryGraphImportPreviewDto {
   /** Total data rows read from the CSV. */
   totalRows: number;
-  /** Rows matched to an Open Library work. */
+  /** Rows matched to a Google Books volume. */
   matched: StoryGraphMatchedBookDto[];
-  /** Titles of rows Open Library had no work for (skipped). */
+  /** Titles Google Books had no volume for (skipped). */
   unmatched: string[];
 }
 

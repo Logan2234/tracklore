@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import type { RatingDto } from "@tracklore/shared";
 import { BookSource, BookSummaryDto } from "@tracklore/shared";
 import type {
   BookCatalogProvider,
@@ -12,6 +13,11 @@ import type {
 
 const API_URL = "https://www.googleapis.com/books/v1/volumes";
 
+// Google Books has no "similar books" endpoint; other works by the primary
+// author is the closest keyless equivalent. Capped so the carousel stays a
+// quick browse, not an endless scroll.
+const MAX_SAME_AUTHOR_BOOKS = 10;
+
 interface GoogleImageLinks {
   smallThumbnail?: string;
   thumbnail?: string;
@@ -19,12 +25,20 @@ interface GoogleImageLinks {
 
 interface GoogleVolumeInfo {
   title?: string;
+  subtitle?: string;
   authors?: string[];
+  publisher?: string;
   publishedDate?: string; // "2013", "2013-09" or "2013-09-17".
   description?: string;
   pageCount?: number;
   categories?: string[];
   imageLinks?: GoogleImageLinks;
+  // Stable permalink to the volume's Google Books page. `previewLink` also
+  // exists but opens the embedded preview reader instead — not what we want
+  // for a plain external link.
+  canonicalVolumeLink?: string;
+  averageRating?: number; // 1–5.
+  ratingsCount?: number;
 }
 
 interface GoogleVolume {
@@ -38,22 +52,15 @@ interface GoogleVolumeList {
 }
 
 /**
- * Books, from the Google Books API. A single call carries everything we need
- * (title, authors, description, categories, page count and a cover) for both
- * search and details. Its keyless quota is shared and quickly exhausted, so we
- * only use it when a GOOGLE_BOOKS_API_KEY is configured (see `isConfigured`) and
- * always send that key — otherwise the caller falls back to Open Library.
+ * Books, from the Google Books API — the sole book source. A single call
+ * carries everything we need (title, authors, description, categories, page
+ * count and a cover) for both search and details.
  */
 @Injectable()
 export class GoogleBooksProvider implements BookCatalogProvider {
   readonly source = BookSource.GOOGLE_BOOKS;
 
   constructor(private readonly configService: ConfigService) {}
-
-  /** Whether a Google Books API key is set — required to use this provider. */
-  isConfigured(): boolean {
-    return !!this.configService.get<string>("GOOGLE_BOOKS_API_KEY");
-  }
 
   async search(query: string): Promise<BookSummaryDto[]> {
     const params = new URLSearchParams({
@@ -88,13 +95,33 @@ export class GoogleBooksProvider implements BookCatalogProvider {
     return {
       summary: this.toSummary(volume),
       overview: info.description ? stripHtml(info.description) : null,
+      subtitle: info.subtitle ?? null,
+      publisher: info.publisher ?? null,
       genres: info.categories ?? [],
       pageCount: info.pageCount ?? null,
       releaseDate: toIsoDate(info.publishedDate),
-      // Google Books exposes no author Wikidata id.
-      authorWikidataId: null,
+      website: info.canonicalVolumeLink ?? null,
+      sameAuthorBooks: await this.sameAuthorBooks(volume.id, info.authors?.[0]),
+      ratings: toRatings(info),
       externalIds: [{ source: BookSource.GOOGLE_BOOKS, externalId: volume.id }],
     };
+  }
+
+  /** Other books by the primary author, excluding this one. */
+  private async sameAuthorBooks(
+    excludeId: string,
+    author: string | undefined,
+  ): Promise<BookSummaryDto[]> {
+    if (!author) return [];
+
+    // Drop quotes so the author name can't break out of the query literal.
+    const safeAuthor = author.replace(/"/g, "");
+    const results = await this.search(`inauthor:"${safeAuthor}"`).catch(
+      () => [],
+    );
+    return results
+      .filter((b) => b.sourceId !== excludeId)
+      .slice(0, MAX_SAME_AUTHOR_BOOKS);
   }
 
   private toSummary(volume: GoogleVolume): BookSummaryDto {
@@ -111,8 +138,7 @@ export class GoogleBooksProvider implements BookCatalogProvider {
 
   /**
    * GET a Google Books path, appending the (required) API key. Google Books
-   * serves the odd transient 5xx, so a single retry is made before giving up —
-   * the caller then falls back to Open Library.
+   * serves the odd transient 5xx, so a single retry is made before giving up.
    */
   private async get<T>(path: string): Promise<T> {
     const key = this.configService.getOrThrow<string>("GOOGLE_BOOKS_API_KEY");
@@ -132,6 +158,13 @@ export class GoogleBooksProvider implements BookCatalogProvider {
 
     return (await response.json()) as T;
   }
+}
+
+/** Google Books' own average rating (1–5), when known. */
+function toRatings(info: GoogleVolumeInfo): RatingDto[] {
+  if (info.averageRating == null) return [];
+  const count = info.ratingsCount ? ` (${info.ratingsCount})` : "";
+  return [{ source: "Google Books", score: `${info.averageRating}/5${count}` }];
 }
 
 /** Google serves thumbnails over http; upgrade to https so the PWA can load them. */

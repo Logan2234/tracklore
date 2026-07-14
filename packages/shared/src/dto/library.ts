@@ -1,4 +1,9 @@
-import type { CatalogSource, EntryStatus, MediaType } from "../enums";
+import type {
+  CatalogSource,
+  EntryStatus,
+  MediaOwnershipStatus,
+  MediaType,
+} from "../enums";
 
 /** A persisted media referenced by at least one user (on-demand cache). */
 export interface MediaItemDto {
@@ -30,6 +35,10 @@ export interface LibraryEntryDto {
   lastWatchedAt: string | null;
   /** Episode progress, only for series/anime. */
   progress: ProgressDto | null;
+  /** How the user holds this title, if set (NONE = unset). */
+  ownershipStatus: MediaOwnershipStatus;
+  /** Free-form detail for DIGITAL/STREAMING (e.g. "Netflix"); null otherwise. */
+  ownershipSource: string | null;
 }
 
 /**
@@ -80,7 +89,6 @@ export interface EpisodeWatchDto {
   id: string;
   episodeId: string;
   watchedAt: string;
-  rating: number | null;
 }
 
 /** Persisted episode enriched with the current user's watch count. */
