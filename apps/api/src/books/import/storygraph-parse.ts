@@ -1,4 +1,4 @@
-import type { BookStatus } from "@tracklore/shared";
+import type { BookOwnershipStatus, BookStatus } from "@tracklore/shared";
 import { parseCsv } from "../../import/tvtime/csv";
 
 /** One StoryGraph CSV row reduced to the fields the import needs. */
@@ -14,6 +14,10 @@ export interface ParsedStoryGraphRow {
   notes: string | null;
   startedAt: string | null;
   finishedAt: string | null;
+  /** Derived from "Format" + "Owned?"; NONE when neither says anything useful. */
+  ownershipStatus: BookOwnershipStatus;
+  /** StoryGraph "Read Count" — total completions, including the first. */
+  readCount: number;
 }
 
 // StoryGraph "Read Status" → our library status.
@@ -47,8 +51,38 @@ export function parseStoryGraphCsv(text: string): ParsedStoryGraphRow[] {
         notes: emptyToNull(record["Review"]),
         startedAt,
         finishedAt,
+        ownershipStatus: parseOwnership(record["Format"], record["Owned?"]),
+        readCount: parseReadCount(record["Read Count"]),
       };
     });
+}
+
+/**
+ * "Owned?" = "No" reads as borrowed regardless of format; otherwise "Format"
+ * (paperback/hardcover/digital/audio…) maps to how the copy is held. Neither
+ * StoryGraph field names a specific platform, so `ownershipSource` stays null.
+ */
+function parseOwnership(
+  format: string | undefined,
+  owned: string | undefined,
+): BookOwnershipStatus {
+  if ((owned ?? "").trim().toLowerCase() === "no") return "BORROWED";
+
+  const value = (format ?? "").trim().toLowerCase();
+  if (value.includes("audio")) return "AUDIO";
+  if (value.includes("digital") || value.includes("ebook")) return "DIGITAL";
+
+  if (value.includes("paperback") || value.includes("hardcover")) {
+    return "PHYSICAL";
+  }
+
+  return "NONE";
+}
+
+/** Defaults to 0 (unread) on anything unparseable. */
+function parseReadCount(value: string | undefined): number {
+  const count = Number((value ?? "").trim());
+  return Number.isFinite(count) && count > 0 ? Math.trunc(count) : 0;
 }
 
 /** StoryGraph joins multiple authors with ", " inside one quoted field. */
@@ -81,10 +115,12 @@ function parseDates(
   lastDateRead: string | undefined,
 ): [string | null, string | null] {
   const range = (datesRead ?? "").trim();
+
   if (range) {
     const [start, end] = range.split("-");
     return [toIso(start), toIso(end ?? start)];
   }
+
   return [null, toIso(lastDateRead)];
 }
 

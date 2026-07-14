@@ -8,8 +8,8 @@ import type {
 } from "@tracklore/shared";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BookItemService } from "../book-item.service";
-import { parseStoryGraphCsv } from "./storygraph-parse";
 import type { ParsedStoryGraphRow } from "./storygraph-parse";
+import { parseStoryGraphCsv } from "./storygraph-parse";
 
 // Rows are resolved against the catalogue a few at a time — fast enough for a
 // typical export while staying polite to the Google Books API.
@@ -40,16 +40,18 @@ export class StoryGraphImportService {
 
     const summaries = resolved
       .map((r) => r.summary)
-      .filter((s): s is BookSummaryDto => s != null);
+      .filter((s): s is BookSummaryDto => s !== null);
     const inLibrary = await this.trackedKeys(userId, summaries);
 
     const matched: StoryGraphMatchedBookDto[] = [];
     const unmatched: string[] = [];
+
     for (const { row, summary } of resolved) {
       if (!summary) {
         unmatched.push(row.title);
         continue;
       }
+
       matched.push({
         source: summary.source,
         sourceId: summary.sourceId,
@@ -62,7 +64,11 @@ export class StoryGraphImportService {
         notes: row.notes,
         startedAt: row.startedAt,
         finishedAt: row.finishedAt,
-        alreadyInLibrary: inLibrary.has(refKey(summary.source, summary.sourceId)),
+        ownershipStatus: row.ownershipStatus,
+        readCount: row.readCount,
+        alreadyInLibrary: inLibrary.has(
+          refKey(summary.source, summary.sourceId),
+        ),
       });
     }
 
@@ -101,12 +107,32 @@ export class StoryGraphImportService {
         currentPage,
         startedAt: book.startedAt ? new Date(book.startedAt) : null,
         finishedAt: book.finishedAt ? new Date(book.finishedAt) : null,
+        ownershipStatus: book.ownershipStatus,
       };
-      await this.prisma.bookEntry.upsert({
+      // Only a first-time import backfills replays from "Read Count" — an
+      // existing entry may already have its own, and re-running the same
+      // import shouldn't keep piling more on.
+      const existing = await this.prisma.bookEntry.findUnique({
+        where: { userId_bookItemId: { userId, bookItemId: bookItem.id } },
+        select: { id: true },
+      });
+      const entry = await this.prisma.bookEntry.upsert({
         where: { userId_bookItemId: { userId, bookItemId: bookItem.id } },
         update: data,
         create: { userId, bookItemId: bookItem.id, ...data },
       });
+
+      if (!existing && book.readCount > 1) {
+        await this.prisma.bookReplay.createMany({
+          data: Array.from({ length: book.readCount - 1 }, () => ({
+            bookEntryId: entry.id,
+            finishedAt: book.finishedAt
+              ? new Date(book.finishedAt)
+              : new Date(),
+          })),
+        });
+      }
+
       imported++;
     }
 

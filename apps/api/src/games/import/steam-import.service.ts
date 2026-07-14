@@ -4,7 +4,7 @@ import {
   Injectable,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { GameSource } from "@tracklore/shared";
+import { GameOwnershipStatus, GameSource } from "@tracklore/shared";
 import type {
   SteamImportCommitGameDto,
   SteamImportPreviewDto,
@@ -64,6 +64,7 @@ export class SteamImportService {
     // One row per matched IGDB game, keeping the highest playtime when several
     // owned appids resolve to the same game (e.g. regional editions).
     const matchedById = new Map<string, SteamMatchedGameDto>();
+
     for (const game of owned) {
       const igdbId = appToIgdb.get(String(game.appid));
       const detail = igdbId ? detailById.get(igdbId) : undefined;
@@ -115,6 +116,7 @@ export class SteamImportService {
     const allowAdult = await this.ageGate.allowsAdultContent(userId);
 
     let imported = 0;
+
     for (const game of games) {
       const detail = detailById.get(game.sourceId);
       if (!detail) continue;
@@ -126,20 +128,19 @@ export class SteamImportService {
         GameSource.IGDB,
         detail,
       );
+      // Every Steam-imported game is, by definition, owned digitally on Steam.
+      const data = {
+        status: game.status,
+        playtimeMinutes: game.playtimeMinutes,
+        ownershipStatus: GameOwnershipStatus.DIGITAL,
+        ownershipSource: "Steam",
+      };
       await this.prisma.gameEntry.upsert({
         where: {
           userId_gameItemId: { userId, gameItemId: gameItem.id },
         },
-        update: {
-          status: game.status,
-          playtimeMinutes: game.playtimeMinutes,
-        },
-        create: {
-          userId,
-          gameItemId: gameItem.id,
-          status: game.status,
-          playtimeMinutes: game.playtimeMinutes,
-        },
+        update: data,
+        create: { userId, gameItemId: gameItem.id, ...data },
       });
       imported++;
     }
@@ -228,11 +229,13 @@ export class SteamImportService {
       "key",
       this.configService.getOrThrow<string>("STEAM_API_KEY"),
     );
+
     for (const [key, value] of Object.entries(params)) {
       target.searchParams.set(key, value);
     }
 
     const response = await fetch(target);
+
     if (!response.ok) {
       throw new BadGatewayException(
         `Steam request failed with status ${response.status}`,

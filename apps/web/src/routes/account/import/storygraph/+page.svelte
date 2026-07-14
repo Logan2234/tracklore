@@ -98,6 +98,8 @@
           notes: b.notes,
           startedAt: b.startedAt,
           finishedAt: b.finishedAt,
+          ownershipStatus: b.ownershipStatus,
+          readCount: b.readCount,
         }));
       const result = await commitStoryGraphImport({ books });
       importedCount = result.imported;
@@ -148,8 +150,8 @@
         target="_blank"
         rel="noopener noreferrer"
         class="font-semibold text-accent hover:underline"
-        >Exporte ta bibliothèque depuis StoryGraph ↗</a> (Manage Account → Export
-      StoryGraph Library) puis dépose le fichier
+        >Exporte ta bibliothèque depuis StoryGraph ↗</a>
+      (Manage Account → Export StoryGraph Library) puis dépose le fichier
       <code class="text-fg">.csv</code> ici. On associe chaque livre au catalogue
       Google Books ; tu choisis ensuite quoi importer.
     </p>
@@ -160,7 +162,8 @@
       <span class="text-sm font-semibold">
         {fileName || "Choisir le fichier CSV StoryGraph"}
       </span>
-      <span class="text-xs text-dim">Format .csv exporté depuis StoryGraph</span>
+      <span class="text-xs text-dim"
+        >Format .csv exporté depuis StoryGraph</span>
       <input
         type="file"
         accept=".csv,text/csv"

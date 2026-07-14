@@ -1,4 +1,5 @@
 import {
+  BookOwnershipStatus,
   BookSource,
   BookStatus,
   StoryGraphImportCommitBookDto,
@@ -11,6 +12,7 @@ import {
   IsArray,
   IsIn,
   IsISO8601,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
@@ -57,6 +59,14 @@ class StoryGraphCommitBookDto implements StoryGraphImportCommitBookDto {
   @IsOptional()
   @IsISO8601()
   finishedAt!: string | null;
+
+  @IsIn(Object.values(BookOwnershipStatus))
+  ownershipStatus!: BookOwnershipStatus;
+
+  @IsInt()
+  @Min(0)
+  @Max(10_000)
+  readCount!: number;
 }
 
 export class StoryGraphCommitDto implements StoryGraphImportCommitRequestDto {

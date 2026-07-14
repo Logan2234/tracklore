@@ -146,6 +146,10 @@ export interface StoryGraphMatchedBookDto {
   notes: string | null;
   startedAt: string | null;
   finishedAt: string | null;
+  /** Derived from the CSV's "Format" + "Owned?" columns. */
+  ownershipStatus: BookOwnershipStatus;
+  /** StoryGraph "Read Count" — logs (count - 1) replays on import. */
+  readCount: number;
   /** Already in the user's Tracklore library (so the UI can flag/skip it). */
   alreadyInLibrary: boolean;
 }
@@ -169,6 +173,8 @@ export interface StoryGraphImportCommitBookDto {
   notes: string | null;
   startedAt: string | null;
   finishedAt: string | null;
+  ownershipStatus: BookOwnershipStatus;
+  readCount: number;
 }
 
 export interface StoryGraphImportPreviewRequestDto {

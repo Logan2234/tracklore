@@ -74,7 +74,10 @@ function build(over: Partial<Mocks> = {}): {
     },
     prisma: {
       gameExternalId: { findMany: jest.fn().mockResolvedValue([]) },
-      gameEntry: { findMany: jest.fn().mockResolvedValue([]), upsert: jest.fn() },
+      gameEntry: {
+        findMany: jest.fn().mockResolvedValue([]),
+        upsert: jest.fn(),
+      },
       ...over.prisma,
     },
   };
@@ -97,18 +100,20 @@ describe("SteamImportService", () => {
   it("matches owned games to IGDB, filtering adult titles and sorting by playtime", async () => {
     const { service, mocks } = build({
       igdb: {
-        matchSteamAppIds: jest
-          .fn()
-          .mockResolvedValue(
-            new Map([
-              ["10", "100"],
-              ["20", "200"],
-              ["30", "300"],
-            ]),
-          ),
+        matchSteamAppIds: jest.fn().mockResolvedValue(
+          new Map([
+            ["10", "100"],
+            ["20", "200"],
+            ["30", "300"],
+          ]),
+        ),
         getDetailsByIds: jest
           .fn()
-          .mockResolvedValue([detail("100"), detail("200"), detail("300", true)]),
+          .mockResolvedValue([
+            detail("100"),
+            detail("200"),
+            detail("300", true),
+          ]),
       },
       prisma: {
         gameExternalId: {
@@ -175,7 +180,9 @@ describe("SteamImportService", () => {
   it("resolves a vanity profile URL through Steam", async () => {
     const { service } = build();
     const fetchMock = mockFetchByUrl({
-      ResolveVanityURL: { response: { success: 1, steamid: "76561190000000000" } },
+      ResolveVanityURL: {
+        response: { success: 1, steamid: "76561190000000000" },
+      },
       GetOwnedGames: { response: { game_count: 0, games: [] } },
     });
 
@@ -194,9 +201,9 @@ describe("SteamImportService", () => {
   it("throws a clear error when the profile is private", async () => {
     const { service } = build();
     mockFetchByUrl({ GetOwnedGames: { response: {} } });
-    await expect(
-      service.preview("user1", "76561197960287930"),
-    ).rejects.toThrow(/public/i);
+    await expect(service.preview("user1", "76561197960287930")).rejects.toThrow(
+      /public/i,
+    );
   });
 
   it("commit persists chosen games and skips adult titles for non-opted-in users", async () => {
@@ -231,6 +238,8 @@ describe("SteamImportService", () => {
           gameItemId: "gi-100",
           status: "PLAYING",
           playtimeMinutes: 600,
+          ownershipStatus: "DIGITAL",
+          ownershipSource: "Steam",
         }),
       }),
     );

@@ -19,34 +19,47 @@ function summary(over: Partial<BookSummaryDto> = {}): BookSummaryDto {
 }
 
 describe("StoryGraphImportService", () => {
-  function setup(overrides: {
-    resolve?: jest.Mock;
-    getDetails?: jest.Mock;
-    inLibraryRefs?: { source: string; externalId: string; bookItemId: string }[];
-    ownedEntries?: { bookItemId: string }[];
-  } = {}) {
+  function setup(
+    overrides: {
+      resolve?: jest.Mock;
+      getDetails?: jest.Mock;
+      inLibraryRefs?: {
+        source: string;
+        externalId: string;
+        bookItemId: string;
+      }[];
+      ownedEntries?: { bookItemId: string }[];
+      /** Null (default) simulates a first-time import; non-null simulates a re-run. */
+      existingEntry?: { id: string } | null;
+    } = {},
+  ) {
     const getDetails = overrides.getDetails ?? jest.fn();
     const bookItemService = {
       resolve: overrides.resolve ?? jest.fn().mockResolvedValue(null),
       providerFor: jest.fn().mockReturnValue({ getDetails }),
       persistDetails: jest.fn().mockResolvedValue({ id: "item-1" }),
     };
-    const upsert = jest.fn().mockResolvedValue({});
+    const upsert = jest.fn().mockResolvedValue({ id: "entry-1" });
+    const createMany = jest.fn().mockResolvedValue({ count: 0 });
     const prisma = {
       bookExternalId: {
         findMany: jest.fn().mockResolvedValue(overrides.inLibraryRefs ?? []),
       },
       bookEntry: {
         findMany: jest.fn().mockResolvedValue(overrides.ownedEntries ?? []),
+        findUnique: jest
+          .fn()
+          .mockResolvedValue(overrides.existingEntry ?? null),
         upsert,
       },
+      bookReplay: { createMany },
     };
 
     const service = new StoryGraphImportService(
       prisma as unknown as PrismaService,
       bookItemService as unknown as BookItemService,
     );
-    return { service, bookItemService, upsert };
+    return { service, bookItemService, upsert, createMany };
   }
 
   it("resolves each row and reports the unmatched ones", async () => {
@@ -76,12 +89,15 @@ describe("StoryGraphImportService", () => {
       ["GOOGLE_BOOKS", "G-2"],
     ]);
     expect(preview.unmatched).toEqual(["Nowhere"]);
-    // The ISBN row keeps its mapped reading metadata.
+    // The ISBN row keeps its mapped reading metadata, including ownership
+    // (paperback + owned → PHYSICAL) and the read count (1).
     expect(preview.matched[0]).toMatchObject({
       csvTitle: "Résister",
       status: "READ",
       rating: 8,
       finishedAt: "2025-03-31T00:00:00.000Z",
+      ownershipStatus: "PHYSICAL",
+      readCount: 1,
     });
   });
 
@@ -89,7 +105,9 @@ describe("StoryGraphImportService", () => {
     const { service } = setup({
       resolve: jest
         .fn()
-        .mockResolvedValue(summary({ source: "GOOGLE_BOOKS", sourceId: "G-DUP" })),
+        .mockResolvedValue(
+          summary({ source: "GOOGLE_BOOKS", sourceId: "G-DUP" }),
+        ),
       inLibraryRefs: [
         { source: "GOOGLE_BOOKS", externalId: "G-DUP", bookItemId: "item-dup" },
       ],
@@ -125,6 +143,8 @@ describe("StoryGraphImportService", () => {
         notes: "loved it",
         startedAt: "2025-02-01T00:00:00.000Z",
         finishedAt: "2025-03-31T00:00:00.000Z",
+        ownershipStatus: "PHYSICAL",
+        readCount: 1,
       },
     ]);
 
@@ -136,7 +156,81 @@ describe("StoryGraphImportService", () => {
       rating: 8,
       notes: "loved it",
       currentPage: 320, // Finished + known length → full progress.
+      ownershipStatus: "PHYSICAL",
     });
     expect(data.finishedAt).toEqual(new Date("2025-03-31T00:00:00.000Z"));
+  });
+
+  it("backfills replays from the read count on a first-time import", async () => {
+    const getDetails = jest.fn().mockResolvedValue({
+      summary: summary({ source: "GOOGLE_BOOKS", sourceId: "G-1" }),
+      overview: null,
+      genres: [],
+      pageCount: 320,
+      releaseDate: null,
+      externalIds: [{ source: "GOOGLE_BOOKS", externalId: "G-1" }],
+    });
+    const { service, createMany } = setup({
+      getDetails,
+      existingEntry: null,
+    });
+
+    await service.commit("user-1", [
+      {
+        source: "GOOGLE_BOOKS",
+        sourceId: "G-1",
+        status: "READ",
+        rating: null,
+        notes: null,
+        startedAt: null,
+        finishedAt: "2025-03-31T00:00:00.000Z",
+        ownershipStatus: "NONE",
+        readCount: 3,
+      },
+    ]);
+
+    expect(createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          bookEntryId: "entry-1",
+          finishedAt: new Date("2025-03-31T00:00:00.000Z"),
+        },
+        {
+          bookEntryId: "entry-1",
+          finishedAt: new Date("2025-03-31T00:00:00.000Z"),
+        },
+      ],
+    });
+  });
+
+  it("does not backfill replays when the entry already exists", async () => {
+    const getDetails = jest.fn().mockResolvedValue({
+      summary: summary({ source: "GOOGLE_BOOKS", sourceId: "G-1" }),
+      overview: null,
+      genres: [],
+      pageCount: 320,
+      releaseDate: null,
+      externalIds: [{ source: "GOOGLE_BOOKS", externalId: "G-1" }],
+    });
+    const { service, createMany } = setup({
+      getDetails,
+      existingEntry: { id: "entry-1" },
+    });
+
+    await service.commit("user-1", [
+      {
+        source: "GOOGLE_BOOKS",
+        sourceId: "G-1",
+        status: "READ",
+        rating: null,
+        notes: null,
+        startedAt: null,
+        finishedAt: "2025-03-31T00:00:00.000Z",
+        ownershipStatus: "NONE",
+        readCount: 3,
+      },
+    ]);
+
+    expect(createMany).not.toHaveBeenCalled();
   });
 });

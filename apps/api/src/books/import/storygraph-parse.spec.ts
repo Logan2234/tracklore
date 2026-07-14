@@ -25,7 +25,38 @@ describe("parseStoryGraphCsv", () => {
       notes: "Great read",
       startedAt: "2025-02-01T00:00:00.000Z",
       finishedAt: "2025-03-31T00:00:00.000Z",
+      ownershipStatus: "PHYSICAL",
+      readCount: 1,
     });
+  });
+
+  it("derives ownership from Format + Owned?, and reads the read count", () => {
+    const rows = parseStoryGraphCsv(
+      csv(
+        // Owned paperback → PHYSICAL.
+        'A,X,"",,paperback,to-read,2025/01/01,"","",0,"",,,,,,,,"","","","",Yes',
+        // Owned digital → DIGITAL.
+        'B,X,"",,digital,to-read,2025/01/01,"","",0,"",,,,,,,,"","","","",Yes',
+        // Owned audiobook → AUDIO.
+        'C,X,"",,audiobook,to-read,2025/01/01,"","",0,"",,,,,,,,"","","","",Yes',
+        // Not owned → BORROWED regardless of format.
+        'D,X,"",,hardcover,to-read,2025/01/01,"","",0,"",,,,,,,,"","","","",No',
+        // Unknown format, owned → NONE.
+        'E,X,"",,,to-read,2025/01/01,"","",0,"",,,,,,,,"","","","",Yes',
+        // Reread three times.
+        'F,X,"",,paperback,read,2025/01/01,"","",3,"",,,,,,,,"","","","",Yes',
+      ),
+    );
+
+    expect(rows.map((r) => r.ownershipStatus)).toEqual([
+      "PHYSICAL",
+      "DIGITAL",
+      "AUDIO",
+      "BORROWED",
+      "NONE",
+      "PHYSICAL",
+    ]);
+    expect(rows.map((r) => r.readCount)).toEqual([0, 0, 0, 0, 0, 3]);
   });
 
   it("maps every StoryGraph read status and doubles quarter-star ratings", () => {
@@ -59,7 +90,9 @@ describe("parseStoryGraphCsv", () => {
 
   it("skips rows without a title", () => {
     const rows = parseStoryGraphCsv(
-      csv(',X,"",,digital,to-read,2025/01/01,"","",0,"",,,,,,,,"","","","",Yes'),
+      csv(
+        ',X,"",,digital,to-read,2025/01/01,"","",0,"",,,,,,,,"","","","",Yes',
+      ),
     );
     expect(rows).toHaveLength(0);
   });
