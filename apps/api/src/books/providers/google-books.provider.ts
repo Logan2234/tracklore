@@ -85,6 +85,7 @@ export class GoogleBooksProvider implements BookCatalogProvider {
 
   async getDetails(sourceId: string): Promise<ProviderBookDetails> {
     let volume: GoogleVolume;
+
     try {
       volume = await this.get<GoogleVolume>(`/${encodeURIComponent(sourceId)}`);
     } catch {
@@ -145,7 +146,10 @@ export class GoogleBooksProvider implements BookCatalogProvider {
     const sep = path.includes("?") ? "&" : "?";
     const url = `${API_URL}${path}${sep}key=${key}`;
 
-    let response = await fetch(url, { headers: { Accept: "application/json" } });
+    let response = await fetch(url, {
+      headers: { Accept: "application/json" },
+    });
+
     if (response.status >= 500) {
       response = await fetch(url, { headers: { Accept: "application/json" } });
     }
