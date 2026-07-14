@@ -8,7 +8,7 @@ import { JwtService } from "@nestjs/jwt";
 import type { User } from "@prisma/client";
 import type { AuthTokensDto, SessionDto, UserDto } from "@tracklore/shared";
 import * as bcrypt from "bcryptjs";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { PrismaService } from "../prisma/prisma.service";
 import { randomUsernameSuffix, slugifyUsername } from "../users/username.util";
 import type { JwtPayload } from "./decorators/current-user.decorator";
@@ -17,6 +17,7 @@ import { RegisterDto } from "./dto/register.dto";
 
 const ACCESS_TOKEN_TTL = "15m";
 const REFRESH_TOKEN_TTL_DAYS = 30;
+const RESET_TOKEN_TTL_MINUTES = 60;
 export const BCRYPT_ROUNDS = 12;
 
 export interface AuthResult {
@@ -145,6 +146,59 @@ export class AuthService {
     await this.prisma.refreshToken.deleteMany({
       where: { userId, jti: { not: exceptJti } },
     });
+  }
+
+  /**
+   * Generates a fresh reset token for the account, invalidating any previous
+   * one. Returns null without erroring when the email doesn't match an
+   * account, so the controller's response shape doesn't leak which emails
+   * are registered.
+   */
+  async requestPasswordReset(email: string): Promise<string | null> {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) return null;
+
+    const token = randomBytes(32).toString("hex");
+    await this.prisma.$transaction([
+      this.prisma.passwordResetToken.deleteMany({
+        where: { userId: user.id },
+      }),
+      this.prisma.passwordResetToken.create({
+        data: {
+          userId: user.id,
+          tokenHash: hashToken(token),
+          expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MINUTES * 60_000),
+        },
+      }),
+    ]);
+    return token;
+  }
+
+  /**
+   * Consumes a reset token: sets the new password and revokes every existing
+   * session (the password may have been reset because it leaked).
+   */
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const stored = await this.prisma.passwordResetToken.findUnique({
+      where: { tokenHash: hashToken(token) },
+    });
+
+    if (!stored || stored.expiresAt < new Date()) {
+      throw new UnauthorizedException("Invalid or expired reset token");
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: stored.userId },
+        data: { passwordHash: await bcrypt.hash(newPassword, BCRYPT_ROUNDS) },
+      }),
+      this.prisma.passwordResetToken.deleteMany({
+        where: { userId: stored.userId },
+      }),
+      this.prisma.refreshToken.deleteMany({
+        where: { userId: stored.userId },
+      }),
+    ]);
   }
 
   /** Slugifies `seed` into a username, appending a random suffix on collision. */

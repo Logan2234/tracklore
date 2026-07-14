@@ -146,6 +146,8 @@ export class LibraryService {
           dto.finishedAt === undefined
             ? undefined
             : toDateOrNull(dto.finishedAt),
+        ownershipStatus: dto.ownershipStatus,
+        ownershipSource: dto.ownershipSource,
       },
       include: ENTRY_INCLUDE,
     });
@@ -218,14 +220,12 @@ export class LibraryService {
         userId,
         episodeId,
         watchedAt: dto.watchedAt ? new Date(dto.watchedAt) : undefined,
-        rating: dto.rating,
       },
     });
     return {
       id: watch.id,
       episodeId: watch.episodeId,
       watchedAt: watch.watchedAt.toISOString(),
-      rating: watch.rating,
     };
   }
 
@@ -419,46 +419,6 @@ export class LibraryService {
     await this.prisma.episodeWatch.delete({ where: { id: latest.id } });
   }
 
-  async deleteWatch(userId: string, watchId: string): Promise<void> {
-    const watch = await this.prisma.episodeWatch.findUnique({
-      where: { id: watchId },
-    });
-
-    if (!watch) {
-      throw new NotFoundException("Watch not found");
-    }
-
-    if (watch.userId !== userId) {
-      throw new ForbiddenException("This watch belongs to another user");
-    }
-
-    await this.prisma.episodeWatch.delete({ where: { id: watchId } });
-  }
-
-  /** Set (or clear, with null) the rating of a single viewing. */
-  async rateWatch(
-    userId: string,
-    watchId: string,
-    rating: number | null,
-  ): Promise<void> {
-    const watch = await this.prisma.episodeWatch.findUnique({
-      where: { id: watchId },
-    });
-
-    if (!watch) {
-      throw new NotFoundException("Watch not found");
-    }
-
-    if (watch.userId !== userId) {
-      throw new ForbiddenException("This watch belongs to another user");
-    }
-
-    await this.prisma.episodeWatch.update({
-      where: { id: watchId },
-      data: { rating },
-    });
-  }
-
   private async assertEntryOwnership(
     userId: string,
     entryId: string,
@@ -570,6 +530,8 @@ export class LibraryService {
       createdAt: entry.createdAt.toISOString(),
       lastWatchedAt: lastWatchedAt?.toISOString() ?? null,
       progress,
+      ownershipStatus: entry.ownershipStatus,
+      ownershipSource: entry.ownershipSource,
     };
   }
 
@@ -674,7 +636,7 @@ export class LibraryService {
             watches: {
               where: { userId },
               orderBy: { watchedAt: "desc" },
-              select: { id: true, watchedAt: true, rating: true },
+              select: { id: true, watchedAt: true },
             },
           },
         },
@@ -722,7 +684,6 @@ export class LibraryService {
             id: w.id,
             episodeId: episode.id,
             watchedAt: w.watchedAt.toISOString(),
-            rating: w.rating,
           })),
         })),
       })),

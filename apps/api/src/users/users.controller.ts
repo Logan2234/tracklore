@@ -118,7 +118,6 @@ export class UsersController {
           episodeNumber: watch.episode.number,
           episodeTitle: watch.episode.title,
           watchedAt: watch.watchedAt.toISOString(),
-          rating: watch.rating,
         };
       }),
     };

@@ -7,26 +7,32 @@ import type {
   GameEntry,
   GameExternalId,
   GameItem,
+  GameReplay,
   Prisma,
 } from "@prisma/client";
 import type {
   GameDetailDto,
   GameEntryDto,
   GameItemDto,
+  GameReplayDto,
   GameSource,
   GameStatsDto,
   GameStatus,
 } from "@tracklore/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { AgeGateService } from "../users/age-gate.service";
+import { filterAdultContent } from "../users/age.util";
 import { GameItemService } from "./game-item.service";
 import { aggregateGameStats } from "./game-stats.util";
+import { AddGameReplayDto } from "./dto/add-game-replay.dto";
 import { UpdateGameEntryDto } from "./dto/update-game-entry.dto";
 import { UpsertGameEntryDto } from "./dto/upsert-game-entry.dto";
 
-// Entries always need the game + its external IDs (canonical sourceId).
+// Entries always need the game + its external IDs (canonical sourceId), plus
+// its replay history, most recent first.
 const ENTRY_INCLUDE = {
   gameItem: { include: { externalIds: true } },
+  replays: { orderBy: { finishedAt: "desc" } },
 } satisfies Prisma.GameEntryInclude;
 
 type EntryWithGame = Prisma.GameEntryGetPayload<{
@@ -109,6 +115,8 @@ export class GameLibraryService {
           dto.finishedAt === undefined
             ? undefined
             : toDateOrNull(dto.finishedAt),
+        ownershipStatus: dto.ownershipStatus,
+        ownershipSource: dto.ownershipSource,
       },
       include: ENTRY_INCLUDE,
     });
@@ -119,6 +127,45 @@ export class GameLibraryService {
   async deleteEntry(userId: string, entryId: string): Promise<void> {
     await this.assertEntryOwnership(userId, entryId);
     await this.prisma.gameEntry.delete({ where: { id: entryId } });
+  }
+
+  /** Log a completed replay (a completion beyond the entry's first one). */
+  async addReplay(
+    userId: string,
+    entryId: string,
+    dto: AddGameReplayDto,
+  ): Promise<GameEntryDto> {
+    await this.assertEntryOwnership(userId, entryId);
+
+    await this.prisma.gameReplay.create({
+      data: {
+        gameEntryId: entryId,
+        finishedAt: dto.finishedAt ? new Date(dto.finishedAt) : undefined,
+      },
+    });
+
+    const entry = await this.prisma.gameEntry.findUniqueOrThrow({
+      where: { id: entryId },
+      include: ENTRY_INCLUDE,
+    });
+    return toEntryDto(entry);
+  }
+
+  async deleteReplay(userId: string, replayId: string): Promise<void> {
+    const replay = await this.prisma.gameReplay.findUnique({
+      where: { id: replayId },
+      include: { gameEntry: true },
+    });
+
+    if (!replay) {
+      throw new NotFoundException("Replay not found");
+    }
+
+    if (replay.gameEntry.userId !== userId) {
+      throw new ForbiddenException("This replay belongs to another user");
+    }
+
+    await this.prisma.gameReplay.delete({ where: { id: replayId } });
   }
 
   /** Aggregated stats for the user's game library. */
@@ -154,12 +201,18 @@ export class GameLibraryService {
     sourceId: string,
   ): Promise<GameDetailDto> {
     const details = await this.gameItemService.getLiveDetails(source, sourceId);
+    const allowAdult = await this.ageGate.allowsAdultContent(userId);
 
-    if (details.isAdult && !(await this.ageGate.allowsAdultContent(userId))) {
+    if (details.isAdult && !allowAdult) {
       throw new ForbiddenException(
         "This title is restricted to accounts with adult content enabled",
       );
     }
+    details.similarGames = filterAdultContent(details.similarGames, allowAdult);
+    details.franchiseGames = filterAdultContent(
+      details.franchiseGames,
+      allowAdult,
+    );
 
     const ref = await this.prisma.gameExternalId.findUnique({
       where: { source_externalId: { source, externalId: sourceId } },
@@ -222,7 +275,14 @@ function toEntryDto(entry: EntryWithGame): GameEntryDto {
     startedAt: entry.startedAt?.toISOString() ?? null,
     finishedAt: entry.finishedAt?.toISOString() ?? null,
     createdAt: entry.createdAt.toISOString(),
+    replays: entry.replays.map(toReplayDto),
+    ownershipStatus: entry.ownershipStatus,
+    ownershipSource: entry.ownershipSource,
   };
+}
+
+function toReplayDto(replay: GameReplay): GameReplayDto {
+  return { id: replay.id, finishedAt: replay.finishedAt.toISOString() };
 }
 
 function toDateOrNull(value: string | null): Date | null {

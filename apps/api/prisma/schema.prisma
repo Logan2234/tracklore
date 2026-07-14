@@ -55,6 +55,18 @@ enum EntryStatus {
   UP_TO_DATE
 }
 
+// How the user holds a movie/series/anime, if at all. NONE (default) means
+// unset — most entries never get this filled in. DIGITAL/STREAMING carry a
+// free-form `ownershipSource` (e.g. "Netflix", "Apple TV"); PHYSICAL/BORROWED
+// don't need one.
+enum MediaOwnershipStatus {
+  NONE
+  PHYSICAL
+  DIGITAL
+  STREAMING
+  BORROWED
+}
+
 // Source a game's catalogue data comes from. IGDB is the only one we fetch
 // from today; RAWG is reserved so the multi-source seam exists before it lands.
 enum GameSource {
@@ -71,10 +83,20 @@ enum GameStatus {
   DROPPED
 }
 
-// Source a book's catalogue data comes from. OPENLIBRARY is the only one we
-// fetch from today (keyless); GOOGLE_BOOKS is reserved for the multi-source seam.
+// How the user holds a game, if at all. NONE (default) means unset. DIGITAL
+// carries a free-form `ownershipSource` (e.g. "Steam"), SUBSCRIPTION too (e.g.
+// "Xbox Game Pass"); PHYSICAL/BORROWED don't need one.
+enum GameOwnershipStatus {
+  NONE
+  PHYSICAL
+  DIGITAL
+  SUBSCRIPTION
+  BORROWED
+}
+
+// Source a book's catalogue data comes from. Google Books only — Open Library
+// was dropped in favour of a single, more reliable data source.
 enum BookSource {
-  OPENLIBRARY
   GOOGLE_BOOKS
 }
 
@@ -85,6 +107,17 @@ enum BookStatus {
   READING
   READ
   DROPPED
+}
+
+// How the user holds a book, if at all. NONE (default) means unset. DIGITAL
+// carries a free-form `ownershipSource` (e.g. "Kindle"), AUDIO too (e.g.
+// "Audible"); PHYSICAL/BORROWED don't need one.
+enum BookOwnershipStatus {
+  NONE
+  PHYSICAL
+  DIGITAL
+  AUDIO
+  BORROWED
 }
 
 model User {
@@ -113,13 +146,14 @@ model User {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  entries           LibraryEntry[]
-  episodeWatches    EpisodeWatch[]
-  refreshTokens     RefreshToken[]
-  notifications     Notification[]
-  pushSubscriptions PushSubscription[]
-  gameEntries       GameEntry[]
-  bookEntries       BookEntry[]
+  entries             LibraryEntry[]
+  episodeWatches      EpisodeWatch[]
+  refreshTokens       RefreshToken[]
+  notifications       Notification[]
+  pushSubscriptions   PushSubscription[]
+  gameEntries         GameEntry[]
+  bookEntries         BookEntry[]
+  passwordResetTokens PasswordResetToken[]
 }
 
 // One row per browser/device push subscription (Web Push). endpoint is the
@@ -181,6 +215,22 @@ model RefreshToken {
   // Bumped on every rotation — the session's "last active" timestamp.
   lastUsedAt DateTime @default(now())
   createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// One reset request per row; a fresh request invalidates the previous one (see
+// AuthService.requestPasswordReset). No email delivery (self-hosted, P1
+// scope) — the raw token is handed back in the API response for the user to
+// open directly.
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -254,18 +304,21 @@ model Episode {
 }
 
 model LibraryEntry {
-  id          String      @id @default(cuid())
-  userId      String
-  mediaItemId String
-  status      EntryStatus @default(PLANNED)
+  id              String               @id @default(cuid())
+  userId          String
+  mediaItemId     String
+  status          EntryStatus          @default(PLANNED)
   // 0–10, half-points allowed.
-  rating      Float?
-  notes       String?
-  favorite    Boolean     @default(false)
-  startedAt   DateTime?
-  finishedAt  DateTime?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  rating          Float?
+  notes           String?
+  favorite        Boolean              @default(false)
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  ownershipStatus MediaOwnershipStatus @default(NONE)
+  // Free-form detail for DIGITAL/STREAMING (e.g. "Netflix"); null otherwise.
+  ownershipSource String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
 
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   mediaItem MediaItem @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
@@ -279,8 +332,6 @@ model EpisodeWatch {
   userId    String
   episodeId String
   watchedAt DateTime @default(now())
-  // Per-episode rating (TV Time has these); optional.
-  rating    Float?
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   episode Episode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
@@ -325,26 +376,42 @@ model GameExternalId {
 }
 
 model GameEntry {
-  id         String     @id @default(cuid())
-  userId     String
-  gameItemId String
-  status     GameStatus @default(BACKLOG)
+  id              String              @id @default(cuid())
+  userId          String
+  gameItemId      String
+  status          GameStatus          @default(BACKLOG)
   // 0–10, half-points allowed.
-  rating     Float?
-  notes      String?
-  favorite   Boolean    @default(false)
+  rating          Float?
+  notes           String?
+  favorite        Boolean             @default(false)
   // Total time played, in minutes. Imported from Steam (playtime_forever);
   // manually editable. No session history yet — this is the running total.
-  playtimeMinutes Int    @default(0)
-  startedAt  DateTime?
-  finishedAt DateTime?
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  playtimeMinutes Int                 @default(0)
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  ownershipStatus GameOwnershipStatus @default(NONE)
+  // Free-form detail for DIGITAL/SUBSCRIPTION (e.g. "Steam"); null otherwise.
+  ownershipSource String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  gameItem GameItem @relation(fields: [gameItemId], references: [id], onDelete: Cascade)
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gameItem GameItem     @relation(fields: [gameItemId], references: [id], onDelete: Cascade)
+  replays  GameReplay[]
 
   @@unique([userId, gameItemId])
+}
+
+// One row per completed replay, beyond the entry's own first completion —
+// mirrors EpisodeWatch's minimalism (a single "when" per viewing/completion).
+model GameReplay {
+  id          String   @id @default(cuid())
+  gameEntryId String
+  finishedAt  DateTime @default(now())
+
+  gameEntry GameEntry @relation(fields: [gameEntryId], references: [id], onDelete: Cascade)
+
+  @@index([gameEntryId])
 }
 
 // On-demand cache for books, mirroring GameItem: a book exists here only once
@@ -383,23 +450,39 @@ model BookExternalId {
 }
 
 model BookEntry {
-  id         String     @id @default(cuid())
-  userId     String
-  bookItemId String
-  status     BookStatus @default(TO_READ)
+  id              String              @id @default(cuid())
+  userId          String
+  bookItemId      String
+  status          BookStatus          @default(TO_READ)
   // 0–10, half-points allowed.
-  rating     Float?
-  notes      String?
-  favorite   Boolean    @default(false)
+  rating          Float?
+  notes           String?
+  favorite        Boolean             @default(false)
   // Current reading position, in pages. No session history — running position.
-  currentPage Int       @default(0)
-  startedAt  DateTime?
-  finishedAt DateTime?
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  currentPage     Int                 @default(0)
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  ownershipStatus BookOwnershipStatus @default(NONE)
+  // Free-form detail for DIGITAL/AUDIO (e.g. "Kindle"); null otherwise.
+  ownershipSource String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bookItem BookItem @relation(fields: [bookItemId], references: [id], onDelete: Cascade)
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookItem BookItem     @relation(fields: [bookItemId], references: [id], onDelete: Cascade)
+  replays  BookReplay[]
 
   @@unique([userId, bookItemId])
+}
+
+// One row per completed reread, beyond the entry's own first completion —
+// mirrors EpisodeWatch's minimalism (a single "when" per viewing/completion).
+model BookReplay {
+  id          String   @id @default(cuid())
+  bookEntryId String
+  finishedAt  DateTime @default(now())
+
+  bookEntry BookEntry @relation(fields: [bookEntryId], references: [id], onDelete: Cascade)
+
+  @@index([bookEntryId])
 }

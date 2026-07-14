@@ -448,27 +448,14 @@ describe("Tracklore API (e2e)", () => {
       episodeNumber: 2,
     });
 
-    // The media detail exposes each viewing (date + rating); rate one of them.
+    // The media detail exposes each viewing's date.
     const detail = await request(http)
       .get(`/api/media/anime/5555`)
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
     const firstEp = detail.body.seasons[0].episodes[0];
     expect(firstEp.watches).toHaveLength(1);
-    const watchId: string = firstEp.watches[0].id;
-    expect(firstEp.watches[0].rating).toBeNull();
-
-    await request(http)
-      .patch(`/api/library/watches/${watchId}`)
-      .set("Authorization", `Bearer ${accessToken}`)
-      .send({ rating: 8 })
-      .expect(204);
-
-    const rated = await request(http)
-      .get(`/api/media/anime/5555`)
-      .set("Authorization", `Bearer ${accessToken}`)
-      .expect(200);
-    expect(rated.body.seasons[0].episodes[0].watches[0].rating).toBe(8);
+    expect(firstEp.watches[0].watchedAt).toBeDefined();
   });
 
   it("notifications: scan and feed respond", async () => {

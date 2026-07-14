@@ -275,7 +275,7 @@
         class="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
         {#each readingBooks as e (e.id)}
           <a
-            href={`/books/${e.book.canonicalSource}/${e.book.sourceId}`}
+            href={`/books/${e.book.sourceId}`}
             class="w-32 shrink-0 snap-start sm:w-36">
             <div
               class="card overflow-hidden transition-[border-color] hover:border-accent">

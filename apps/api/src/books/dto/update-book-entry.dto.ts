@@ -1,4 +1,5 @@
 import {
+  BookOwnershipStatus,
   BookStatus,
   UpdateBookEntryDto as UpdateBookEntryContract,
 } from "@tracklore/shared";
@@ -47,4 +48,13 @@ export class UpdateBookEntryDto implements UpdateBookEntryContract {
   @IsOptional()
   @IsDateString()
   finishedAt?: string | null;
+
+  @IsOptional()
+  @IsIn(Object.values(BookOwnershipStatus))
+  ownershipStatus?: BookOwnershipStatus;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  ownershipSource?: string | null;
 }

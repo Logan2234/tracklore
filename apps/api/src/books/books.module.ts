@@ -6,7 +6,6 @@ import { BooksController } from "./books.controller";
 import { StoryGraphImportController } from "./import/storygraph-import.controller";
 import { StoryGraphImportService } from "./import/storygraph-import.service";
 import { GoogleBooksProvider } from "./providers/google-books.provider";
-import { OpenLibraryProvider } from "./providers/openlibrary.provider";
 
 @Module({
   imports: [UsersModule],
@@ -15,7 +14,6 @@ import { OpenLibraryProvider } from "./providers/openlibrary.provider";
     BookItemService,
     BookLibraryService,
     GoogleBooksProvider,
-    OpenLibraryProvider,
     StoryGraphImportService,
   ],
 })

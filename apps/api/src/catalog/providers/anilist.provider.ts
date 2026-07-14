@@ -184,8 +184,17 @@ export class AnilistProvider implements CatalogProvider {
         .filter((m): m is AnilistMedia => m !== null)
         .map((m) => this.toSummary(m)),
       ratings: media?.averageScore
-        ? [{ source: "AniList", score: `${media.averageScore}%` }]
+        ? [
+            {
+              source: "AniList",
+              score: `${media.averageScore}%`,
+              url: `https://anilist.co/anime/${sourceId}`,
+            },
+          ]
         : [],
+      // AniList exposes no screenshot gallery beyond the poster/banner already
+      // shown on the page.
+      images: [],
     };
   }
 

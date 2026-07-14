@@ -1,14 +1,11 @@
 <script lang="ts">
-  import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import {
     ApiError,
     deleteLibraryEntry,
-    deleteWatch,
     getCastDetail,
     getMediaDetail,
     getMediaExtras,
-    rateWatch,
     unwatchEpisode,
     updateLibraryEntry,
     upsertLibraryEntry,
@@ -16,8 +13,17 @@
     watchSeason,
     watchThrough,
   } from "$lib/api/client";
+  import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
   import Icon from "$lib/components/Icon.svelte";
+  import Lightbox from "$lib/components/Lightbox.svelte";
+  import NoteField from "$lib/components/NoteField.svelte";
+  import OwnershipField from "$lib/components/OwnershipField.svelte";
   import Poster from "$lib/components/Poster.svelte";
+  import RatingPips from "$lib/components/RatingPips.svelte";
+  import {
+    MEDIA_OWNERSHIP_SOURCES,
+    MEDIA_OWNERSHIP_STATUS_OPTIONS,
+  } from "$lib/ownership-sources";
   import type {
     CastDetailDto,
     CastMemberDto,
@@ -49,6 +55,15 @@
     DROPPED: { label: "Abandonné", cls: "border border-danger text-danger" },
   };
 
+  // Surfaced as a tooltip on the status badge, so each state's meaning is clear.
+  const STATUS_DESC: Record<EntryStatus, string> = {
+    PLANNED: "Dans ta liste, pas encore commencé.",
+    WATCHING: "Tu regardes ce titre en ce moment.",
+    UP_TO_DATE: "Tu as vu tous les épisodes disponibles ; en attente de nouveaux.",
+    COMPLETED: "Tu as terminé ce titre.",
+    DROPPED: "Tu as arrêté et ne comptes pas le reprendre.",
+  };
+
   // Brand-ish colors per rating source (no official logos — those are
   // trademarked). Literal classes so Tailwind picks them up.
   const RATING_STYLES: Record<string, string> = {
@@ -62,8 +77,6 @@
   let error = $state<string | null>(null);
   let busyEpisodeId = $state<string | null>(null);
   let busySeasonId = $state<string | null>(null);
-  // Episode whose watch history (dates + ratings) is expanded, by id.
-  let openHistory = $state<string | null>(null);
 
   const dateFmt = new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
@@ -75,6 +88,33 @@
     null,
   );
   let saving = $state(false);
+  let confirmRemove = $state(false);
+  let removing = $state(false);
+
+  // Poster + backdrop + extras' backdrop gallery (TMDB only), deduped, for the
+  // lightbox carousel.
+  const galleryImages = $derived.by(() => {
+    if (!detail) return [];
+    const urls: string[] = [];
+    if (detail.posterUrl) urls.push(detail.posterUrl);
+    if (detail.backdropUrl && !urls.includes(detail.backdropUrl)) {
+      urls.push(detail.backdropUrl);
+    }
+    for (const img of extras?.images ?? []) {
+      if (!urls.includes(img)) urls.push(img);
+    }
+    return urls.map((src) => ({ src, alt: detail!.title }));
+  });
+
+  let lightboxOpen = $state(false);
+  let lightboxIndex = $state(0);
+
+  function openLightbox(url: string | null) {
+    if (!url) return;
+    const i = galleryImages.findIndex((img) => img.src === url);
+    lightboxIndex = i >= 0 ? i : 0;
+    lightboxOpen = true;
+  }
 
   const seasonWatched = (season: MediaDetailSeasonDto) =>
     season.episodes.length > 0 &&
@@ -119,6 +159,7 @@
     const i = id;
     if (!t || !i) return;
     error = null;
+    detail = null; // Clear stale content so the loader shows on navigation.
     getMediaDetail(t, i)
       .then((result) => (detail = result))
       .catch((err) => {
@@ -271,32 +312,6 @@
     }
   }
 
-  async function setRating(watchId: string, raw: string) {
-    error = null;
-    try {
-      await rateWatch(watchId, raw === "" ? null : Number(raw));
-      await reload();
-    } catch (err) {
-      error =
-        err instanceof ApiError
-          ? err.message
-          : "Impossible d'enregistrer la note";
-    }
-  }
-
-  async function removeWatch(watchId: string) {
-    error = null;
-    try {
-      await deleteWatch(watchId);
-      await reload();
-    } catch (err) {
-      error =
-        err instanceof ApiError
-          ? err.message
-          : "Impossible de supprimer le visionnage";
-    }
-  }
-
   const seasonWatchedCount = (season: MediaDetailSeasonDto) =>
     season.episodes.filter((e) => e.watchCount > 0).length;
 
@@ -362,15 +377,19 @@
     }
   }
 
-  async function removeEntry() {
-    if (
-      !detail ||
-      !entry ||
-      !confirm(`Retirer « ${detail.title} » de ta bibliothèque ?`)
-    )
-      return;
-    await deleteLibraryEntry(entry.id);
-    await goto("/media");
+  async function doRemove() {
+    if (!entry) return;
+    removing = true;
+    error = null;
+    try {
+      await deleteLibraryEntry(entry.id);
+      confirmRemove = false;
+      await reload(); // Entry becomes null → the page returns to the "add" state.
+    } catch (err) {
+      error = err instanceof ApiError ? err.message : "Suppression impossible";
+    } finally {
+      removing = false;
+    }
   }
 </script>
 
@@ -390,10 +409,16 @@
   <!-- Hero: real backdrop, gradient fallback fading into the page. -->
   <div class="relative">
     {#if detail.backdropUrl}
-      <img
-        src={detail.backdropUrl}
-        alt=""
-        class="h-44 w-full object-cover md:h-60" />
+      <button
+        type="button"
+        class="block w-full cursor-zoom-in"
+        aria-label="Agrandir l'image"
+        onclick={() => openLightbox(detail?.backdropUrl ?? null)}>
+        <img
+          src={detail.backdropUrl}
+          alt=""
+          class="h-44 w-full object-cover md:h-60" />
+      </button>
     {:else}
       <div
         class="h-44 w-full bg-linear-to-br from-surface-2 to-surface md:h-60">
@@ -413,10 +438,15 @@
        context here it would paint over the poster pulled up into it. -->
   <div class="relative z-10 mx-auto max-w-4xl px-4 pb-6 md:px-8 md:pb-10">
     <div class="-mt-24 flex flex-col gap-5 sm:flex-row sm:items-end md:-mt-28">
-      <div
-        class="w-32 shrink-0 overflow-hidden rounded-xl border border-border shadow-lg md:w-44">
+      <button
+        type="button"
+        class="w-32 shrink-0 overflow-hidden rounded-xl border border-border shadow-lg md:w-44 {detail.posterUrl
+          ? 'cursor-zoom-in'
+          : ''}"
+        aria-label="Agrandir l'image"
+        onclick={() => openLightbox(detail?.posterUrl ?? null)}>
         <Poster src={detail.posterUrl} title={detail.title} />
-      </div>
+      </button>
 
       <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-center gap-2">
@@ -426,6 +456,7 @@
           </span>
           {#if entry}
             <span
+              title={STATUS_DESC[entry.status]}
               class="rounded-full px-2.5 py-0.5 text-xs font-bold {STATUS_META[
                 entry.status
               ].cls}">
@@ -433,20 +464,11 @@
             </span>
             {#if dormant}
               <span
+                title="Série en cours laissée de côté depuis plus de 30 jours."
                 class="rounded-full border border-border px-2.5 py-0.5 text-xs font-bold text-dim">
-                🌙 En sommeil
+                ⏸ En pause
               </span>
             {/if}
-          {/if}
-          {#if entry?.rating}
-            <span
-              class="inline-flex items-center gap-1.5 rounded-md bg-accent px-2 py-0.5 font-display text-sm font-bold text-accent-fg">
-              <span
-                class="font-mono text-[0.5rem] font-bold tracking-widest opacity-75">
-                NOTE
-              </span>
-              {entry.rating}
-            </span>
           {/if}
         </div>
         <h1
@@ -502,7 +524,7 @@
             class="btn btn-primary mt-3"
             disabled={busyEpisodeId === next.episodeId}
             onclick={() => markWatched(next.episodeId)}>
-            ▶ Reprendre · S{String(next.seasonNumber).padStart(2, "0")}E{String(
+            ▶ Continuer · S{String(next.seasonNumber).padStart(2, "0")}E{String(
               next.episodeNumber,
             ).padStart(2, "0")}
           </button>
@@ -522,7 +544,32 @@
         </button>
       </div>
     {:else}
-      <div class="card mt-6 max-w-xl p-4">
+      <div
+        class="mt-6 flex max-w-xl flex-col gap-4 rounded-xl border border-border bg-surface p-4">
+        <!-- Block header: label + favourite pinned top-right. -->
+        <div class="flex items-center justify-between gap-2">
+          <span class="timecode text-[0.62rem] tracking-[0.18em] uppercase"
+            >Mon suivi</span>
+          <button
+            type="button"
+            aria-pressed={entry.favorite}
+            disabled={saving}
+            title={entry.favorite ? "Retirer des coups de cœur" : "Coup de cœur"}
+            aria-label={entry.favorite
+              ? "Retirer des coups de cœur"
+              : "Coup de cœur"}
+            onclick={() => patch({ favorite: !entry.favorite })}
+            class="rounded-full p-1.5 transition-colors disabled:opacity-50 {entry.favorite
+              ? 'text-accent'
+              : 'text-dim hover:bg-surface-2 hover:text-fg'}">
+            <Icon
+              name="star"
+              class="h-5 w-5 {entry.favorite ? 'fill-accent' : ''}" />
+          </button>
+        </div>
+
+        <!-- Status is derived server-side (shown as a badge in the hero); here
+             we only offer the state-changing actions it reacts to. -->
         <div class="flex flex-wrap items-center gap-2.5">
           {#if isMovie}
             <!-- Movies: a single seen/not-seen toggle stands in for progress. -->
@@ -558,57 +605,38 @@
               Abandonner
             </button>
           {/if}
-
-          <button
-            type="button"
-            class="rounded-lg p-2 text-dim transition-colors hover:bg-surface-2 hover:text-fg disabled:pointer-events-none disabled:opacity-50"
-            disabled={saving}
-            title={entry.favorite
-              ? "Retirer des favoris"
-              : "Ajouter aux favoris"}
-            aria-label={entry.favorite
-              ? "Retirer des favoris"
-              : "Ajouter aux favoris"}
-            aria-pressed={entry.favorite}
-            onclick={() => patch({ favorite: !entry.favorite })}>
-            <Icon
-              name="star"
-              class="h-5 w-5 {entry.favorite
-                ? 'fill-accent text-accent'
-                : ''}" />
-          </button>
-
-          <label class="ml-auto flex items-center gap-2 text-sm text-dim">
-            Note
-            <input
-              type="number"
-              min="0"
-              max="10"
-              step="0.5"
-              class="input w-20"
-              value={entry.rating ?? ""}
-              onchange={(e) => {
-                const raw = e.currentTarget.value;
-                void patch({ rating: raw === "" ? null : Number(raw) });
-              }} />
-          </label>
         </div>
 
-        <textarea
-          placeholder="Notes personnelles…"
-          rows="3"
-          class="input mt-3"
-          value={entry.notes ?? ""}
-          onchange={(e) => {
-            const raw = e.currentTarget.value;
-            void patch({ notes: raw === "" ? null : raw });
-          }}></textarea>
+        <hr class="border-border" />
 
-        <div class="mt-3 border-t border-border pt-3">
+        <RatingPips
+          value={entry.rating}
+          onChange={(v) => patch({ rating: v })} />
+
+        <NoteField
+          value={entry.notes}
+          placeholder="Une réplique, un souvenir…"
+          onChange={(v) => patch({ notes: v })} />
+
+        <hr class="border-border" />
+
+        <OwnershipField
+          status={entry.ownershipStatus}
+          source={entry.ownershipSource}
+          statusOptions={MEDIA_OWNERSHIP_STATUS_OPTIONS}
+          sourceOptionsByStatus={MEDIA_OWNERSHIP_SOURCES}
+          onChange={(status, source) =>
+            patch({
+              ownershipStatus: status as typeof entry.ownershipStatus,
+              ownershipSource: source,
+            })} />
+
+        <div class="flex justify-end">
           <button
-            class="btn btn-danger"
+            type="button"
+            class="text-sm font-medium text-dim underline-offset-4 transition-colors hover:text-danger hover:underline disabled:opacity-50"
             disabled={saving}
-            onclick={removeEntry}>
+            onclick={() => (confirmRemove = true)}>
             Retirer de ma bibliothèque
           </button>
         </div>
@@ -687,7 +715,6 @@
             <ul>
               {#each season.episodes as episode (episode.number)}
                 {@const watched = episode.watchCount > 0}
-                {@const historyOpen = openHistory === episode.id}
                 <li class="border-b border-border last:border-b-0">
                   <div class="flex items-center gap-3 px-4 py-2.5">
                     <span class="timecode w-14 shrink-0 text-sm">
@@ -702,15 +729,11 @@
                       {/if}
                     </span>
                     {#if watched && episode.id}
-                      <!-- Toggles the watch history (dates + ratings). -->
-                      <button
-                        class="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-success hover:underline"
-                        aria-expanded={historyOpen}
-                        onclick={() =>
-                          (openHistory = historyOpen ? null : episode.id)}>
+                      <span
+                        class="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-success">
                         <Icon name="check" class="h-4 w-4" />
                         {dateFmt.format(new Date(episode.watches[0].watchedAt))}
-                      </button>
+                      </span>
                     {/if}
                     {#if entry && episode.id}
                       {@const upcoming =
@@ -754,39 +777,6 @@
                       {/if}
                     {/if}
                   </div>
-
-                  {#if historyOpen && watched}
-                    <!-- Watch history: one row per viewing (date · rating · delete). -->
-                    <ul
-                      class="flex flex-col gap-1.5 border-t border-border bg-surface-2/40 px-4 py-2.5 pl-[4.5rem]">
-                      {#each episode.watches as w (w.id)}
-                        <li class="flex items-center gap-3 text-xs">
-                          <span class="flex-1 text-dim">
-                            {dateFmt.format(new Date(w.watchedAt))}
-                          </span>
-                          <label class="flex items-center gap-1.5">
-                            <span class="text-dim">Note</span>
-                            <input
-                              type="number"
-                              min="0"
-                              max="10"
-                              step="0.5"
-                              placeholder="—"
-                              class="input h-7 w-16 px-2 py-0 text-xs"
-                              value={w.rating ?? ""}
-                              onchange={(e) =>
-                                setRating(w.id, e.currentTarget.value)} />
-                          </label>
-                          <button
-                            class="text-dim hover:text-danger"
-                            aria-label="Supprimer ce visionnage"
-                            onclick={() => removeWatch(w.id)}>
-                            Supprimer
-                          </button>
-                        </li>
-                      {/each}
-                    </ul>
-                  {/if}
                 </li>
               {/each}
             </ul>
@@ -797,8 +787,8 @@
 
     {#snippet castCard(c: CastMemberDto, clickable: boolean)}
       <div
-        class="aspect-2/3 w-full overflow-hidden rounded-lg bg-surface-2 {clickable
-          ? 'ring-accent transition group-hover:ring-2'
+        class="aspect-2/3 w-full overflow-hidden rounded-lg border border-transparent bg-surface-2 {clickable
+          ? 'transition-colors group-hover:border-accent'
           : ''}">
         {#if c.photoUrl}
           <img
@@ -851,8 +841,7 @@
             <a
               href={`/media/${s.type.toLowerCase()}/${s.sourceId}`}
               class="w-28 shrink-0 snap-start sm:w-32">
-              <div
-                class="card ring-accent overflow-hidden transition-shadow hover:ring-2">
+              <div class="card transition-colors hover:border-accent">
                 <Poster src={s.posterUrl} title={s.title} />
               </div>
               <p class="mt-1.5 truncate text-xs font-semibold">{s.title}</p>
@@ -1000,6 +989,24 @@
         {/if}
       </div>
     </div>
+  {/if}
+
+  {#if confirmRemove}
+    <ConfirmationModal
+      title="Retirer de ma bibliothèque"
+      message={`Retirer « ${detail.title} » de ta bibliothèque ? Ta progression, tes visionnages et ta note seront supprimés.`}
+      confirmLabel="Retirer"
+      danger
+      busy={removing}
+      onConfirm={doRemove}
+      onCancel={() => (confirmRemove = false)} />
+  {/if}
+
+  {#if lightboxOpen}
+    <Lightbox
+      images={galleryImages}
+      bind:index={lightboxIndex}
+      onClose={() => (lightboxOpen = false)} />
   {/if}
 {:else if !error}
   <div class="mx-auto max-w-4xl px-4 py-6 md:px-8">

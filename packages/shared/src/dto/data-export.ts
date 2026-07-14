@@ -28,7 +28,6 @@ export interface DataExportWatch {
   episodeNumber: number;
   episodeTitle: string | null;
   watchedAt: string;
-  rating: number | null;
 }
 
 /** Full portable dump of everything the account holds (GDPR "download my data"). */

@@ -81,6 +81,24 @@ export interface DeleteAccountRequestDto {
   currentPassword: string;
 }
 
+export interface ForgotPasswordRequestDto {
+  email: string;
+}
+
+export interface ForgotPasswordResponseDto {
+  /**
+   * The raw reset token, handed back directly since there is no email
+   * delivery (self-hosted, single-user). Null when no account matches the
+   * email, without otherwise distinguishing the response.
+   */
+  token: string | null;
+}
+
+export interface ResetPasswordRequestDto {
+  token: string;
+  newPassword: string;
+}
+
 /** One active refresh-token session, i.e. one signed-in device. */
 export interface SessionDto {
   id: string;

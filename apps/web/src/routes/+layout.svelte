@@ -23,7 +23,12 @@
     browser ? localStorage.getItem("tl-rail") === "open" : false,
   );
 
-  const PUBLIC_ROUTES = ["/login", "/register"];
+  const PUBLIC_ROUTES = [
+    "/login",
+    "/register",
+    "/forgot-password",
+    "/reset-password",
+  ];
 
   type NavItem = {
     href: string;

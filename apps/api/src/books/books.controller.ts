@@ -8,6 +8,7 @@ import {
   HttpStatus,
   Param,
   Patch,
+  Post,
   Put,
   Query,
 } from "@nestjs/common";
@@ -25,6 +26,7 @@ import type { JwtPayload } from "../auth/decorators/current-user.decorator";
 import { DomainGateService } from "../users/domain-gate.service";
 import { BookItemService } from "./book-item.service";
 import { BookLibraryService } from "./book-library.service";
+import { AddBookReplayDto } from "./dto/add-book-replay.dto";
 import { UpdateBookEntryDto } from "./dto/update-book-entry.dto";
 import { UpsertBookEntryDto } from "./dto/upsert-book-entry.dto";
 
@@ -36,7 +38,7 @@ export class BooksController {
     private readonly domainGate: DomainGateService,
   ) {}
 
-  /** Live catalogue search (Google Books, falling back to Open Library). */
+  /** Live catalogue search (Google Books). */
   @Get("search")
   async search(
     @CurrentUser() user: JwtPayload,
@@ -102,6 +104,25 @@ export class BooksController {
     await this.bookLibraryService.deleteEntry(user.sub, entryId);
   }
 
+  /** Log a completed reread (a completion beyond the entry's first one). */
+  @Post("entries/:id/replays")
+  addReplay(
+    @CurrentUser() user: JwtPayload,
+    @Param("id") entryId: string,
+    @Body() dto: AddBookReplayDto,
+  ): Promise<BookEntryDto> {
+    return this.bookLibraryService.addReplay(user.sub, entryId, dto);
+  }
+
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Delete("replays/:id")
+  async deleteReplay(
+    @CurrentUser() user: JwtPayload,
+    @Param("id") replayId: string,
+  ): Promise<void> {
+    await this.bookLibraryService.deleteReplay(user.sub, replayId);
+  }
+
   /** Book detail page: catalogue metadata + the user's library state. */
   @Get(":source/:sourceId")
   getBookDetail(
@@ -120,7 +141,7 @@ export class BooksController {
 function parseBookSource(value: string): BookSource {
   const upper = value.toUpperCase();
 
-  if (upper !== BookSource.OPENLIBRARY && upper !== BookSource.GOOGLE_BOOKS) {
+  if (upper !== BookSource.GOOGLE_BOOKS) {
     throw new BadRequestException(`Unknown book source '${value}'`);
   }
 

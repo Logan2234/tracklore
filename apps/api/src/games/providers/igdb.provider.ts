@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import type { RatingDto } from "@tracklore/shared";
 import { GameSource, GameSummaryDto } from "@tracklore/shared";
 import type {
   GameCatalogProvider,
@@ -38,6 +39,17 @@ interface IgdbWebsite {
   type?: number;
 }
 
+interface IgdbInvolvedCompany {
+  company?: IgdbNamed;
+  developer?: boolean;
+  publisher?: boolean;
+}
+
+interface IgdbFranchise {
+  name: string;
+  games?: IgdbGame[];
+}
+
 interface IgdbGame {
   id: number;
   name: string;
@@ -45,11 +57,28 @@ interface IgdbGame {
   first_release_date?: number; // Unix seconds.
   cover?: IgdbImage;
   artworks?: IgdbImage[];
+  screenshots?: IgdbImage[];
   genres?: IgdbNamed[];
   platforms?: IgdbNamed[];
   themes?: number[];
   websites?: IgdbWebsite[];
+  similar_games?: IgdbGame[];
+  involved_companies?: IgdbInvolvedCompany[];
+  game_modes?: IgdbNamed[];
+  player_perspectives?: IgdbNamed[];
+  franchises?: IgdbFranchise[];
+  // Both 0–100. `rating` is IGDB's own user-submitted score; `aggregated_rating`
+  // is IGDB's aggregate of external critic reviews.
+  rating?: number;
+  aggregated_rating?: number;
 }
+
+// IGDB computes this list itself (genre/theme/franchise co-occurrence); it can
+// run long, so the detail page only shows the top handful.
+const MAX_SIMILAR_GAMES = 10;
+
+// Capped so the lightbox gallery stays a quick browse, not an endless scroll.
+const MAX_SCREENSHOTS = 12;
 
 interface TwitchToken {
   access_token: string;
@@ -85,7 +114,12 @@ export class IgdbProvider implements GameCatalogProvider {
   }
 
   private static readonly DETAIL_FIELDS =
-    "name, summary, first_release_date, cover.image_id, artworks.image_id, genres.name, platforms.name, themes, websites.url, websites.category, websites.type";
+    "name, summary, first_release_date, cover.image_id, artworks.image_id, screenshots.image_id, genres.name, platforms.name, themes, websites.url, websites.category, websites.type, " +
+    "similar_games.name, similar_games.cover.image_id, similar_games.first_release_date, similar_games.themes, " +
+    "involved_companies.company.name, involved_companies.developer, involved_companies.publisher, " +
+    "game_modes.name, player_perspectives.name, " +
+    "franchises.name, franchises.games.name, franchises.games.cover.image_id, franchises.games.first_release_date, franchises.games.themes, " +
+    "rating, aggregated_rating";
 
   async getDetails(sourceId: string): Promise<ProviderGameDetails> {
     const games = await this.query<IgdbGame[]>(
@@ -151,6 +185,9 @@ export class IgdbProvider implements GameCatalogProvider {
       backdropUrl: game.artworks?.[0]
         ? `${IMG}/t_1080p/${game.artworks[0].image_id}.jpg`
         : null,
+      screenshots: (game.screenshots ?? [])
+        .slice(0, MAX_SCREENSHOTS)
+        .map((s) => `${IMG}/t_1080p/${s.image_id}.jpg`),
       genres: game.genres?.map((g) => g.name) ?? [],
       platforms: game.platforms?.map((p) => p.name) ?? [],
       releaseDate: game.first_release_date
@@ -159,8 +196,38 @@ export class IgdbProvider implements GameCatalogProvider {
       website:
         game.websites?.find((w) => w.category === 1 || w.type === 1)?.url ??
         null,
+      similarGames: (game.similar_games ?? [])
+        .slice(0, MAX_SIMILAR_GAMES)
+        .map((g) => this.toSummary(g)),
+      developers: uniqueCompanyNames(game.involved_companies, "developer"),
+      publishers: uniqueCompanyNames(game.involved_companies, "publisher"),
+      gameModes: game.game_modes?.map((m) => m.name) ?? [],
+      playerPerspectives: game.player_perspectives?.map((p) => p.name) ?? [],
+      franchiseGames: this.franchiseGames(game),
+      ratings: toRatings(game),
       externalIds: [{ source: GameSource.IGDB, externalId: String(game.id) }],
     };
+  }
+
+  /**
+   * Games from the same franchise(s), across all franchises the game belongs
+   * to, excluding itself and de-duplicated (a game can appear in more than
+   * one franchise's list). Uncapped — franchise rosters are small enough
+   * (tens of entries at most) that showing all of them is cheap.
+   */
+  private franchiseGames(game: IgdbGame): GameSummaryDto[] {
+    const seen = new Set<number>([game.id]);
+    const games: GameSummaryDto[] = [];
+
+    for (const franchise of game.franchises ?? []) {
+      for (const mate of franchise.games ?? []) {
+        if (seen.has(mate.id)) continue;
+        seen.add(mate.id);
+        games.push(this.toSummary(mate));
+      }
+    }
+
+    return games;
   }
 
   private toSummary(game: IgdbGame): GameSummaryDto {
@@ -231,6 +298,32 @@ export class IgdbProvider implements GameCatalogProvider {
     };
     return this.token.value;
   }
+}
+
+/** IGDB's own user rating + critic aggregate (both 0–100), when present. */
+function toRatings(game: IgdbGame): RatingDto[] {
+  const ratings: RatingDto[] = [];
+  if (game.rating != null) {
+    ratings.push({ source: "IGDB", score: `${Math.round(game.rating)}%` });
+  }
+  if (game.aggregated_rating != null) {
+    ratings.push({
+      source: "Critiques",
+      score: `${Math.round(game.aggregated_rating)}%`,
+    });
+  }
+  return ratings;
+}
+
+/** Distinct company names with the given role (developer/publisher), in order. */
+function uniqueCompanyNames(
+  companies: IgdbInvolvedCompany[] | undefined,
+  role: "developer" | "publisher",
+): string[] {
+  const names = (companies ?? [])
+    .filter((c) => c[role] && c.company?.name)
+    .map((c) => c.company!.name);
+  return [...new Set(names)];
 }
 
 /** Split an array into consecutive slices of at most `size` items. */

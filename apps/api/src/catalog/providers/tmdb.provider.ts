@@ -100,7 +100,11 @@ interface TmdbExtras {
   recommendations?: { results?: (TmdbMovieResult | TmdbTvResult)[] };
   "watch/providers"?: { results?: Record<string, TmdbWatchRegion> };
   external_ids?: { imdb_id?: string | null };
+  images?: { backdrops?: { file_path: string }[] };
 }
+
+// Capped so the lightbox gallery stays a quick browse, not an endless scroll.
+const MAX_GALLERY_IMAGES = 12;
 
 /** One entry of a person's `combined_credits.cast` (movie or TV role). */
 type TmdbCreditItem = (TmdbMovieResult | TmdbTvResult) & {
@@ -251,7 +255,10 @@ export class TmdbProvider implements CatalogProvider {
     const path = type === MediaType.MOVIE ? "movie" : "tv";
     const data = await this.get<TmdbExtras>(`/${path}/${sourceId}`, {
       append_to_response:
-        "credits,recommendations,watch/providers,external_ids",
+        "credits,recommendations,watch/providers,external_ids,images",
+      // TMDB's /images endpoint defaults to the request's language, filtering
+      // out most backdrops; an empty language keeps the full (unfiltered) set.
+      include_image_language: "null",
     });
 
     // IMDb / Rotten Tomatoes / Metacritic from OMDb (via the IMDb id).
@@ -285,6 +292,9 @@ export class TmdbProvider implements CatalogProvider {
         .slice(0, 12)
         .map((r) => summarize(r as TmdbMovieResult & TmdbTvResult)),
       ratings,
+      images: (data.images?.backdrops ?? [])
+        .slice(0, MAX_GALLERY_IMAGES)
+        .map((b) => `${IMG}/w1280${b.file_path}`),
     };
   }
 

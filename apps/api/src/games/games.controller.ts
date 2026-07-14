@@ -8,6 +8,7 @@ import {
   HttpStatus,
   Param,
   Patch,
+  Post,
   Put,
   Query,
 } from "@nestjs/common";
@@ -27,6 +28,7 @@ import { DomainGateService } from "../users/domain-gate.service";
 import { filterAdultContent } from "../users/age.util";
 import { GameItemService } from "./game-item.service";
 import { GameLibraryService } from "./game-library.service";
+import { AddGameReplayDto } from "./dto/add-game-replay.dto";
 import { UpdateGameEntryDto } from "./dto/update-game-entry.dto";
 import { UpsertGameEntryDto } from "./dto/upsert-game-entry.dto";
 
@@ -109,6 +111,25 @@ export class GamesController {
     @Param("id") entryId: string,
   ): Promise<void> {
     await this.gameLibraryService.deleteEntry(user.sub, entryId);
+  }
+
+  /** Log a completed replay (a completion beyond the entry's first one). */
+  @Post("entries/:id/replays")
+  addReplay(
+    @CurrentUser() user: JwtPayload,
+    @Param("id") entryId: string,
+    @Body() dto: AddGameReplayDto,
+  ): Promise<GameEntryDto> {
+    return this.gameLibraryService.addReplay(user.sub, entryId, dto);
+  }
+
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Delete("replays/:id")
+  async deleteReplay(
+    @CurrentUser() user: JwtPayload,
+    @Param("id") replayId: string,
+  ): Promise<void> {
+    await this.gameLibraryService.deleteReplay(user.sub, replayId);
   }
 
   /** Game detail page: catalogue metadata + the user's library state. */

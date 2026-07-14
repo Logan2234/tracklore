@@ -126,12 +126,12 @@
     {#each results as book (book.sourceId)}
       {@const entry = tracked.get(book.sourceId)}
       <div class="card group flex flex-col">
-        <a href={`/books/${book.source}/${book.sourceId}`} class="block">
+        <a href={`/books/${book.sourceId}`} class="block">
           <Poster src={book.coverUrl} title={book.title} />
         </a>
         <div class="flex flex-1 flex-col gap-2 p-3">
           <a
-            href={`/books/${book.source}/${book.sourceId}`}
+            href={`/books/${book.sourceId}`}
             class="font-display text-sm leading-tight font-semibold group-hover:text-accent">
             {book.title}
           </a>
