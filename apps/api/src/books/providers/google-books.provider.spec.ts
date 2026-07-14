@@ -97,8 +97,25 @@ describe("GoogleBooksProvider", () => {
         authors: ["J.R.R. Tolkien"],
         year: 1937,
         coverUrl: "https://books.google.com/cover1",
+        isAdult: false,
       },
     ]);
+  });
+
+  it("flags a MATURE maturityRating as an adult title", async () => {
+    mockFetch({
+      totalItems: 1,
+      items: [
+        {
+          id: "vol1",
+          volumeInfo: { title: "Adult Read", maturityRating: "MATURE" },
+        },
+      ],
+    });
+
+    const results = await providerWith("k").search("adult");
+
+    expect(results[0].isAdult).toBe(true);
   });
 
   it("resolves a single volume by ISBN, or null when none", async () => {
@@ -143,6 +160,7 @@ describe("GoogleBooksProvider", () => {
         authors: ["J.R.R. Tolkien"],
         year: 1937,
         coverUrl: "https://books.google.com/cover1",
+        isAdult: false,
       },
       overview: "A hobbit goes on an adventure.",
       subtitle: "There and Back Again",

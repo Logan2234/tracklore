@@ -9,5 +9,6 @@ import { PushService } from "./push.service";
   imports: [MailModule],
   controllers: [NotificationController],
   providers: [NotificationService, PushService],
+  exports: [PushService],
 })
 export class NotificationModule {}

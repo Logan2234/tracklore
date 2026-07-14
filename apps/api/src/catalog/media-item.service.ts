@@ -110,9 +110,10 @@ export class MediaItemService {
   ): Promise<MediaItem> {
     const existingRef = await this.prisma.mediaExternalId.findUnique({
       where: {
-        source_externalId: {
+        source_externalId_type: {
           source: source,
           externalId: sourceId,
+          type: type,
         },
       },
       include: { mediaItem: true },
@@ -127,7 +128,7 @@ export class MediaItemService {
 
     const details = await this.providerFor(source).getDetails(sourceId, type);
     return existingRef
-      ? this.refresh(existingRef.mediaItemId, details)
+      ? this.refresh(existingRef.mediaItemId, type, details)
       : this.createFresh(source, type, details);
   }
 
@@ -145,6 +146,7 @@ export class MediaItemService {
           create: details.externalIds.map((ext) => ({
             source: ext.source,
             externalId: ext.externalId,
+            type,
           })),
         },
         seasons: {
@@ -166,6 +168,7 @@ export class MediaItemService {
 
   private async refresh(
     mediaItemId: string,
+    type: MediaType,
     details: ProviderMediaDetails,
   ): Promise<MediaItem> {
     const item = await this.prisma.mediaItem.update({
@@ -176,9 +179,10 @@ export class MediaItemService {
     for (const ext of details.externalIds) {
       await this.prisma.mediaExternalId.upsert({
         where: {
-          source_externalId: {
+          source_externalId_type: {
             source: ext.source,
             externalId: ext.externalId,
+            type,
           },
         },
         update: { mediaItemId },
@@ -186,6 +190,7 @@ export class MediaItemService {
           mediaItemId,
           source: ext.source,
           externalId: ext.externalId,
+          type,
         },
       });
     }

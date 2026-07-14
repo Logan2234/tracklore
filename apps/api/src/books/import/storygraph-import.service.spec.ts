@@ -2,6 +2,7 @@ import type { BookSummaryDto } from "@tracklore/shared";
 import { StoryGraphImportService } from "./storygraph-import.service";
 import type { BookItemService } from "../book-item.service";
 import type { PrismaService } from "../../prisma/prisma.service";
+import type { AgeGateService } from "../../users/age-gate.service";
 
 const HEADER =
   "Title,Authors,Contributors,ISBN/UID,Format,Read Status,Date Added,Last Date Read,Dates Read,Read Count,Moods,Pace,Character- or Plot-Driven?,Strong Character Development?,Loveable Characters?,Diverse Characters?,Flawed Characters?,Star Rating,Review,Content Warnings,Content Warning Description,Tags,Owned?";
@@ -14,6 +15,7 @@ function summary(over: Partial<BookSummaryDto> = {}): BookSummaryDto {
     authors: ["Someone"],
     year: 2000,
     coverUrl: null,
+    isAdult: false,
     ...over,
   };
 }
@@ -34,6 +36,8 @@ describe("StoryGraphImportService", () => {
       ownedEntries?: { bookItemId: string }[];
       /** Null (default) simulates a first-time import; non-null simulates a re-run. */
       existingEntry?: { id: string } | null;
+      /** Whether the account may see 18+ titles (default: yes). */
+      allowAdult?: boolean;
     } = {},
   ) {
     const getDetails = overrides.getDetails ?? jest.fn();
@@ -61,9 +65,16 @@ describe("StoryGraphImportService", () => {
       bookReplay: { createMany },
     };
 
+    const ageGate = {
+      allowsAdultContent: jest
+        .fn()
+        .mockResolvedValue(overrides.allowAdult ?? true),
+    };
+
     const service = new StoryGraphImportService(
       prisma as unknown as PrismaService,
       bookItemService as unknown as BookItemService,
+      ageGate as unknown as AgeGateService,
     );
     return { service, bookItemService, upsert, createMany };
   }
@@ -265,6 +276,58 @@ describe("StoryGraphImportService", () => {
         },
       ],
     });
+  });
+
+  it("skips adult titles in the preview when the account is not opted in", async () => {
+    const resolveByIsbns = jest.fn().mockResolvedValue({
+      matches: new Map([
+        [
+          "9782228937597",
+          summary({ sourceId: "G-ADULT", title: "Adult", isAdult: true }),
+        ],
+      ]),
+      failedIsbns: [],
+    });
+    const { service } = setup({ resolveByIsbns, allowAdult: false });
+
+    const csv = [
+      HEADER,
+      'Adult,Author,"",9782228937597,paperback,read,2025/07/23,"","",0,"",,,,,,,,"","","","",Yes',
+    ].join("\n");
+
+    const preview = await service.preview("user-1", csv);
+    // Neither offered for import nor reported as "unmatched" — just skipped.
+    expect(preview.matched).toHaveLength(0);
+    expect(preview.unmatched).toHaveLength(0);
+  });
+
+  it("skips adult titles on commit even if the client sends their ids", async () => {
+    const getDetails = jest.fn().mockResolvedValue({
+      summary: summary({ sourceId: "G-ADULT", isAdult: true }),
+      overview: null,
+      genres: [],
+      pageCount: 320,
+      releaseDate: null,
+      externalIds: [{ source: "GOOGLE_BOOKS", externalId: "G-ADULT" }],
+    });
+    const { service, upsert } = setup({ getDetails, allowAdult: false });
+
+    const result = await service.commit("user-1", [
+      {
+        source: "GOOGLE_BOOKS",
+        sourceId: "G-ADULT",
+        status: "READ",
+        rating: null,
+        notes: null,
+        startedAt: null,
+        finishedAt: null,
+        ownershipStatus: "NONE",
+        readCount: 1,
+      },
+    ]);
+
+    expect(result.imported).toBe(0);
+    expect(upsert).not.toHaveBeenCalled();
   });
 
   it("does not backfill replays when the entry already exists", async () => {

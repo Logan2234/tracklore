@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { ApiError, login } from "$lib/api/client";
+  import PasswordInput from "$lib/components/PasswordInput.svelte";
 
   let identifier = $state("");
   let password = $state("");
@@ -39,12 +40,10 @@
         bind:value={identifier}
         required
         class="input" />
-      <input
-        type="password"
+      <PasswordInput
         placeholder="Mot de passe"
         bind:value={password}
-        required
-        class="input" />
+        required />
       <a
         href="/forgot-password"
         class="-mt-2 text-right text-sm text-dim hover:text-accent hover:underline"

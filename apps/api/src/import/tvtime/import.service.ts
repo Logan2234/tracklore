@@ -313,6 +313,7 @@ export class ImportService {
         userId,
         match.source,
         match.sourceId,
+        match.type,
         "PLANNED",
         show,
       );
@@ -358,6 +359,7 @@ export class ImportService {
       userId,
       match.source,
       match.sourceId,
+      match.type,
       status,
       show,
     );
@@ -454,14 +456,16 @@ export class ImportService {
     userId: string,
     source: CatalogSource,
     sourceId: string,
+    type: MediaType,
     status: EntryStatus,
     show: ImportShow,
   ): Promise<void> {
     const ref = await this.prisma.mediaExternalId.findUnique({
       where: {
-        source_externalId: {
+        source_externalId_type: {
           source: source as DbExternalSource,
           externalId: sourceId,
+          type,
         },
       },
     });

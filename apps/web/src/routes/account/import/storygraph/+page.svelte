@@ -89,6 +89,9 @@
       authors: row.book.authors,
       year: null,
       coverUrl: row.book.coverUrl,
+      // Matched rows are always non-adult: the server filters 18+ titles out
+      // of the preview for accounts without adult content enabled.
+      isAdult: false,
     };
   }
 

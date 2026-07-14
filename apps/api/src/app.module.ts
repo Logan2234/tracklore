@@ -3,6 +3,7 @@ import { ConfigModule } from "@nestjs/config";
 import { APP_GUARD } from "@nestjs/core";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { AdminModule } from "./admin/admin.module";
 import { AuthModule } from "./auth/auth.module";
 import { JwtAuthGuard } from "./auth/guards/jwt-auth.guard";
 import { BooksModule } from "./books/books.module";
@@ -26,6 +27,7 @@ import { UsersModule } from "./users/users.module";
     PrismaModule,
     MailModule,
     AuthModule,
+    AdminModule,
     UsersModule,
     CatalogModule,
     GamesModule,

@@ -1,21 +1,22 @@
 <script lang="ts">
-  import { Domain } from "@tracklore/shared";
   import { goto } from "$app/navigation";
   import {
     ApiError,
     changeEmail,
     changePassword,
     checkUsernameAvailable,
+    confirmEmailChange,
     logout,
-    sendTestPush,
     updateMe,
     updateUsername,
   } from "$lib/api/client";
   import { auth } from "$lib/auth.svelte";
-  import { disablePush, enablePush, isPushSupported } from "$lib/push";
-  import { theme } from "$lib/theme.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import Modal from "$lib/components/Modal.svelte";
+  import PasswordInput from "$lib/components/PasswordInput.svelte";
+  import { disablePush, enablePush, isPushSupported } from "$lib/push";
+  import { theme } from "$lib/theme.svelte";
+  import { Domain } from "@tracklore/shared";
 
   // Up to two initials from the display name, for the avatar placeholder.
   let initials = $derived(
@@ -162,22 +163,6 @@
     }
   }
 
-  let testPushStatus = $state<"idle" | "sending" | "sent">("idle");
-
-  async function testPush() {
-    if (testPushStatus === "sending") return;
-    notifyError = "";
-    testPushStatus = "sending";
-    try {
-      await sendTestPush();
-      testPushStatus = "sent";
-      setTimeout(() => (testPushStatus = "idle"), 3000);
-    } catch (err) {
-      testPushStatus = "idle";
-      notifyError = err instanceof ApiError ? err.message : "Envoi impossible";
-    }
-  }
-
   // Content domains the user composes the app from. Games/Books are still
   // placeholders (no screens yet), but the toggle already drives the nav.
   const DOMAINS: { id: Domain; label: string; desc: string; soon: boolean }[] =
@@ -286,11 +271,18 @@
   let emailPasswordInput = $state("");
   let emailError = $state("");
   let emailSaving = $state(false);
+  let emailStep: "form" | "code" = $state("form");
+  let emailCodeInput = $state("");
+  let emailConfirmError = $state("");
+  let emailConfirming = $state(false);
 
   function openEmailModal() {
-    emailInput = auth.user?.email ?? "";
+    emailInput = "";
     emailPasswordInput = "";
     emailError = "";
+    emailStep = "form";
+    emailCodeInput = "";
+    emailConfirmError = "";
     openModal = "email";
   }
 
@@ -302,12 +294,26 @@
         newEmail: emailInput.trim(),
         currentPassword: emailPasswordInput,
       });
-      openModal = null;
+      emailStep = "code";
     } catch (err) {
       emailError =
         err instanceof ApiError ? err.message : "Enregistrement impossible";
     } finally {
       emailSaving = false;
+    }
+  }
+
+  async function confirmEmail() {
+    emailConfirmError = "";
+    emailConfirming = true;
+    try {
+      await confirmEmailChange({ code: emailCodeInput.trim() });
+      openModal = null;
+    } catch (err) {
+      emailConfirmError =
+        err instanceof ApiError ? err.message : "Code invalide ou expiré";
+    } finally {
+      emailConfirming = false;
     }
   }
 
@@ -559,15 +565,9 @@
         </div>
         <div class="flex items-center justify-between gap-4 py-3">
           <div>
-            <p class="font-semibold">
-              Email
-              <span
-                class="ml-1.5 rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-semibold text-dim">
-                Bientôt
-              </span>
-            </p>
+            <p class="font-semibold">Email</p>
             <p class="text-sm text-dim">
-              On enverra ces notifications par email dès que ce sera disponible.
+              Alerte par email quand un épisode suivi sort.
             </p>
           </div>
           <button
@@ -596,20 +596,6 @@
             {pushBusy ? "…" : auth.user.notifyPush ? "Activé" : "Désactivé"}
           </button>
         </div>
-        {#if auth.user.notifyPush}
-          <div class="pb-1">
-            <button
-              class="chip"
-              disabled={testPushStatus === "sending"}
-              onclick={testPush}>
-              {testPushStatus === "sent"
-                ? "Envoyée ✓"
-                : testPushStatus === "sending"
-                  ? "Envoi…"
-                  : "Envoyer une notification test"}
-            </button>
-          </div>
-        {/if}
       </div>
       {#if notifyError}
         <p class="mt-2 text-sm text-danger">{notifyError}</p>
@@ -724,43 +710,89 @@
 
     {#if openModal === "email"}
       <Modal title="Changer l'email" onclose={closeModal}>
-        <form
-          class="flex flex-col gap-3"
-          onsubmit={(e) => {
-            e.preventDefault();
-            saveEmail();
-          }}>
-          <label class="block">
-            <span class="mb-1.5 block text-sm font-semibold">Nouvel email</span>
-            <input type="email" class="input" bind:value={emailInput} />
-          </label>
-          <label class="block">
-            <span class="mb-1.5 block text-sm font-semibold">
-              Mot de passe actuel
-            </span>
-            <input
-              type="password"
-              class="input"
-              autocomplete="current-password"
-              bind:value={emailPasswordInput} />
-          </label>
-          {#if emailError}
-            <p class="text-sm text-danger">{emailError}</p>
-          {/if}
-          <div class="mt-2 flex justify-end gap-2">
-            <button type="button" class="btn btn-ghost" onclick={closeModal}>
-              Annuler
-            </button>
-            <button
-              type="submit"
-              class="btn btn-primary"
-              disabled={emailSaving ||
-                !emailInput.trim() ||
-                !emailPasswordInput}>
-              {emailSaving ? "Enregistrement…" : "Enregistrer"}
-            </button>
-          </div>
-        </form>
+        {#if emailStep === "form"}
+          <form
+            class="flex flex-col gap-3"
+            onsubmit={(e) => {
+              e.preventDefault();
+              saveEmail();
+            }}>
+            <label class="block">
+              <span class="mb-1.5 block text-sm font-semibold"
+                >Nouvel email</span>
+              <input
+                type="email"
+                class="input"
+                placeholder={auth.user?.email}
+                bind:value={emailInput} />
+            </label>
+            <label class="block">
+              <span class="mb-1.5 block text-sm font-semibold">
+                Mot de passe actuel
+              </span>
+              <PasswordInput
+                autocomplete="current-password"
+                bind:value={emailPasswordInput} />
+            </label>
+            {#if emailError}
+              <p class="text-sm text-danger">{emailError}</p>
+            {/if}
+            <div class="mt-2 flex justify-end gap-2">
+              <button type="button" class="btn btn-ghost" onclick={closeModal}>
+                Annuler
+              </button>
+              <button
+                type="submit"
+                class="btn btn-primary"
+                disabled={emailSaving ||
+                  !emailInput.trim() ||
+                  !emailPasswordInput}>
+                {emailSaving ? "Enregistrement…" : "Enregistrer"}
+              </button>
+            </div>
+          </form>
+        {:else}
+          <form
+            class="flex flex-col gap-3"
+            onsubmit={(e) => {
+              e.preventDefault();
+              confirmEmail();
+            }}>
+            <p class="text-sm">
+              Un code de confirmation a été envoyé à <strong
+                >{emailInput}</strong
+              >.
+            </p>
+            <label class="block">
+              <span class="mb-1.5 block text-sm font-semibold">Code</span>
+              <input
+                type="text"
+                inputmode="numeric"
+                maxlength="6"
+                class="input"
+                placeholder="123456"
+                bind:value={emailCodeInput} />
+            </label>
+            {#if emailConfirmError}
+              <p class="text-sm text-danger">{emailConfirmError}</p>
+            {/if}
+            <div class="mt-2 flex justify-end gap-2">
+              <button
+                type="button"
+                class="btn btn-ghost"
+                onclick={() => (emailStep = "form")}>
+                Retour
+              </button>
+              <button
+                type="submit"
+                class="btn btn-primary"
+                disabled={emailConfirming ||
+                  emailCodeInput.trim().length !== 6}>
+                {emailConfirming ? "Vérification…" : "Confirmer"}
+              </button>
+            </div>
+          </form>
+        {/if}
       </Modal>
     {/if}
 
@@ -776,9 +808,7 @@
             <span class="mb-1.5 block text-sm font-semibold">
               Mot de passe actuel
             </span>
-            <input
-              type="password"
-              class="input"
+            <PasswordInput
               autocomplete="current-password"
               bind:value={currentPasswordInput} />
           </label>
@@ -786,20 +816,16 @@
             <span class="mb-1.5 block text-sm font-semibold">
               Nouveau mot de passe
             </span>
-            <input
-              type="password"
-              class="input"
+            <PasswordInput
               autocomplete="new-password"
-              minlength="8"
+              minlength={8}
               bind:value={newPasswordInput} />
           </label>
           <label class="block">
             <span class="mb-1.5 block text-sm font-semibold">
               Confirmer le nouveau mot de passe
             </span>
-            <input
-              type="password"
-              class="input"
+            <PasswordInput
               autocomplete="new-password"
               bind:value={confirmPasswordInput} />
           </label>

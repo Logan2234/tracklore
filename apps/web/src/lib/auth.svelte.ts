@@ -13,6 +13,11 @@ class AuthState {
     return this.user !== null;
   }
 
+  /** Whether the current user holds the `admin` entitlement (gates /admin). */
+  get isAdmin(): boolean {
+    return this.user?.entitlements.includes("admin") ?? false;
+  }
+
   /**
    * The `jti` of the current refresh token, read from its (unverified) payload.
    * Used to flag the current device in the sessions list. Null if unavailable.

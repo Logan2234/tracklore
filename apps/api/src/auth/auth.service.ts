@@ -9,6 +9,7 @@ import type { User } from "@prisma/client";
 import type { AuthTokensDto, SessionDto, UserDto } from "@tracklore/shared";
 import * as bcrypt from "bcryptjs";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { ADMIN_ENTITLEMENT } from "../admin/admin.guard";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { randomUsernameSuffix, slugifyUsername } from "../users/username.util";
@@ -55,9 +56,10 @@ export class AuthService {
     });
 
     const verifyToken = randomBytes(32).toString("hex");
-    await this.prisma.emailVerificationToken.create({
+    await this.prisma.userToken.create({
       data: {
         userId: user.id,
+        type: "EMAIL_VERIFICATION",
         tokenHash: hashToken(verifyToken),
         expiresAt: new Date(Date.now() + VERIFY_TOKEN_TTL_HOURS * 60 * 60_000),
       },
@@ -65,19 +67,24 @@ export class AuthService {
     await this.mail.sendWelcome(user.email, user.displayName);
     await this.mail.sendVerifyEmail(user.email, verifyToken);
 
+    const promoted = await this.ensureAdminEntitlement(user);
     return {
-      user: toUserDto(user),
-      tokens: await this.startSession(user, userAgent),
+      user: toUserDto(promoted),
+      tokens: await this.startSession(promoted, userAgent),
     };
   }
 
   /** Consumes an email-verification link. Informational only — nothing is gated on it. */
   async verifyEmail(token: string): Promise<void> {
-    const stored = await this.prisma.emailVerificationToken.findUnique({
+    const stored = await this.prisma.userToken.findUnique({
       where: { tokenHash: hashToken(token) },
     });
 
-    if (!stored || stored.expiresAt < new Date()) {
+    if (
+      !stored ||
+      stored.type !== "EMAIL_VERIFICATION" ||
+      stored.expiresAt < new Date()
+    ) {
       throw new UnauthorizedException("Invalid or expired verification token");
     }
 
@@ -86,8 +93,8 @@ export class AuthService {
         where: { id: stored.userId },
         data: { emailVerified: true },
       }),
-      this.prisma.emailVerificationToken.deleteMany({
-        where: { userId: stored.userId },
+      this.prisma.userToken.deleteMany({
+        where: { userId: stored.userId, type: "EMAIL_VERIFICATION" },
       }),
     ]);
   }
@@ -102,9 +109,10 @@ export class AuthService {
       throw new UnauthorizedException("Invalid credentials");
     }
 
+    const promoted = await this.ensureAdminEntitlement(user);
     return {
-      user: toUserDto(user),
-      tokens: await this.startSession(user, userAgent),
+      user: toUserDto(promoted),
+      tokens: await this.startSession(promoted, userAgent),
     };
   }
 
@@ -155,8 +163,17 @@ export class AuthService {
     });
   }
 
-  /** Every signed-in device for this user, most-recently-active first. */
+  /**
+   * Every signed-in device for this user, most-recently-active first.
+   * Expired tokens are dead (refresh() already rejects them) but were never
+   * removed, so they'd otherwise pile up here as phantom "connected" devices
+   * across app restarts — prune them first.
+   */
   async listSessions(userId: string): Promise<SessionDto[]> {
+    await this.prisma.refreshToken.deleteMany({
+      where: { userId, expiresAt: { lt: new Date() } },
+    });
+
     const sessions = await this.prisma.refreshToken.findMany({
       where: { userId },
       orderBy: { lastUsedAt: "desc" },
@@ -196,12 +213,13 @@ export class AuthService {
 
     const token = randomBytes(32).toString("hex");
     await this.prisma.$transaction([
-      this.prisma.passwordResetToken.deleteMany({
-        where: { userId: user.id },
+      this.prisma.userToken.deleteMany({
+        where: { userId: user.id, type: "PASSWORD_RESET" },
       }),
-      this.prisma.passwordResetToken.create({
+      this.prisma.userToken.create({
         data: {
           userId: user.id,
+          type: "PASSWORD_RESET",
           tokenHash: hashToken(token),
           expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MINUTES * 60_000),
         },
@@ -215,12 +233,16 @@ export class AuthService {
    * session (the password may have been reset because it leaked).
    */
   async resetPassword(token: string, newPassword: string): Promise<void> {
-    const stored = await this.prisma.passwordResetToken.findUnique({
+    const stored = await this.prisma.userToken.findUnique({
       where: { tokenHash: hashToken(token) },
       include: { user: true },
     });
 
-    if (!stored || stored.expiresAt < new Date()) {
+    if (
+      !stored ||
+      stored.type !== "PASSWORD_RESET" ||
+      stored.expiresAt < new Date()
+    ) {
       throw new UnauthorizedException("Invalid or expired reset token");
     }
 
@@ -229,14 +251,43 @@ export class AuthService {
         where: { id: stored.userId },
         data: { passwordHash: await bcrypt.hash(newPassword, BCRYPT_ROUNDS) },
       }),
-      this.prisma.passwordResetToken.deleteMany({
-        where: { userId: stored.userId },
+      this.prisma.userToken.deleteMany({
+        where: { userId: stored.userId, type: "PASSWORD_RESET" },
       }),
       this.prisma.refreshToken.deleteMany({
         where: { userId: stored.userId },
       }),
     ]);
     await this.mail.sendPasswordChanged(stored.user.email);
+  }
+
+  /**
+   * Self-host bootstrap: grants the `admin` entitlement to the account whose
+   * email matches `ADMIN_EMAIL`. Idempotent, and run on register *and* every
+   * login so it also promotes an account created before the env var was set.
+   * Hosted mode leaves `ADMIN_EMAIL` unset — there admin is granted per-account
+   * through the entitlements seam instead.
+   */
+  private async ensureAdminEntitlement(user: User): Promise<User> {
+    const adminEmail = this.configService.get<string>("ADMIN_EMAIL");
+    if (
+      !adminEmail ||
+      user.email.toLowerCase() !== adminEmail.toLowerCase()
+    ) {
+      return user;
+    }
+
+    const entitlements = Array.isArray(user.entitlements)
+      ? (user.entitlements as string[])
+      : [];
+    if (entitlements.includes(ADMIN_ENTITLEMENT)) {
+      return user;
+    }
+
+    return this.prisma.user.update({
+      where: { id: user.id },
+      data: { entitlements: [...entitlements, ADMIN_ENTITLEMENT] },
+    });
   }
 
   /** Slugifies `seed` into a username, appending a random suffix on collision. */
@@ -286,12 +337,21 @@ export class AuthService {
     return { accessToken, refreshToken, jti, expiresAt };
   }
 
-  /** Opens a new session (login/register): signs tokens and records the device. */
+  /**
+   * Opens a new session (login/register): signs tokens and records the device.
+   * Drops any existing session already recorded for the same device first —
+   * otherwise logging back in from the same browser after its old tokens went
+   * stale (cleared storage, app restart, ...) just piles up another row next
+   * to the dead one instead of replacing it.
+   */
   private async startSession(
     user: User,
     userAgent?: string,
   ): Promise<AuthTokensDto> {
     const signed = await this.signTokens(user);
+    await this.prisma.refreshToken.deleteMany({
+      where: { userId: user.id, userAgent: userAgent ?? null },
+    });
     await this.prisma.refreshToken.create({
       data: {
         userId: user.id,
@@ -308,7 +368,7 @@ export class AuthService {
   }
 }
 
-function hashToken(token: string): string {
+export function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 

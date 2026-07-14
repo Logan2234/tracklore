@@ -5,28 +5,43 @@
     src = null,
     title,
     class: cls = "",
-  }: { src?: string | null; title: string; class?: string } = $props();
+    adult = false,
+  }: {
+    src?: string | null;
+    title: string;
+    class?: string;
+    /** 18+ title — shows a small corner badge. */
+    adult?: boolean;
+  } = $props();
 
   const hue = $derived(
     [...title].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7),
   );
 </script>
 
-{#if src}
-  <img
-    {src}
-    alt={title}
-    loading="lazy"
-    class="aspect-2/3 w-full bg-surface-2 object-cover {cls}" />
-{:else}
-  <div
-    class="flex aspect-2/3 w-full items-end p-2 {cls}"
-    style="background: linear-gradient(150deg, hsl({hue} 32% 24%), hsl({(hue +
-      40) %
-      360} 34% 13%));">
+<div class="relative">
+  {#if src}
+    <img
+      {src}
+      alt={title}
+      loading="lazy"
+      class="aspect-2/3 w-full bg-surface-2 object-cover {cls}" />
+  {:else}
+    <div
+      class="flex aspect-2/3 w-full items-end p-2 {cls}"
+      style="background: linear-gradient(150deg, hsl({hue} 32% 24%), hsl({(hue +
+        40) %
+        360} 34% 13%));">
+      <span
+        class="line-clamp-3 font-display text-xs leading-tight font-bold text-white/90 [text-shadow:0_1px_3px_rgba(0,0,0,.6)]">
+        {title}
+      </span>
+    </div>
+  {/if}
+  {#if adult}
     <span
-      class="line-clamp-3 font-display text-xs leading-tight font-bold text-white/90 [text-shadow:0_1px_3px_rgba(0,0,0,.6)]">
-      {title}
+      class="absolute top-2 right-2 rounded-full bg-danger px-1.5 py-0.5 text-[0.6rem] font-black text-white shadow">
+      18+
     </span>
-  </div>
-{/if}
+  {/if}
+</div>

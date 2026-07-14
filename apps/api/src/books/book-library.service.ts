@@ -20,6 +20,8 @@ import type {
   BookStatus,
 } from "@tracklore/shared";
 import { PrismaService } from "../prisma/prisma.service";
+import { AgeGateService } from "../users/age-gate.service";
+import { filterAdultContent } from "../users/age.util";
 import { BookItemService } from "./book-item.service";
 import { aggregateBookStats } from "./book-stats.util";
 import { AddBookReplayDto } from "./dto/add-book-replay.dto";
@@ -42,6 +44,7 @@ export class BookLibraryService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly bookItemService: BookItemService,
+    private readonly ageGate: AgeGateService,
   ) {}
 
   /** First touch of a book persists it (on-demand cache), then upserts the entry. */
@@ -198,6 +201,18 @@ export class BookLibraryService {
     sourceId: string,
   ): Promise<BookDetailDto> {
     const details = await this.bookItemService.getLiveDetails(source, sourceId);
+    const allowAdult = await this.ageGate.allowsAdultContent(userId);
+
+    if (details.isAdult && !allowAdult) {
+      throw new ForbiddenException(
+        "This title is restricted to accounts with adult content enabled",
+      );
+    }
+
+    details.sameAuthorBooks = filterAdultContent(
+      details.sameAuthorBooks,
+      allowAdult,
+    );
 
     const ref = await this.prisma.bookExternalId.findUnique({
       where: { source_externalId: { source, externalId: sourceId } },

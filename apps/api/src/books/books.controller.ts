@@ -23,6 +23,8 @@ import {
 } from "@tracklore/shared";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { JwtPayload } from "../auth/decorators/current-user.decorator";
+import { AgeGateService } from "../users/age-gate.service";
+import { filterAdultContent } from "../users/age.util";
 import { DomainGateService } from "../users/domain-gate.service";
 import { BookItemService } from "./book-item.service";
 import { BookLibraryService } from "./book-library.service";
@@ -36,6 +38,7 @@ export class BooksController {
     private readonly bookItemService: BookItemService,
     private readonly bookLibraryService: BookLibraryService,
     private readonly domainGate: DomainGateService,
+    private readonly ageGate: AgeGateService,
   ) {}
 
   /** Live catalogue search (Google Books). */
@@ -52,8 +55,11 @@ export class BooksController {
 
     await this.domainGate.assertEnabled(user.sub, Domain.BOOKS);
 
-    const results = await this.bookItemService.search(query);
-    return { results };
+    const [results, allowAdult] = await Promise.all([
+      this.bookItemService.search(query),
+      this.ageGate.allowsAdultContent(user.sub),
+    ]);
+    return { results: filterAdultContent(results, allowAdult) };
   }
 
   @Get("stats")

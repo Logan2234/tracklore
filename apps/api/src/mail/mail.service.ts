@@ -8,6 +8,23 @@ interface SendArgs {
   html: string;
 }
 
+type TemplateBody = Omit<SendArgs, "to">;
+
+export interface MailTemplateInfo {
+  key: string;
+  label: string;
+}
+
+// Séance palette (light/"programme" variant — the only one that renders
+// reliably across mail clients, which ignore prefers-color-scheme and web
+// fonts). See design-identity-seance memory for the source palette.
+const COLOR_BG = "#EDECE8";
+const COLOR_SURFACE = "#FBFAF7";
+const COLOR_BORDER = "#DAD8D0";
+const COLOR_TEXT = "#17181C";
+const COLOR_ACCENT = "#A56A15";
+const COLOR_MUTED = "#8A8880";
+
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
@@ -15,6 +32,54 @@ export class MailService {
   private readonly from: string;
   /** Public web app origin, for links inside emails (reset, verify…). */
   private readonly webOrigin: string;
+
+  /**
+   * Every template, keyed for the admin preview/test-send gallery. Each build
+   * function takes only fixed sample data — it must render without any live
+   * user/request context, since the gallery calls it out of band.
+   */
+  private readonly templates: Record<
+    string,
+    { label: string; build: () => TemplateBody }
+  > = {
+    welcome: {
+      label: "Bienvenue",
+      build: () => this.buildWelcome("Alice"),
+    },
+    verifyEmail: {
+      label: "Confirmation d'email",
+      build: () => this.buildVerifyEmail("sample-verify-token"),
+    },
+    passwordResetLink: {
+      label: "Lien de réinitialisation",
+      build: () => this.buildPasswordResetLink("sample-reset-token"),
+    },
+    passwordChanged: {
+      label: "Mot de passe modifié",
+      build: () => this.buildPasswordChanged(),
+    },
+    emailChangedOld: {
+      label: "Email modifié (ancienne adresse)",
+      build: () => this.buildEmailChangedOld("nouvelle@example.com"),
+    },
+    emailChangedNew: {
+      label: "Email modifié (nouvelle adresse)",
+      build: () => this.buildEmailChangedNew("ancienne@example.com"),
+    },
+    emailChangeCode: {
+      label: "Code de confirmation d'email",
+      build: () => this.buildEmailChangeCode("482913"),
+    },
+    newEpisode: {
+      label: "Nouvel épisode",
+      build: () =>
+        this.buildNewEpisode(
+          "One Piece",
+          "L'épisode 1089 est disponible.",
+          "/media/series/12345",
+        ),
+    },
+  };
 
   constructor() {
     const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } =
@@ -38,59 +103,74 @@ export class MailService {
     }
   }
 
+  /** Whether SMTP credentials are present (outgoing email is enabled). */
+  isConfigured(): boolean {
+    return this.transporter !== null;
+  }
+
+  /**
+   * Opens (and closes) an SMTP connection to check the relay is reachable and
+   * the credentials are accepted. Returns `false` on any failure rather than
+   * throwing — the admin status page treats it as "down".
+   */
+  async verifyConnection(): Promise<boolean> {
+    if (!this.transporter) return false;
+    try {
+      await this.transporter.verify();
+      return true;
+    } catch (error) {
+      this.logger.warn(`SMTP verify failed: ${String(error)}`);
+      return false;
+    }
+  }
+
+  /** Every template available in the admin preview/test-send gallery. */
+  listTemplates(): MailTemplateInfo[] {
+    return Object.entries(this.templates).map(([key, { label }]) => ({
+      key,
+      label,
+    }));
+  }
+
+  /** Renders one template with fixed sample data, for admin preview (never sent). */
+  renderTemplatePreview(key: string): TemplateBody | null {
+    const template = this.templates[key];
+    return template ? template.build() : null;
+  }
+
+  /** Sends one template, rendered with the same sample data as the preview, to `to`. */
+  async sendTemplateTest(key: string, to: string): Promise<boolean> {
+    const template = this.templates[key];
+    if (!template) return false;
+    await this.send({ to, ...template.build() });
+    return true;
+  }
+
   async sendPasswordResetLink(to: string, token: string): Promise<void> {
-    const url = `${this.webOrigin}/reset-password?token=${token}`;
-    await this.send({
-      to,
-      subject: "Réinitialise ton mot de passe Tracklore",
-      text: `Un lien de réinitialisation a été demandé pour ton compte Tracklore.\n\n${url}\n\nCe lien expire dans 1h. Si tu n'es pas à l'origine de cette demande, ignore cet email.`,
-      html: `<p>Un lien de réinitialisation a été demandé pour ton compte Tracklore.</p><p><a href="${url}">${url}</a></p><p>Ce lien expire dans 1h. Si tu n'es pas à l'origine de cette demande, ignore cet email.</p>`,
-    });
+    await this.send({ to, ...this.buildPasswordResetLink(token) });
   }
 
   async sendPasswordChanged(to: string): Promise<void> {
-    await this.send({
-      to,
-      subject: "Ton mot de passe Tracklore a été modifié",
-      text: "Le mot de passe de ton compte Tracklore vient d'être changé. Si tu n'es pas à l'origine de cette action, contacte-nous immédiatement.",
-      html: "<p>Le mot de passe de ton compte Tracklore vient d'être changé. Si tu n'es pas à l'origine de cette action, contacte-nous immédiatement.</p>",
-    });
+    await this.send({ to, ...this.buildPasswordChanged() });
   }
 
   async sendEmailChanged(oldEmail: string, newEmail: string): Promise<void> {
     await Promise.all([
-      this.send({
-        to: oldEmail,
-        subject: "L'email de ton compte Tracklore a changé",
-        text: `L'adresse email de ton compte Tracklore a été changée pour ${newEmail}. Si tu n'es pas à l'origine de cette action, contacte-nous immédiatement.`,
-        html: `<p>L'adresse email de ton compte Tracklore a été changée pour <strong>${newEmail}</strong>. Si tu n'es pas à l'origine de cette action, contacte-nous immédiatement.</p>`,
-      }),
-      this.send({
-        to: newEmail,
-        subject: "Cette adresse est maintenant liée à ton compte Tracklore",
-        text: `Cette adresse est désormais l'email de connexion de ton compte Tracklore (précédemment ${oldEmail}).`,
-        html: `<p>Cette adresse est désormais l'email de connexion de ton compte Tracklore (précédemment ${oldEmail}).</p>`,
-      }),
+      this.send({ to: oldEmail, ...this.buildEmailChangedOld(newEmail) }),
+      this.send({ to: newEmail, ...this.buildEmailChangedNew(oldEmail) }),
     ]);
   }
 
+  async sendEmailChangeCode(to: string, code: string): Promise<void> {
+    await this.send({ to, ...this.buildEmailChangeCode(code) });
+  }
+
   async sendWelcome(to: string, displayName: string): Promise<void> {
-    await this.send({
-      to,
-      subject: "Bienvenue sur Tracklore",
-      text: `Bienvenue ${displayName} ! Ton compte Tracklore a été créé avec succès.`,
-      html: `<p>Bienvenue ${displayName} ! Ton compte Tracklore a été créé avec succès.</p>`,
-    });
+    await this.send({ to, ...this.buildWelcome(displayName) });
   }
 
   async sendVerifyEmail(to: string, token: string): Promise<void> {
-    const url = `${this.webOrigin}/verify-email?token=${token}`;
-    await this.send({
-      to,
-      subject: "Confirme ton adresse email Tracklore",
-      text: `Confirme ton adresse email en ouvrant ce lien :\n\n${url}\n\nCe lien expire dans 24h.`,
-      html: `<p>Confirme ton adresse email en ouvrant ce lien :</p><p><a href="${url}">${url}</a></p><p>Ce lien expire dans 24h.</p>`,
-    });
+    await this.send({ to, ...this.buildVerifyEmail(token) });
   }
 
   async sendNewEpisode(
@@ -99,13 +179,149 @@ export class MailService {
     body: string,
     path: string,
   ): Promise<void> {
-    const url = `${this.webOrigin}${path}`;
     await this.send({
       to,
+      ...this.buildNewEpisode(mediaTitle, body, path),
+    });
+  }
+
+  private buildPasswordResetLink(token: string): TemplateBody {
+    const url = `${this.webOrigin}/reset-password?token=${token}`;
+    return {
+      subject: "Réinitialise ton mot de passe Tracklore",
+      text: `Un lien de réinitialisation a été demandé pour ton compte Tracklore.\n\n${url}\n\nCe lien expire dans 1h. Si tu n'es pas à l'origine de cette demande, ignore cet email.`,
+      html: this.wrapEmail(
+        "Réinitialise ton mot de passe",
+        `<p>Un lien de réinitialisation a été demandé pour ton compte Tracklore.</p>
+         ${this.button(url, "Réinitialiser mon mot de passe")}
+         <p style="color:${COLOR_MUTED};font-size:13px;">Ce lien expire dans 1h. Si tu n'es pas à l'origine de cette demande, ignore cet email.</p>`,
+      ),
+    };
+  }
+
+  private buildPasswordChanged(): TemplateBody {
+    return {
+      subject: "Ton mot de passe Tracklore a été modifié",
+      text: "Le mot de passe de ton compte Tracklore vient d'être changé. Si tu n'es pas à l'origine de cette action, contacte-nous immédiatement.",
+      html: this.wrapEmail(
+        "Mot de passe modifié",
+        `<p>Le mot de passe de ton compte Tracklore vient d'être changé.</p>
+         <p style="color:${COLOR_MUTED};font-size:13px;">Si tu n'es pas à l'origine de cette action, contacte-nous immédiatement.</p>`,
+      ),
+    };
+  }
+
+  private buildEmailChangedOld(newEmail: string): TemplateBody {
+    return {
+      subject: "L'email de ton compte Tracklore a changé",
+      text: `L'adresse email de ton compte Tracklore a été changée pour ${newEmail}. Si tu n'es pas à l'origine de cette action, contacte-nous immédiatement.`,
+      html: this.wrapEmail(
+        "Adresse email modifiée",
+        `<p>L'adresse email de ton compte Tracklore a été changée pour <strong>${newEmail}</strong>.</p>
+         <p style="color:${COLOR_MUTED};font-size:13px;">Si tu n'es pas à l'origine de cette action, contacte-nous immédiatement.</p>`,
+      ),
+    };
+  }
+
+  private buildEmailChangedNew(oldEmail: string): TemplateBody {
+    return {
+      subject: "Cette adresse est maintenant liée à ton compte Tracklore",
+      text: `Cette adresse est désormais l'email de connexion de ton compte Tracklore (précédemment ${oldEmail}).`,
+      html: this.wrapEmail(
+        "Adresse email confirmée",
+        `<p>Cette adresse est désormais l'email de connexion de ton compte Tracklore (précédemment ${oldEmail}).</p>`,
+      ),
+    };
+  }
+
+  private buildEmailChangeCode(code: string): TemplateBody {
+    return {
+      subject: "Confirme ta nouvelle adresse email Tracklore",
+      text: `Voici ton code de confirmation : ${code}\n\nCe code expire dans 15 minutes. Si tu n'es pas à l'origine de cette demande, ignore cet email.`,
+      html: this.wrapEmail(
+        "Confirme ton adresse email",
+        `<p>Voici ton code de confirmation :</p>
+         <p style="font-family:'Courier New',monospace;font-size:32px;font-weight:700;letter-spacing:6px;color:${COLOR_ACCENT};text-align:center;margin:24px 0;">${code}</p>
+         <p style="color:${COLOR_MUTED};font-size:13px;">Ce code expire dans 15 minutes. Si tu n'es pas à l'origine de cette demande, ignore cet email.</p>`,
+      ),
+    };
+  }
+
+  private buildWelcome(displayName: string): TemplateBody {
+    return {
+      subject: "Bienvenue sur Tracklore",
+      text: `Bienvenue ${displayName} ! Ton compte Tracklore a été créé avec succès.`,
+      html: this.wrapEmail(
+        "Bienvenue sur Tracklore",
+        `<p>Bienvenue <strong>${displayName}</strong> ! Ton compte Tracklore a été créé avec succès.</p>`,
+      ),
+    };
+  }
+
+  private buildVerifyEmail(token: string): TemplateBody {
+    const url = `${this.webOrigin}/verify-email?token=${token}`;
+    return {
+      subject: "Confirme ton adresse email Tracklore",
+      text: `Confirme ton adresse email en ouvrant ce lien :\n\n${url}\n\nCe lien expire dans 24h.`,
+      html: this.wrapEmail(
+        "Confirme ton adresse email",
+        `<p>Confirme ton adresse email en cliquant sur le bouton ci-dessous.</p>
+         ${this.button(url, "Confirmer mon email")}
+         <p style="color:${COLOR_MUTED};font-size:13px;">Ce lien expire dans 24h.</p>`,
+      ),
+    };
+  }
+
+  private buildNewEpisode(
+    mediaTitle: string,
+    body: string,
+    path: string,
+  ): TemplateBody {
+    const url = `${this.webOrigin}${path}`;
+    return {
       subject: `Nouvel épisode : ${mediaTitle}`,
       text: `${mediaTitle} — ${body}\n\n${url}`,
-      html: `<p><strong>${mediaTitle}</strong> — ${body}</p><p><a href="${url}">${url}</a></p>`,
-    });
+      html: this.wrapEmail(
+        mediaTitle,
+        `<p>${body}</p>
+         ${this.button(url, "Voir")}`,
+      ),
+    };
+  }
+
+  /** Wraps mail body HTML in the shared Tracklore header/footer. Inline CSS only — mail clients don't load stylesheets. */
+  private wrapEmail(title: string, bodyHtml: string): string {
+    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${COLOR_BG};padding:32px 0;font-family:Arial,Helvetica,sans-serif;">
+  <tr>
+    <td align="center">
+      <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background:${COLOR_SURFACE};border:1px solid ${COLOR_BORDER};border-radius:12px;overflow:hidden;">
+        <tr>
+          <td style="padding:24px 32px;border-bottom:1px solid ${COLOR_BORDER};">
+            <span style="font-size:18px;font-weight:700;letter-spacing:0.3px;color:${COLOR_TEXT};">Tracklore</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px;color:${COLOR_TEXT};font-size:15px;line-height:1.6;">
+            <h1 style="font-size:19px;margin:0 0 16px;color:${COLOR_ACCENT};">${title}</h1>
+            ${bodyHtml}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:16px 32px;background:${COLOR_BG};color:${COLOR_MUTED};font-size:12px;text-align:center;">
+            Tracklore — géré par toi-même
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>`;
+  }
+
+  /** Email-safe button: a styled `<a>`, since `<button>` is unreliable across mail clients. */
+  private button(url: string, label: string): string {
+    return `<p style="text-align:center;margin:24px 0;">
+      <a href="${url}" style="display:inline-block;background:${COLOR_ACCENT};color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 24px;border-radius:8px;">${label}</a>
+    </p>`;
   }
 
   private async send({ to, subject, text, html }: SendArgs): Promise<void> {

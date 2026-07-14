@@ -8,6 +8,7 @@ import type {
   StoryGraphUnmatchedBookDto,
 } from "@tracklore/shared";
 import { PrismaService } from "../../prisma/prisma.service";
+import { AgeGateService } from "../../users/age-gate.service";
 import { BookItemService } from "../book-item.service";
 import type { ParsedStoryGraphRow } from "./storygraph-parse";
 import { parseStoryGraphCsv } from "./storygraph-parse";
@@ -21,6 +22,7 @@ export class StoryGraphImportService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly bookItemService: BookItemService,
+    private readonly ageGate: AgeGateService,
   ) {}
 
   /**
@@ -70,13 +72,19 @@ export class StoryGraphImportService {
     const summaries = resolved
       .map((r) => r.summary)
       .filter((s): s is BookSummaryDto => s !== null);
-    const inLibrary = await this.trackedKeys(userId, summaries);
+    const [inLibrary, allowAdult] = await Promise.all([
+      this.trackedKeys(userId, summaries),
+      this.ageGate.allowsAdultContent(userId),
+    ]);
 
     const matched: StoryGraphMatchedBookDto[] = [];
     const unmatched: StoryGraphUnmatchedBookDto[] = [];
     const apiErrorCount = resolved.filter((r) => r.apiError).length;
 
     for (const { row, summary } of resolved) {
+      // Never surface a restricted title for import on a non-opted-in account.
+      if (summary && summary.isAdult && !allowAdult) continue;
+
       if (!summary) {
         unmatched.push({
           csvTitle: row.title,
@@ -123,6 +131,7 @@ export class StoryGraphImportService {
     books: StoryGraphImportCommitBookDto[],
   ): Promise<StoryGraphImportResultDto> {
     let imported = 0;
+    const allowAdult = await this.ageGate.allowsAdultContent(userId);
 
     for (const book of books) {
       const details = await this.bookItemService
@@ -130,6 +139,8 @@ export class StoryGraphImportService {
         .getDetails(book.sourceId)
         .catch(() => null);
       if (!details) continue;
+      // Guard the commit too: the client sends its own list of ids.
+      if (details.summary.isAdult && !allowAdult) continue;
 
       const bookItem = await this.bookItemService.persistDetails(
         book.source,

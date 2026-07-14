@@ -49,6 +49,7 @@ interface GoogleVolumeInfo {
   averageRating?: number; // 1–5.
   ratingsCount?: number;
   industryIdentifiers?: GoogleIndustryIdentifier[];
+  maturityRating?: string; // "NOT_MATURE" | "MATURE".
 }
 
 interface GoogleVolume {
@@ -187,6 +188,7 @@ export class GoogleBooksProvider implements BookCatalogProvider {
       authors: info.authors ?? [],
       year: parseYear(info.publishedDate),
       coverUrl: coverUrl(info.imageLinks),
+      isAdult: info.maturityRating === "MATURE",
     };
   }
 

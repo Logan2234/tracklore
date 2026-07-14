@@ -216,7 +216,10 @@
         href={`/media/${media.type.toLowerCase()}/${media.sourceId}`}
         class="card group flex flex-col transition-[transform,border-color] duration-150 hover:-translate-y-0.5 hover:border-accent">
         <div class="relative">
-          <Poster src={media.posterUrl} title={media.title} />
+          <Poster
+            src={media.posterUrl}
+            title={media.title}
+            adult={media.isAdult} />
           {#if trackedStatus(media)}
             <span
               class="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[0.6rem] font-bold text-accent-fg shadow">

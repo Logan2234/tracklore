@@ -3,6 +3,7 @@
   import { ApiError, deleteAccount, exportMyData } from "$lib/api/client";
   import Icon from "$lib/components/Icon.svelte";
   import Modal from "$lib/components/Modal.svelte";
+  import PasswordInput from "$lib/components/PasswordInput.svelte";
 
   // --- Export ---
   let exporting = $state(false);
@@ -119,9 +120,7 @@
           <span class="mb-1.5 block text-sm font-semibold">
             Confirme avec ton mot de passe
           </span>
-          <input
-            type="password"
-            class="input"
+          <PasswordInput
             autocomplete="current-password"
             bind:value={deletePasswordInput} />
         </label>

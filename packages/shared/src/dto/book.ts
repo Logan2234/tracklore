@@ -11,6 +11,8 @@ export interface BookSummaryDto {
   /** First publication year, when known. */
   year: number | null;
   coverUrl: string | null;
+  /** 18+ title (Google Books "MATURE"). Restricted per-account, like media. */
+  isAdult: boolean;
 }
 
 export interface BookSearchResponseDto {

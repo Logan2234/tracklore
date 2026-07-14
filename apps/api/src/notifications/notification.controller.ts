@@ -11,8 +11,8 @@ import {
   Post,
 } from "@nestjs/common";
 import type { NotificationFeedDto, PushPublicKeyDto } from "@tracklore/shared";
-import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { JwtPayload } from "../auth/decorators/current-user.decorator";
+import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { Public } from "../auth/decorators/public.decorator";
 import { PushSubscriptionDto } from "./dto/push-subscription.dto";
 import { NotificationService } from "./notification.service";
@@ -56,18 +56,6 @@ export class NotificationController {
     await this.push.unsubscribe(user.sub, endpoint);
   }
 
-  /** Sends a sample push to the user's devices, to confirm the setup works. */
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @Post("push/test")
-  async testPush(@CurrentUser() user: JwtPayload): Promise<void> {
-    await this.push.sendToUser(user.sub, {
-      title: "Tracklore",
-      body: "Les notifications push sont bien activées 🎉",
-      url: "/notifications",
-    });
-  }
-
-  /** Detect new episodes of tracked shows; returns the feed with fresh items. */
   @Post("scan")
   async scan(@CurrentUser() user: JwtPayload): Promise<NotificationFeedDto> {
     await this.notifications.scan(user.sub);

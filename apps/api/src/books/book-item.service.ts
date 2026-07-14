@@ -181,6 +181,7 @@ export class BookItemService {
       releaseDate: details.releaseDate ? new Date(details.releaseDate) : null,
       genres: details.genres,
       pageCount: details.pageCount,
+      isAdult: details.summary.isAdult,
       lastSyncedAt: new Date(),
     };
   }

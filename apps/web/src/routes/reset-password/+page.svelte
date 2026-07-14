@@ -2,6 +2,7 @@
   import { goto } from "$app/navigation";
   import { page } from "$app/stores";
   import { ApiError, resetPassword } from "$lib/api/client";
+  import PasswordInput from "$lib/components/PasswordInput.svelte";
 
   const token = $page.url.searchParams.get("token") ?? "";
 
@@ -49,20 +50,16 @@
         </p>
       {:else}
         <form onsubmit={submit} class="flex flex-col gap-4">
-          <input
-            type="password"
+          <PasswordInput
             placeholder="Nouveau mot de passe (8 caractères min.)"
             bind:value={newPassword}
-            minlength="8"
-            required
-            class="input" />
-          <input
-            type="password"
+            minlength={8}
+            required />
+          <PasswordInput
             placeholder="Confirmer le mot de passe"
             bind:value={confirmPassword}
-            minlength="8"
-            required
-            class="input" />
+            minlength={8}
+            required />
           {#if error}<p class="text-sm text-danger">{error}</p>{/if}
           <button type="submit" class="btn btn-primary" disabled={loading}>
             {loading ? "Enregistrement…" : "Réinitialiser"}

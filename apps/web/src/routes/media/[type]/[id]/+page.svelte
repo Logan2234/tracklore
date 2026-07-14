@@ -455,6 +455,12 @@
             class="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-semibold text-dim">
             {TYPE_LABELS[detail.type]}
           </span>
+          {#if detail.isAdult}
+            <span
+              class="rounded-full bg-danger/15 px-2.5 py-0.5 text-xs font-bold text-danger">
+              18+
+            </span>
+          {/if}
           {#if entry}
             <span
               title={STATUS_DESC[entry.status]}

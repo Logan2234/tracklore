@@ -21,7 +21,13 @@
     | "monitor"
     | "plus"
     | "trash"
-    | "x";
+    | "x"
+    | "eye"
+    | "eye-off"
+    | "shield"
+    | "mail"
+    | "database"
+    | "gauge";
 
   let { name, class: cls = "h-5 w-5" }: { name: IconName; class?: string } =
     $props();
@@ -95,5 +101,26 @@
     <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" />
   {:else if name === "x"}
     <path d="M6 6l12 12M18 6 6 18" />
+  {:else if name === "eye"}
+    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+    <circle cx="12" cy="12" r="3" />
+  {:else if name === "eye-off"}
+    <path
+      d="M3 3l18 18M10.6 10.6a3 3 0 0 0 4.2 4.2M7.4 7.6C4.7 9.1 3 12 3 12s3.5 7 10 7c1.6 0 3-.4 4.2-1M9.9 5.2A9.7 9.7 0 0 1 12 5c6.5 0 10 7 10 7s-.8 1.6-2.3 3.1" />
+  {:else if name === "shield"}
+    <path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z" />
+    <path d="M9.5 12l1.8 1.8L15 10" />
+  {:else if name === "mail"}
+    <path d="M3 5h18v14H3z" />
+    <path d="M3 6l9 7 9-7" />
+  {:else if name === "database"}
+    <path
+      d="M12 5c4.4 0 8 1.1 8 2.5S16.4 10 12 10s-8-1.1-8-2.5S7.6 5 12 5Z" />
+    <path d="M4 7.5V12c0 1.4 3.6 2.5 8 2.5s8-1.1 8-2.5V7.5" />
+    <path d="M4 12v4.5c0 1.4 3.6 2.5 8 2.5s8-1.1 8-2.5V12" />
+  {:else if name === "gauge"}
+    <path d="M4 16a8 8 0 0 1 16 0" />
+    <path d="M12 16l4-5" />
+    <circle cx="12" cy="16" r="1.3" />
   {/if}
 </svg>

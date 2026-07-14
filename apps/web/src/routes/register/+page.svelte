@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { register, ApiError } from "$lib/api/client";
+  import PasswordInput from "$lib/components/PasswordInput.svelte";
 
   let displayName = $state("");
   let email = $state("");
@@ -48,13 +49,11 @@
         bind:value={email}
         required
         class="input" />
-      <input
-        type="password"
+      <PasswordInput
         placeholder="Mot de passe (8 caractères min.)"
         bind:value={password}
-        minlength="8"
-        required
-        class="input" />
+        minlength={8}
+        required />
       {#if error}<p class="text-sm text-danger">{error}</p>{/if}
       <button type="submit" class="btn btn-primary" disabled={loading}>
         {loading ? "Création…" : "Créer le compte"}

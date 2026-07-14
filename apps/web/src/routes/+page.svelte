@@ -146,10 +146,10 @@
   </header>
 
   {#if loading}
-    <p class="timecode text-sm">Chargement…</p>
+    <p class="timecode text-sm mb-10">Chargement…</p>
   {:else if nothing}
     <div
-      class="rounded-xl border border-dashed border-border px-6 py-16 text-center text-dim">
+      class="rounded-xl border border-dashed border-border px-6 py-16 text-center text-dim mb-10">
       Rien en cours pour l’instant.
       <a href="/search" class="font-semibold text-accent hover:underline"
         >Trouve un titre</a> à suivre.

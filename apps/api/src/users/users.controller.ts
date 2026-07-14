@@ -18,7 +18,8 @@ import type {
   UsernameAvailabilityDto,
 } from "@tracklore/shared";
 import * as bcrypt from "bcryptjs";
-import { BCRYPT_ROUNDS, toUserDto } from "../auth/auth.service";
+import { randomInt } from "node:crypto";
+import { BCRYPT_ROUNDS, hashToken, toUserDto } from "../auth/auth.service";
 import type { JwtPayload } from "../auth/decorators/current-user.decorator";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { MailService } from "../mail/mail.service";
@@ -26,9 +27,13 @@ import { PrismaService } from "../prisma/prisma.service";
 import { isAdult } from "./age.util";
 import { ChangeEmailDto } from "./dto/change-email.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
+import { ConfirmEmailChangeDto } from "./dto/confirm-email-change.dto";
 import { DeleteAccountDto } from "./dto/delete-account.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
 import { UpdateUsernameDto } from "./dto/update-username.dto";
+
+const EMAIL_CHANGE_TTL_MINUTES = 15;
+const MAX_EMAIL_CHANGE_ATTEMPTS = 5;
 
 @Controller("users")
 export class UsersController {
@@ -182,12 +187,17 @@ export class UsersController {
     return toUserDto(user);
   }
 
-  /** Requires the current password, since email doubles as the login identifier. */
+  /**
+   * Requires the current password, since email doubles as the login
+   * identifier. Doesn't change the email yet — sends a confirmation code to
+   * the new address; see confirmEmailChange().
+   */
+  @HttpCode(HttpStatus.NO_CONTENT)
   @Patch("me/email")
   async changeEmail(
     @CurrentUser() payload: JwtPayload,
     @Body() dto: ChangeEmailDto,
-  ): Promise<UserDto> {
+  ): Promise<void> {
     const current = await this.prisma.user.findUnique({
       where: { id: payload.sub },
     });
@@ -209,11 +219,70 @@ export class UsersController {
       throw new ConflictException("An account with this email already exists");
     }
 
-    const user = await this.prisma.user.update({
+    const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
+    await this.prisma.$transaction([
+      this.prisma.emailChangeRequest.deleteMany({
+        where: { userId: payload.sub },
+      }),
+      this.prisma.emailChangeRequest.create({
+        data: {
+          userId: payload.sub,
+          newEmail: dto.newEmail,
+          codeHash: hashToken(code),
+          expiresAt: new Date(Date.now() + EMAIL_CHANGE_TTL_MINUTES * 60_000),
+        },
+      }),
+    ]);
+    await this.mail.sendEmailChangeCode(dto.newEmail, code);
+  }
+
+  /** Consumes the code sent by changeEmail() and applies the new address. */
+  @Patch("me/email/confirm")
+  async confirmEmailChange(
+    @CurrentUser() payload: JwtPayload,
+    @Body() dto: ConfirmEmailChangeDto,
+  ): Promise<UserDto> {
+    const current = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      data: { email: dto.newEmail },
     });
-    await this.mail.sendEmailChanged(current.email, dto.newEmail);
+
+    if (!current) {
+      throw new NotFoundException("User not found");
+    }
+
+    const stored = await this.prisma.emailChangeRequest.findFirst({
+      where: { userId: payload.sub },
+    });
+
+    const matches =
+      stored && stored.codeHash === hashToken(dto.code) && stored.expiresAt >= new Date();
+
+    if (!stored || !matches) {
+      if (stored) {
+        if (stored.attempts + 1 >= MAX_EMAIL_CHANGE_ATTEMPTS) {
+          await this.prisma.emailChangeRequest.deleteMany({
+            where: { userId: payload.sub },
+          });
+        } else {
+          await this.prisma.emailChangeRequest.update({
+            where: { id: stored.id },
+            data: { attempts: { increment: 1 } },
+          });
+        }
+      }
+      throw new UnauthorizedException("Invalid or expired code");
+    }
+
+    const [user] = await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: payload.sub },
+        data: { email: stored.newEmail },
+      }),
+      this.prisma.emailChangeRequest.deleteMany({
+        where: { userId: payload.sub },
+      }),
+    ]);
+    await this.mail.sendEmailChanged(current.email, stored.newEmail);
     return toUserDto(user);
   }
 
@@ -233,6 +302,12 @@ export class UsersController {
 
     if (!(await bcrypt.compare(dto.currentPassword, current.passwordHash))) {
       throw new UnauthorizedException("Current password is incorrect");
+    }
+
+    if (await bcrypt.compare(dto.newPassword, current.passwordHash)) {
+      throw new BadRequestException(
+        "New password must be different from the current password",
+      );
     }
 
     await this.prisma.user.update({

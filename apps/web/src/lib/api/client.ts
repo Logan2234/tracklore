@@ -20,6 +20,7 @@ import type {
   CastDetailDto,
   ChangeEmailRequestDto,
   ChangePasswordRequestDto,
+  ConfirmEmailChangeRequestDto,
   DeleteAccountRequestDto,
   EntryStatus,
   EpisodeWatchDto,
@@ -43,7 +44,12 @@ import type {
   PushPublicKeyDto,
   PushSubscriptionRequestDto,
   RegisterRequestDto,
+  MailTemplateListResponseDto,
+  MailTemplatePreviewDto,
   SearchResponseDto,
+  SendAdminTestPushRequestDto,
+  SendTestEmailRequestDto,
+  ServiceStatusResponseDto,
   SessionDto,
   StartTvTimeImportDto,
   StatsDto,
@@ -232,10 +238,14 @@ export async function updateMe(body: UpdateUserRequestDto): Promise<UserDto> {
   return user;
 }
 
-export async function changeEmail(
-  body: ChangeEmailRequestDto,
+export function changeEmail(body: ChangeEmailRequestDto): Promise<void> {
+  return request("/users/me/email", { method: "PATCH", body });
+}
+
+export async function confirmEmailChange(
+  body: ConfirmEmailChangeRequestDto,
 ): Promise<UserDto> {
-  const user = await request<UserDto>("/users/me/email", {
+  const user = await request<UserDto>("/users/me/email/confirm", {
     method: "PATCH",
     body,
   });
@@ -304,6 +314,36 @@ export async function logout(): Promise<void> {
   }
 
   auth.clear();
+}
+
+// --- Admin ---
+
+/** Health of every external dependency (config presence + live probe). */
+export function getAdminServices(): Promise<ServiceStatusResponseDto> {
+  return request("/admin/services");
+}
+
+export function getAdminEmailTemplates(): Promise<MailTemplateListResponseDto> {
+  return request("/admin/emails");
+}
+
+export function getAdminEmailPreview(
+  key: string,
+): Promise<MailTemplatePreviewDto> {
+  return request(`/admin/emails/${key}/preview`);
+}
+
+export function sendAdminTestEmail(
+  key: string,
+  body: SendTestEmailRequestDto,
+): Promise<void> {
+  return request(`/admin/emails/${key}/test`, { method: "POST", body });
+}
+
+export function sendAdminTestPush(
+  body: SendAdminTestPushRequestDto,
+): Promise<void> {
+  return request("/admin/push/test", { method: "POST", body });
 }
 
 // --- Catalog ---
@@ -625,11 +665,6 @@ export function unsubscribePush(endpoint: string): Promise<void> {
     method: "DELETE",
     body: { endpoint },
   });
-}
-
-/** Sends a sample push to the current user's subscribed devices. */
-export function sendTestPush(): Promise<void> {
-  return request("/notifications/push/test", { method: "POST" });
 }
 
 // --- TV Time import ---

@@ -550,9 +550,10 @@ export class LibraryService {
 
     const ref = await this.prisma.mediaExternalId.findUnique({
       where: {
-        source_externalId: {
+        source_externalId_type: {
           source: source as DbExternalSource,
           externalId: sourceId,
+          type,
         },
       },
       include: { mediaItem: true },

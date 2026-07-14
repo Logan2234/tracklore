@@ -127,7 +127,10 @@
       {@const entry = tracked.get(game.sourceId)}
       <div class="card group flex flex-col">
         <a href={`/games/${game.sourceId}`} class="block">
-          <Poster src={game.coverUrl} title={game.title} />
+          <Poster
+            src={game.coverUrl}
+            title={game.title}
+            adult={game.isAdult} />
         </a>
         <div class="flex flex-1 flex-col gap-2 p-3">
           <a

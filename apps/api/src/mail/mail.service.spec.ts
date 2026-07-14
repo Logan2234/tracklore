@@ -59,6 +59,29 @@ describe("MailService", () => {
     );
   });
 
+  it("wraps the confirmation code in the shared HTML layout", async () => {
+    process.env.SMTP_HOST = "smtp.example.com";
+    process.env.SMTP_USER = "user";
+    process.env.SMTP_PASS = "pass";
+
+    const sendMail = jest.fn().mockResolvedValue(undefined);
+    (nodemailer.createTransport as jest.Mock).mockReturnValue({ sendMail });
+
+    const service = new MailService();
+    await service.sendEmailChangeCode("alice@example.com", "123456");
+
+    expect(sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "alice@example.com",
+        text: expect.stringContaining("123456"),
+        html: expect.stringContaining("123456"),
+      }),
+    );
+    const { html } = sendMail.mock.calls[0][0];
+    expect(html).toContain("Tracklore");
+    expect(html).toContain("Confirme ton adresse email");
+  });
+
   it("swallows send failures instead of throwing", async () => {
     process.env.SMTP_HOST = "smtp.example.com";
     process.env.SMTP_USER = "user";
@@ -71,5 +94,89 @@ describe("MailService", () => {
     await expect(
       service.sendPasswordChanged("alice@example.com"),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe("MailService template gallery", () => {
+  const ORIGINAL_ENV = process.env;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env = { ...ORIGINAL_ENV };
+  });
+
+  afterAll(() => {
+    process.env = ORIGINAL_ENV;
+  });
+
+  it("lists every known template key", () => {
+    const service = new MailService();
+    const keys = service.listTemplates().map((t) => t.key);
+
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        "welcome",
+        "verifyEmail",
+        "passwordResetLink",
+        "passwordChanged",
+        "emailChangedOld",
+        "emailChangedNew",
+        "emailChangeCode",
+        "newEpisode",
+      ]),
+    );
+  });
+
+  it("renders a preview without sending anything", async () => {
+    delete process.env.SMTP_HOST;
+    const service = new MailService();
+
+    const preview = service.renderTemplatePreview("welcome");
+
+    expect(preview).not.toBeNull();
+    expect(preview?.subject).toContain("Bienvenue");
+    expect(preview?.html).toContain("Tracklore");
+  });
+
+  it("returns null for an unknown template key", () => {
+    const service = new MailService();
+    expect(service.renderTemplatePreview("does-not-exist")).toBeNull();
+  });
+
+  it("sends a rendered template to the given address", async () => {
+    process.env.SMTP_HOST = "smtp.example.com";
+    process.env.SMTP_USER = "user";
+    process.env.SMTP_PASS = "pass";
+
+    const sendMail = jest.fn().mockResolvedValue(undefined);
+    (nodemailer.createTransport as jest.Mock).mockReturnValue({ sendMail });
+
+    const service = new MailService();
+    const sent = await service.sendTemplateTest(
+      "welcome",
+      "test@example.com",
+    );
+
+    expect(sent).toBe(true);
+    expect(sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "test@example.com" }),
+    );
+  });
+
+  it("returns false when sending an unknown template key", async () => {
+    process.env.SMTP_HOST = "smtp.example.com";
+    process.env.SMTP_USER = "user";
+    process.env.SMTP_PASS = "pass";
+    (nodemailer.createTransport as jest.Mock).mockReturnValue({
+      sendMail: jest.fn(),
+    });
+
+    const service = new MailService();
+    const sent = await service.sendTemplateTest(
+      "does-not-exist",
+      "test@example.com",
+    );
+
+    expect(sent).toBe(false);
   });
 });

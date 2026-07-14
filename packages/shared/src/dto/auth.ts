@@ -73,6 +73,10 @@ export interface ChangeEmailRequestDto {
   currentPassword: string;
 }
 
+export interface ConfirmEmailChangeRequestDto {
+  code: string;
+}
+
 export interface ChangePasswordRequestDto {
   currentPassword: string;
   newPassword: string;
