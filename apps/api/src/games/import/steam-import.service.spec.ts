@@ -168,7 +168,11 @@ describe("SteamImportService", () => {
         alreadyInLibrary: true,
       },
     ]);
-    expect(preview.unmatchedCount).toBe(2);
+    // The adult title (300) matched IGDB fine but is age-filtered, not
+    // "unmatched" — only the truly unresolved appid (40) shows up here.
+    expect(preview.unmatched).toEqual([
+      { appid: "40", name: null, playtimeMinutes: 5 },
+    ]);
     expect(mocks.igdb.matchSteamAppIds).toHaveBeenCalledWith([
       "10",
       "20",

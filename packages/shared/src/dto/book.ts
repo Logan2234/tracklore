@@ -154,14 +154,29 @@ export interface StoryGraphMatchedBookDto {
   alreadyInLibrary: boolean;
 }
 
+/**
+ * One CSV row Google Books had no volume for — the reading metadata is kept
+ * so the user can still import it once manually associated to a book.
+ */
+export interface StoryGraphUnmatchedBookDto {
+  csvTitle: string;
+  status: BookStatus;
+  rating: number | null;
+  notes: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  ownershipStatus: BookOwnershipStatus;
+  readCount: number;
+}
+
 /** Preview of a StoryGraph import: what we could match, before writing anything. */
 export interface StoryGraphImportPreviewDto {
   /** Total data rows read from the CSV. */
   totalRows: number;
   /** Rows matched to a Google Books volume. */
   matched: StoryGraphMatchedBookDto[];
-  /** Titles Google Books had no volume for (skipped). */
-  unmatched: string[];
+  /** Rows Google Books had no volume for — may be associated manually. */
+  unmatched: StoryGraphUnmatchedBookDto[];
 }
 
 /** One book the user chose to import, with the reading metadata to assign it. */

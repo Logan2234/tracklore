@@ -5,6 +5,7 @@ import type {
   StoryGraphImportPreviewDto,
   StoryGraphImportResultDto,
   StoryGraphMatchedBookDto,
+  StoryGraphUnmatchedBookDto,
 } from "@tracklore/shared";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BookItemService } from "../book-item.service";
@@ -44,11 +45,20 @@ export class StoryGraphImportService {
     const inLibrary = await this.trackedKeys(userId, summaries);
 
     const matched: StoryGraphMatchedBookDto[] = [];
-    const unmatched: string[] = [];
+    const unmatched: StoryGraphUnmatchedBookDto[] = [];
 
     for (const { row, summary } of resolved) {
       if (!summary) {
-        unmatched.push(row.title);
+        unmatched.push({
+          csvTitle: row.title,
+          status: row.status,
+          rating: row.rating,
+          notes: row.notes,
+          startedAt: row.startedAt,
+          finishedAt: row.finishedAt,
+          ownershipStatus: row.ownershipStatus,
+          readCount: row.readCount,
+        });
         continue;
       }
 

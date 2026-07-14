@@ -150,6 +150,14 @@ export interface SteamMatchedGameDto {
   alreadyInLibrary: boolean;
 }
 
+/** One owned Steam game IGDB has no entry for — may be associated manually. */
+export interface SteamUnmatchedGameDto {
+  appid: string;
+  /** Steam's own library name; null if Steam didn't report one. */
+  name: string | null;
+  playtimeMinutes: number;
+}
+
 /** Preview of a Steam import: what we could match, before writing anything. */
 export interface SteamImportPreviewDto {
   /** Resolved 64-bit SteamID we fetched the library for. */
@@ -158,8 +166,8 @@ export interface SteamImportPreviewDto {
   totalOwned: number;
   /** Owned games matched to an IGDB entry (sorted by playtime, desc). */
   matched: SteamMatchedGameDto[];
-  /** Owned games IGDB has no entry for (skipped). */
-  unmatchedCount: number;
+  /** Owned games IGDB has no entry for — may be associated manually. */
+  unmatched: SteamUnmatchedGameDto[];
 }
 
 /** One game the user chose to import, with the status to assign it. */

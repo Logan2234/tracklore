@@ -88,7 +88,9 @@ describe("StoryGraphImportService", () => {
       ["GOOGLE_BOOKS", "G-1"],
       ["GOOGLE_BOOKS", "G-2"],
     ]);
-    expect(preview.unmatched).toEqual(["Nowhere"]);
+    expect(preview.unmatched).toEqual([
+      expect.objectContaining({ csvTitle: "Nowhere" }),
+    ]);
     // The ISBN row keeps its mapped reading metadata, including ownership
     // (paperback + owned → PHYSICAL) and the read count (1).
     expect(preview.matched[0]).toMatchObject({

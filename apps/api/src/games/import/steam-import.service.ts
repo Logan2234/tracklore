@@ -10,6 +10,7 @@ import type {
   SteamImportPreviewDto,
   SteamImportResultDto,
   SteamMatchedGameDto,
+  SteamUnmatchedGameDto,
 } from "@tracklore/shared";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AgeGateService } from "../../users/age-gate.service";
@@ -20,6 +21,8 @@ const STEAM_API = "https://api.steampowered.com";
 
 interface SteamOwnedGame {
   appid: number;
+  // Only present because `fetchOwnedGames` requests `include_appinfo=1`.
+  name?: string;
   playtime_forever: number; // Minutes.
   playtime_2weeks?: number;
 }
@@ -47,7 +50,7 @@ export class SteamImportService {
     const owned = await this.fetchOwnedGames(steamId);
 
     if (owned.length === 0) {
-      return { steamId, totalOwned: 0, matched: [], unmatchedCount: 0 };
+      return { steamId, totalOwned: 0, matched: [], unmatched: [] };
     }
 
     const appIds = owned.map((g) => String(g.appid));
@@ -64,11 +67,21 @@ export class SteamImportService {
     // One row per matched IGDB game, keeping the highest playtime when several
     // owned appids resolve to the same game (e.g. regional editions).
     const matchedById = new Map<string, SteamMatchedGameDto>();
+    // Games IGDB found no entry for at all — offered for manual association.
+    // Age-filtered matches are excluded from both lists (not a match issue).
+    const unmatchedByAppId = new Map<string, SteamUnmatchedGameDto>();
 
     for (const game of owned) {
       const igdbId = appToIgdb.get(String(game.appid));
       const detail = igdbId ? detailById.get(igdbId) : undefined;
-      if (!igdbId || !detail) continue;
+      if (!igdbId || !detail) {
+        unmatchedByAppId.set(String(game.appid), {
+          appid: String(game.appid),
+          name: game.name ?? null,
+          playtimeMinutes: game.playtime_forever,
+        });
+        continue;
+      }
       if (detail.summary.isAdult && !allowAdult) continue;
 
       const existing = matchedById.get(igdbId);
@@ -90,13 +103,11 @@ export class SteamImportService {
     const matched = [...matchedById.values()].sort(
       (a, b) => b.playtimeMinutes - a.playtimeMinutes,
     );
+    const unmatched = [...unmatchedByAppId.values()].sort(
+      (a, b) => b.playtimeMinutes - a.playtimeMinutes,
+    );
 
-    return {
-      steamId,
-      totalOwned: owned.length,
-      matched,
-      unmatchedCount: owned.length - matched.length,
-    };
+    return { steamId, totalOwned: owned.length, matched, unmatched };
   }
 
   /**
@@ -206,6 +217,9 @@ export class SteamImportService {
     }>(`${STEAM_API}/IPlayerService/GetOwnedGames/v1/`, {
       steamid: steamId,
       include_played_free_games: "1",
+      // Needed for `name` — used to pre-fill the manual match search for
+      // games IGDB couldn't resolve on its own.
+      include_appinfo: "1",
       format: "json",
     });
 

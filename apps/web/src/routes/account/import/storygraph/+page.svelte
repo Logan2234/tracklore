@@ -3,11 +3,16 @@
     ApiError,
     commitStoryGraphImport,
     previewStoryGraphImport,
+    searchBooks,
   } from "$lib/api/client";
   import Icon from "$lib/components/Icon.svelte";
+  import Poster from "$lib/components/Poster.svelte";
   import type {
     BookStatus,
+    BookSummaryDto,
     StoryGraphImportPreviewDto,
+    StoryGraphMatchedBookDto,
+    StoryGraphUnmatchedBookDto,
   } from "@tracklore/shared";
   import { SvelteMap, SvelteSet } from "svelte/reactivity";
 
@@ -28,19 +33,64 @@
   let error = $state<string | null>(null);
 
   let preview = $state<StoryGraphImportPreviewDto | null>(null);
-  // Per-book import selection + chosen status (SvelteSet/SvelteMap are reactive,
+  // One row per matched + unmatched book, keyed synthetically (stable within
+  // one preview session) so a manual re-match doesn't disturb selection state.
+  type Row =
+    | { key: string; kind: "matched"; book: StoryGraphMatchedBookDto }
+    | { key: string; kind: "unmatched"; book: StoryGraphUnmatchedBookDto };
+  const rows = $derived<Row[]>(
+    preview
+      ? [
+          ...preview.matched.map((book, i): Row => ({
+            key: `m${i}`,
+            kind: "matched",
+            book,
+          })),
+          ...preview.unmatched.map((book, i): Row => ({
+            key: `u${i}`,
+            kind: "unmatched",
+            book,
+          })),
+        ]
+      : [],
+  );
+
+  // Per-row import selection + chosen status (SvelteSet/SvelteMap are reactive,
   // so we mutate them in place rather than reassigning).
   const included = new SvelteSet<string>();
   const statuses = new SvelteMap<string, BookStatus>();
+  // Manual catalogue match for a row (new match on a matched row, or the
+  // first match on a previously-unmatched one).
+  const picked = new SvelteMap<string, BookSummaryDto>();
   let hideOwned = $state(false);
   let importedCount = $state(0);
 
+  // --- Per-row manual search ---
+  let searchKey = $state<string | null>(null);
+  let searchQuery = $state("");
+  let searchResults = $state<BookSummaryDto[]>([]);
+  let searching = $state(false);
+
   const shown = $derived(
-    preview
-      ? preview.matched.filter((b) => !hideOwned || !b.alreadyInLibrary)
-      : [],
+    rows.filter(
+      (r) => !hideOwned || !(r.kind === "matched" && r.book.alreadyInLibrary),
+    ),
   );
   const selectedCount = $derived(included.size);
+
+  function matchOf(row: Row): BookSummaryDto | null {
+    const override = picked.get(row.key);
+    if (override) return override;
+    if (row.kind === "unmatched") return null;
+    return {
+      source: row.book.source,
+      sourceId: row.book.sourceId,
+      title: row.book.title,
+      authors: row.book.authors,
+      year: null,
+      coverUrl: row.book.coverUrl,
+    };
+  }
 
   async function onFile(e: Event) {
     const file = (e.currentTarget as HTMLInputElement).files?.[0];
@@ -57,14 +107,17 @@
     try {
       const result = await previewStoryGraphImport({ csv });
       preview = result;
-      // Default: import everything not already tracked, keeping the status the
-      // CSV recorded.
+      // Default: import everything already matched and not already tracked,
+      // keeping the status the CSV recorded. Unmatched rows start unselected
+      // until manually associated.
       included.clear();
       statuses.clear();
-      for (const b of result.matched) {
-        if (!b.alreadyInLibrary) included.add(b.sourceId);
-        statuses.set(b.sourceId, b.status);
-      }
+      picked.clear();
+      result.matched.forEach((b, i) => {
+        if (!b.alreadyInLibrary) included.add(`m${i}`);
+        statuses.set(`m${i}`, b.status);
+      });
+      result.unmatched.forEach((b, i) => statuses.set(`u${i}`, b.status));
       step = "review";
     } catch (err) {
       error = err instanceof ApiError ? err.message : "Analyse impossible";
@@ -73,14 +126,43 @@
     }
   }
 
-  function toggle(id: string) {
-    if (included.has(id)) included.delete(id);
-    else included.add(id);
+  function toggle(key: string) {
+    if (included.has(key)) included.delete(key);
+    else included.add(key);
   }
 
   function selectAll(on: boolean) {
     included.clear();
-    if (on) for (const b of shown) included.add(b.sourceId);
+    if (on) for (const r of shown) if (matchOf(r)) included.add(r.key);
+  }
+
+  function openSearch(row: Row) {
+    searchKey = searchKey === row.key ? null : row.key;
+    searchQuery = row.kind === "matched" ? row.book.title : row.book.csvTitle;
+    searchResults = [];
+  }
+
+  async function runSearch() {
+    if (!searchQuery.trim()) {
+      searchResults = [];
+      return;
+    }
+    searching = true;
+    try {
+      searchResults = (await searchBooks(searchQuery.trim())).results;
+    } catch {
+      searchResults = [];
+    } finally {
+      searching = false;
+    }
+  }
+
+  function chooseMatch(key: string, book: BookSummaryDto) {
+    picked.set(key, book);
+    included.add(key);
+    searchKey = null;
+    searchQuery = "";
+    searchResults = [];
   }
 
   async function commit() {
@@ -88,19 +170,24 @@
     loading = true;
     error = null;
     try {
-      const books = preview.matched
-        .filter((b) => included.has(b.sourceId))
-        .map((b) => ({
-          source: b.source,
-          sourceId: b.sourceId,
-          status: statuses.get(b.sourceId) ?? b.status,
-          rating: b.rating,
-          notes: b.notes,
-          startedAt: b.startedAt,
-          finishedAt: b.finishedAt,
-          ownershipStatus: b.ownershipStatus,
-          readCount: b.readCount,
-        }));
+      const books = rows
+        .filter((r) => included.has(r.key))
+        .map((r) => {
+          const match = matchOf(r);
+          if (!match) return null;
+          return {
+            source: match.source,
+            sourceId: match.sourceId,
+            status: statuses.get(r.key) ?? r.book.status,
+            rating: r.book.rating,
+            notes: r.book.notes,
+            startedAt: r.book.startedAt,
+            finishedAt: r.book.finishedAt,
+            ownershipStatus: r.book.ownershipStatus,
+            readCount: r.book.readCount,
+          };
+        })
+        .filter((b) => b !== null);
       const result = await commitStoryGraphImport({ books });
       importedCount = result.imported;
       step = "done";
@@ -116,6 +203,7 @@
     preview = null;
     included.clear();
     statuses.clear();
+    picked.clear();
     importedCount = 0;
     csv = "";
     fileName = "";
@@ -185,14 +273,14 @@
       reconnus sur {preview.totalRows} lignes.
       {#if preview.unmatched.length > 0}
         <span class="text-dim"
-          >{preview.unmatched.length} introuvables dans le catalogue.</span>
+          >{preview.unmatched.length} à associer manuellement.</span>
       {/if}
     </p>
 
-    {#if preview.matched.length === 0}
+    {#if rows.length === 0}
       <div
         class="mt-6 rounded-xl border border-dashed border-border px-6 py-12 text-center text-dim">
-        Aucun de tes livres StoryGraph n'a pu être associé au catalogue.
+        Aucun livre trouvé dans ce fichier.
       </div>
     {:else}
       <div class="mt-4 mb-3 flex flex-wrap items-center gap-2">
@@ -214,64 +302,114 @@
 
       <ul
         class="flex flex-col divide-y divide-border rounded-lg border border-border">
-        {#each shown as book (book.sourceId)}
-          {@const on = included.has(book.sourceId)}
-          <li class="flex items-center gap-3 p-3">
-            <input
-              type="checkbox"
-              class="h-4 w-4 shrink-0 accent-accent"
-              checked={on}
-              onchange={() => toggle(book.sourceId)} />
-            <div class="h-14 w-9 shrink-0 overflow-hidden rounded bg-surface-2">
-              {#if book.coverUrl}
-                <img
-                  src={book.coverUrl}
-                  alt=""
-                  loading="lazy"
-                  class="h-full w-full object-cover" />
+        {#each shown as row (row.key)}
+          {@const match = matchOf(row)}
+          {@const on = included.has(row.key)}
+          {@const csvTitle = row.book.csvTitle}
+          <li class="flex flex-col gap-2 p-3">
+            <div class="flex items-center gap-3">
+              <input
+                type="checkbox"
+                class="h-4 w-4 shrink-0 accent-accent"
+                checked={on}
+                disabled={!match}
+                onchange={() => toggle(row.key)} />
+              <div
+                class="h-14 w-9 shrink-0 overflow-hidden rounded bg-surface-2">
+                {#if match?.coverUrl}
+                  <img
+                    src={match.coverUrl}
+                    alt=""
+                    loading="lazy"
+                    class="h-full w-full object-cover" />
+                {/if}
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-semibold">
+                  {match?.title ?? csvTitle}
+                </p>
+                <p class="timecode truncate text-xs">
+                  {#if match && match.title !== csvTitle}
+                    {csvTitle} ·
+                  {/if}
+                  {#if row.kind === "matched" && row.book.rating}
+                    ★ {row.book.rating}/10
+                  {/if}
+                  {#if row.kind === "matched" && row.book.alreadyInLibrary}
+                    · <span class="text-dim">déjà suivi</span>
+                  {/if}
+                </p>
+              </div>
+              {#if match}
+                <button class="chip text-xs" onclick={() => openSearch(row)}>
+                  Changer
+                </button>
+              {:else}
+                <button
+                  class="chip text-xs text-danger"
+                  onclick={() => openSearch(row)}>
+                  Associer…
+                </button>
               {/if}
+              <select
+                class="input h-8 w-auto shrink-0 py-0 text-xs"
+                disabled={!on}
+                value={statuses.get(row.key) ?? row.book.status}
+                onchange={(e) =>
+                  statuses.set(row.key, e.currentTarget.value as BookStatus)}>
+                {#each STATUS_ORDER as s (s)}
+                  <option value={s}>{STATUS_LABELS[s]}</option>
+                {/each}
+              </select>
             </div>
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-sm font-semibold">{book.title}</p>
-              <p class="timecode truncate text-xs">
-                {#if book.authors.length > 0}{book.authors[0]}{/if}
-                {#if book.rating}
-                  · ★ {book.rating}/10
+
+            {#if searchKey === row.key}
+              <div class="rounded-lg border border-border bg-bg p-3">
+                <form
+                  onsubmit={(e) => {
+                    e.preventDefault();
+                    void runSearch();
+                  }}
+                  class="mb-2 flex gap-2">
+                  <input
+                    class="input flex-1"
+                    placeholder="Rechercher le bon livre…"
+                    bind:value={searchQuery} />
+                  <button class="btn btn-primary" disabled={searching}>
+                    {searching ? "…" : "Chercher"}
+                  </button>
+                </form>
+                {#if searchResults.length > 0}
+                  <ul class="flex max-h-56 flex-col gap-1 overflow-y-auto">
+                    {#each searchResults as r (r.sourceId)}
+                      <li>
+                        <button
+                          class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-surface-2"
+                          onclick={() => chooseMatch(row.key, r)}>
+                          <div
+                            class="h-10 w-7 shrink-0 overflow-hidden rounded">
+                            <Poster src={r.coverUrl} title={r.title} />
+                          </div>
+                          <span class="min-w-0 flex-1 truncate">
+                            {r.title}
+                            {#if r.authors.length > 0}<span class="text-dim">
+                                · {r.authors[0]}</span
+                              >{/if}
+                          </span>
+                        </button>
+                      </li>
+                    {/each}
+                  </ul>
+                {:else if !searching}
+                  <p class="timecode text-xs">
+                    Lance une recherche pour choisir le bon livre.
+                  </p>
                 {/if}
-                {#if book.alreadyInLibrary}
-                  · <span class="text-dim">déjà suivi</span>
-                {/if}
-              </p>
-            </div>
-            <select
-              class="input h-8 w-auto shrink-0 py-0 text-xs"
-              disabled={!on}
-              value={statuses.get(book.sourceId) ?? book.status}
-              onchange={(e) =>
-                statuses.set(
-                  book.sourceId,
-                  e.currentTarget.value as BookStatus,
-                )}>
-              {#each STATUS_ORDER as s (s)}
-                <option value={s}>{STATUS_LABELS[s]}</option>
-              {/each}
-            </select>
+              </div>
+            {/if}
           </li>
         {/each}
       </ul>
-
-      {#if preview.unmatched.length > 0}
-        <details class="mt-4 rounded-lg border border-border bg-surface p-3">
-          <summary class="cursor-pointer text-sm font-semibold text-dim">
-            {preview.unmatched.length} livres non associés
-          </summary>
-          <ul class="mt-2 flex flex-col gap-1 text-sm text-dim">
-            {#each preview.unmatched as title (title)}
-              <li class="truncate">{title}</li>
-            {/each}
-          </ul>
-        </details>
-      {/if}
 
       <div class="mt-5 flex items-center gap-3">
         <button
