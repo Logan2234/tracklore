@@ -51,6 +51,18 @@ export class BookItemService {
     return results[0] ?? null;
   }
 
+  /**
+   * Bulk-resolve many ISBNs in as few calls as possible — see
+   * `GoogleBooksProvider.searchByIsbns()`. No fallback: an ISBN reported in
+   * `failedIsbns` is not retried individually.
+   */
+  resolveByIsbns(isbns: string[]): Promise<{
+    matches: Map<string, BookSummaryDto>;
+    failedIsbns: string[];
+  }> {
+    return this.googleBooksProvider.searchByIsbns(isbns);
+  }
+
   /** Live details straight from the provider — nothing is persisted. */
   async getLiveDetails(
     source: BookSource,

@@ -245,4 +245,67 @@ describe("GoogleBooksProvider", () => {
     // 3 attempts total (1 initial + 2 retries), not an unbounded loop.
     expect(fn).toHaveBeenCalledTimes(3);
   });
+
+  it("resolves many ISBNs in one OR-joined call, keyed by the matched identifier", async () => {
+    const fn = mockFetch({
+      totalItems: 2,
+      items: [
+        {
+          id: "vol1",
+          volumeInfo: {
+            title: "The Hobbit",
+            industryIdentifiers: [
+              { type: "ISBN_10", identifier: "0261102214" },
+              { type: "ISBN_13", identifier: "9780261102217" },
+            ],
+          },
+        },
+        {
+          id: "vol2",
+          volumeInfo: {
+            title: "Dune",
+            industryIdentifiers: [
+              { type: "ISBN_13", identifier: "9781961108042" },
+            ],
+          },
+        },
+      ],
+    });
+
+    const { matches, failedIsbns } = await providerWith("k").searchByIsbns([
+      "9780261102217",
+      "9781961108042",
+    ]);
+
+    expect(String(fn.mock.calls[0][0])).toContain(
+      "isbn%3A9780261102217+OR+isbn%3A9781961108042",
+    );
+    expect(matches.size).toBe(2);
+    expect(matches.get("9780261102217")).toMatchObject({ sourceId: "vol1" });
+    expect(matches.get("9781961108042")).toMatchObject({ sourceId: "vol2" });
+    expect(failedIsbns).toEqual([]);
+  });
+
+  it("chunks ISBN batches at 40 and reports a failed chunk without retrying it individually", async () => {
+    const isbns = Array.from({ length: 45 }, (_, i) => `978000000000${i}`);
+    const fn = jest
+      .fn()
+      .mockImplementationOnce(() =>
+        Promise.reject(new Error("network down")),
+      )
+      .mockImplementationOnce(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ totalItems: 0 }), { status: 200 }),
+        ),
+      );
+    global.fetch = fn as unknown as typeof fetch;
+
+    const { matches, failedIsbns } =
+      await providerWith("k").searchByIsbns(isbns);
+
+    // 2 chunks (40 + 5) → 2 calls, not 45.
+    expect(fn).toHaveBeenCalledTimes(2);
+    expect(matches.size).toBe(0);
+    expect(failedIsbns).toEqual(isbns.slice(0, 40));
+  });
 });

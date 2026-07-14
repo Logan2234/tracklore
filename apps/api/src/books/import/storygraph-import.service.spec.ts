@@ -21,7 +21,10 @@ function summary(over: Partial<BookSummaryDto> = {}): BookSummaryDto {
 describe("StoryGraphImportService", () => {
   function setup(
     overrides: {
+      /** Mocks `BookItemService.resolve` — only called for ISBN-less rows. */
       resolve?: jest.Mock;
+      /** Mocks `BookItemService.resolveByIsbns` — the batched ISBN path. */
+      resolveByIsbns?: jest.Mock;
       getDetails?: jest.Mock;
       inLibraryRefs?: {
         source: string;
@@ -36,6 +39,9 @@ describe("StoryGraphImportService", () => {
     const getDetails = overrides.getDetails ?? jest.fn();
     const bookItemService = {
       resolve: overrides.resolve ?? jest.fn().mockResolvedValue(null),
+      resolveByIsbns:
+        overrides.resolveByIsbns ??
+        jest.fn().mockResolvedValue({ matches: new Map(), failedIsbns: [] }),
       providerFor: jest.fn().mockReturnValue({ getDetails }),
       persistDetails: jest.fn().mockResolvedValue({ id: "item-1" }),
     };
@@ -63,16 +69,24 @@ describe("StoryGraphImportService", () => {
   }
 
   it("resolves each row and reports the unmatched ones", async () => {
+    // "Résister" carries an ISBN → resolved via the batched ISBN path.
+    const resolveByIsbns = jest.fn().mockResolvedValue({
+      matches: new Map([
+        [
+          "9782228937597",
+          summary({ source: "GOOGLE_BOOKS", sourceId: "G-1", title: "First" }),
+        ],
+      ]),
+      failedIsbns: [],
+    });
+    // The other two rows have no ISBN → resolved by title+author search.
     const resolve = jest
       .fn()
-      .mockResolvedValueOnce(
-        summary({ source: "GOOGLE_BOOKS", sourceId: "G-1", title: "First" }),
-      )
       .mockResolvedValueOnce(
         summary({ source: "GOOGLE_BOOKS", sourceId: "G-2", title: "Second" }),
       )
       .mockResolvedValueOnce(null); // Unmatched.
-    const { service } = setup({ resolve });
+    const { service } = setup({ resolve, resolveByIsbns });
 
     const csv = [
       HEADER,
@@ -127,13 +141,37 @@ describe("StoryGraphImportService", () => {
     expect(preview.apiErrorCount).toBe(1);
   });
 
+  it("does not retry a failed ISBN batch lookup by title+author", async () => {
+    const resolveByIsbns = jest.fn().mockResolvedValue({
+      matches: new Map(),
+      failedIsbns: ["9782228937597"],
+    });
+    const resolve = jest.fn(); // Must not be called for the ISBN row.
+    const { service } = setup({ resolve, resolveByIsbns });
+
+    const csv = [
+      HEADER,
+      'Résister,Salomé Saqué,"",9782228937597,paperback,read,2025/07/23,"","",0,"",,,,,,,,"","","","",Yes',
+    ].join("\n");
+
+    const preview = await service.preview("user-1", csv);
+
+    expect(preview.matched).toHaveLength(0);
+    expect(preview.unmatched).toEqual([
+      expect.objectContaining({ csvTitle: "Résister" }),
+    ]);
+    expect(preview.apiErrorCount).toBe(1);
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
   it("flags books already in the user's library by (source, id)", async () => {
     const { service } = setup({
-      resolve: jest
-        .fn()
-        .mockResolvedValue(
-          summary({ source: "GOOGLE_BOOKS", sourceId: "G-DUP" }),
-        ),
+      resolveByIsbns: jest.fn().mockResolvedValue({
+        matches: new Map([
+          ["9782228937597", summary({ source: "GOOGLE_BOOKS", sourceId: "G-DUP" })],
+        ]),
+        failedIsbns: [],
+      }),
       inLibraryRefs: [
         { source: "GOOGLE_BOOKS", externalId: "G-DUP", bookItemId: "item-dup" },
       ],

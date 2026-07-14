@@ -18,9 +18,18 @@ const API_URL = "https://www.googleapis.com/books/v1/volumes";
 // quick browse, not an endless scroll.
 const MAX_SAME_AUTHOR_BOOKS = 10;
 
+// Google Books caps `maxResults` at 40 — also used as the batch size for
+// `searchByIsbns()` (one "isbn:A OR isbn:B OR …" query per chunk).
+const MAX_RESULTS_PER_PAGE = 40;
+
 interface GoogleImageLinks {
   smallThumbnail?: string;
   thumbnail?: string;
+}
+
+interface GoogleIndustryIdentifier {
+  type?: string; // "ISBN_10" | "ISBN_13" | …
+  identifier?: string;
 }
 
 interface GoogleVolumeInfo {
@@ -39,6 +48,7 @@ interface GoogleVolumeInfo {
   canonicalVolumeLink?: string;
   averageRating?: number; // 1–5.
   ratingsCount?: number;
+  industryIdentifiers?: GoogleIndustryIdentifier[];
 }
 
 interface GoogleVolume {
@@ -81,6 +91,49 @@ export class GoogleBooksProvider implements BookCatalogProvider {
     const data = await this.get<GoogleVolumeList>(`?${params}`);
     const volume = data.items?.[0];
     return volume ? this.toSummary(volume) : null;
+  }
+
+  /**
+   * Resolve many ISBNs in as few requests as possible: chunks of up to
+   * {@link MAX_RESULTS_PER_PAGE} joined into one "isbn:A OR isbn:B OR …"
+   * query each, instead of one call per ISBN — a bulk import can carry
+   * hundreds of ISBNs and this keeps it well under the API's per-100-seconds
+   * quota. No per-ISBN retry: an ISBN whose chunk request fails is reported
+   * in `failedIsbns`, not retried individually.
+   */
+  async searchByIsbns(isbns: string[]): Promise<{
+    matches: Map<string, BookSummaryDto>;
+    failedIsbns: string[];
+  }> {
+    const matches = new Map<string, BookSummaryDto>();
+    const failedIsbns: string[] = [];
+
+    for (const batch of chunk(isbns, MAX_RESULTS_PER_PAGE)) {
+      try {
+        const params = new URLSearchParams({
+          q: batch.map((isbn) => `isbn:${isbn}`).join(" OR "),
+          maxResults: String(batch.length),
+          printType: "books",
+        });
+        const data = await this.get<GoogleVolumeList>(`?${params}`);
+
+        for (const volume of data.items ?? []) {
+          for (const id of volume.volumeInfo?.industryIdentifiers ?? []) {
+            if (
+              id.identifier &&
+              batch.includes(id.identifier) &&
+              !matches.has(id.identifier)
+            ) {
+              matches.set(id.identifier, this.toSummary(volume));
+            }
+          }
+        }
+      } catch {
+        failedIsbns.push(...batch);
+      }
+    }
+
+    return { matches, failedIsbns };
   }
 
   async getDetails(sourceId: string): Promise<ProviderBookDetails> {
@@ -185,6 +238,15 @@ function retryDelayMs(retryAfterHeader: string | null, attempt: number): number 
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Split an array into consecutive slices of at most `size` items. */
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
 }
 
 /** Google Books' own average rating (1–5), when known. */

@@ -24,8 +24,11 @@ export class StoryGraphImportService {
   ) {}
 
   /**
-   * Parse the CSV and resolve every row against Google Books — writing nothing.
-   * Each row keeps its StoryGraph reading metadata (status/rating/notes/dates).
+   * Parse the CSV and resolve every row against Google Books — writing
+   * nothing. Rows with an ISBN are resolved together in a handful of batched
+   * calls (see `BookItemService.resolveByIsbns`); the rest fall back to an
+   * individual title+author search. Each row keeps its StoryGraph reading
+   * metadata (status/rating/notes/dates).
    */
   async preview(
     userId: string,
@@ -33,11 +36,36 @@ export class StoryGraphImportService {
   ): Promise<StoryGraphImportPreviewDto> {
     const rows = parseStoryGraphCsv(csv);
 
-    const resolved = await mapWithConcurrency(
-      rows,
-      RESOLVE_CONCURRENCY,
-      async (row) => ({ row, ...(await this.resolve(row)) }),
+    const isbnRows = rows.filter(
+      (r): r is ParsedStoryGraphRow & { isbn: string } => r.isbn !== null,
     );
+    const queryRows = rows.filter((r) => r.isbn === null);
+
+    const uniqueIsbns = Array.from(new Set(isbnRows.map((r) => r.isbn)));
+    const { matches, failedIsbns } =
+      await this.bookItemService.resolveByIsbns(uniqueIsbns);
+    const failedIsbnSet = new Set(failedIsbns);
+
+    const isbnResolved = isbnRows.map((row) => {
+      const summary = matches.get(row.isbn) ?? null;
+      return {
+        row: row as ParsedStoryGraphRow,
+        summary,
+        apiError: summary === null && failedIsbnSet.has(row.isbn),
+      };
+    });
+
+    const queryResolved = await mapWithConcurrency(
+      queryRows,
+      RESOLVE_CONCURRENCY,
+      async (row) => ({ row, ...(await this.resolveByQuery(row)) }),
+    );
+
+    // Restore the CSV's original row order for the review list.
+    const byRow = new Map(
+      [...isbnResolved, ...queryResolved].map((r) => [r.row, r]),
+    );
+    const resolved = rows.map((row) => byRow.get(row)!);
 
     const summaries = resolved
       .map((r) => r.summary)
@@ -151,16 +179,16 @@ export class StoryGraphImportService {
   }
 
   /**
-   * Resolve one row to a catalogue work: by ISBN first, then title+author.
-   * An API failure (rate limit, outage) is reported as `apiError` instead of
-   * a plain "not found", so the preview can tell the two apart.
+   * Resolve a row that has no ISBN by a title+author search. An API failure
+   * (rate limit, outage) is reported as `apiError` instead of a plain "not
+   * found", so the preview can tell the two apart.
    */
-  private async resolve(
+  private async resolveByQuery(
     row: ParsedStoryGraphRow,
   ): Promise<{ summary: BookSummaryDto | null; apiError: boolean }> {
     const query = [row.title, row.authors[0]].filter(Boolean).join(" ");
     try {
-      const summary = await this.bookItemService.resolve(row.isbn, query);
+      const summary = await this.bookItemService.resolve(null, query);
       return { summary, apiError: false };
     } catch {
       return { summary: null, apiError: true };
