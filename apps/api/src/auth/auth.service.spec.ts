@@ -227,7 +227,8 @@ describe("AuthService admin bootstrap (ADMIN_EMAIL)", () => {
     const user = makeUser({ passwordHash, entitlements: [] });
     (prisma.user.findFirst as jest.Mock).mockResolvedValue(user);
     (prisma.user.update as jest.Mock).mockImplementation(
-      async ({ data }: { data: Partial<User> }) => makeUser({ ...user, ...data }),
+      async ({ data }: { data: Partial<User> }) =>
+        makeUser({ ...user, ...data }),
     );
 
     const result = await service.login({
@@ -248,7 +249,8 @@ describe("AuthService admin bootstrap (ADMIN_EMAIL)", () => {
     const user = makeUser({ passwordHash, entitlements: [] });
     (prisma.user.findFirst as jest.Mock).mockResolvedValue(user);
     (prisma.user.update as jest.Mock).mockImplementation(
-      async ({ data }: { data: Partial<User> }) => makeUser({ ...user, ...data }),
+      async ({ data }: { data: Partial<User> }) =>
+        makeUser({ ...user, ...data }),
     );
 
     await service.login({

@@ -32,7 +32,10 @@ export class GoodreadsImportService {
    * individual title+author search. Each row keeps its Goodreads reading
    * metadata (status/rating/notes/dates).
    */
-  async preview(userId: string, csv: string): Promise<GoodreadsImportPreviewDto> {
+  async preview(
+    userId: string,
+    csv: string,
+  ): Promise<GoodreadsImportPreviewDto> {
     const rows = parseGoodreadsCsv(csv);
 
     const isbnRows = rows.filter(
@@ -195,6 +198,7 @@ export class GoodreadsImportService {
     row: ParsedGoodreadsRow,
   ): Promise<{ summary: BookSummaryDto | null; apiError: boolean }> {
     const query = [row.title, row.authors[0]].filter(Boolean).join(" ");
+
     try {
       const summary = await this.bookItemService.resolve(null, query);
       return { summary, apiError: false };

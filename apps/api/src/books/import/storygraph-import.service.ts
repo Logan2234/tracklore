@@ -198,6 +198,7 @@ export class StoryGraphImportService {
     row: ParsedStoryGraphRow,
   ): Promise<{ summary: BookSummaryDto | null; apiError: boolean }> {
     const query = [row.title, row.authors[0]].filter(Boolean).join(" ");
+
     try {
       const summary = await this.bookItemService.resolve(null, query);
       return { summary, apiError: false };

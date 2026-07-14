@@ -287,8 +287,8 @@
         1
           ? "ont"
           : "a"} pas pu être vérifié{preview.apiErrorCount > 1 ? "s" : ""} à cause
-        d'une erreur de l'API Google Books (quota, panne…), pas d'une vraie
-        absence de résultat. Relance l'import plus tard pour les récupérer.
+        d'une erreur de l'API Google Books (quota, panne…), pas d'une vraie absence
+        de résultat. Relance l'import plus tard pour les récupérer.
       </p>
     {/if}
 

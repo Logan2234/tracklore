@@ -255,7 +255,9 @@ export class UsersController {
     });
 
     const matches =
-      stored && stored.codeHash === hashToken(dto.code) && stored.expiresAt >= new Date();
+      stored &&
+      stored.codeHash === hashToken(dto.code) &&
+      stored.expiresAt >= new Date();
 
     if (!stored || !matches) {
       if (stored) {
@@ -270,6 +272,7 @@ export class UsersController {
           });
         }
       }
+
       throw new UnauthorizedException("Invalid or expired code");
     }
 

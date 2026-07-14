@@ -65,6 +65,7 @@ export class AdminController {
     if (!this.mail.isConfigured()) {
       throw new ServiceUnavailableException("SMTP is not configured");
     }
+
     const sent = await this.mail.sendTemplateTest(key, dto.to);
     if (!sent) throw new NotFoundException("Unknown template");
   }

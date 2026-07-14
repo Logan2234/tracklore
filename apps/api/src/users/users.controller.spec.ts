@@ -34,7 +34,10 @@ describe("UsersController — email change", () => {
 
   describe("changeEmail", () => {
     it("rejects an incorrect current password without creating a request", async () => {
-      prisma.user.findUnique.mockResolvedValueOnce({ id: userId, passwordHash });
+      prisma.user.findUnique.mockResolvedValueOnce({
+        id: userId,
+        passwordHash,
+      });
 
       await expect(
         controller.changeEmail(
@@ -53,7 +56,10 @@ describe("UsersController — email change", () => {
 
       await controller.changeEmail(
         { sub: userId } as any,
-        { newEmail: "new@example.com", currentPassword: "correct-password" } as any,
+        {
+          newEmail: "new@example.com",
+          currentPassword: "correct-password",
+        } as any,
       );
 
       expect(prisma.user.update).not.toHaveBeenCalled();
@@ -62,7 +68,10 @@ describe("UsersController — email change", () => {
       });
       expect(prisma.emailChangeRequest.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ userId, newEmail: "new@example.com" }),
+          data: expect.objectContaining({
+            userId,
+            newEmail: "new@example.com",
+          }),
         }),
       );
       expect(mail.sendEmailChangeCode).toHaveBeenCalledWith(
@@ -91,7 +100,9 @@ describe("UsersController — email change", () => {
         email: "old@example.com",
         passwordHash,
       });
-      prisma.emailChangeRequest.findFirst.mockResolvedValueOnce(pendingRequest());
+      prisma.emailChangeRequest.findFirst.mockResolvedValueOnce(
+        pendingRequest(),
+      );
       prisma.user.update.mockResolvedValueOnce({
         id: userId,
         email: "new@example.com",
@@ -127,8 +138,13 @@ describe("UsersController — email change", () => {
     });
 
     it("rejects a wrong code and increments attempts", async () => {
-      prisma.user.findUnique.mockResolvedValueOnce({ id: userId, passwordHash });
-      prisma.emailChangeRequest.findFirst.mockResolvedValueOnce(pendingRequest());
+      prisma.user.findUnique.mockResolvedValueOnce({
+        id: userId,
+        passwordHash,
+      });
+      prisma.emailChangeRequest.findFirst.mockResolvedValueOnce(
+        pendingRequest(),
+      );
 
       await expect(
         controller.confirmEmailChange(
@@ -145,7 +161,10 @@ describe("UsersController — email change", () => {
     });
 
     it("deletes the request after the max number of failed attempts", async () => {
-      prisma.user.findUnique.mockResolvedValueOnce({ id: userId, passwordHash });
+      prisma.user.findUnique.mockResolvedValueOnce({
+        id: userId,
+        passwordHash,
+      });
       prisma.emailChangeRequest.findFirst.mockResolvedValueOnce(
         pendingRequest({ attempts: 4 }),
       );
@@ -164,7 +183,10 @@ describe("UsersController — email change", () => {
     });
 
     it("rejects an expired code", async () => {
-      prisma.user.findUnique.mockResolvedValueOnce({ id: userId, passwordHash });
+      prisma.user.findUnique.mockResolvedValueOnce({
+        id: userId,
+        passwordHash,
+      });
       prisma.emailChangeRequest.findFirst.mockResolvedValueOnce(
         pendingRequest({ expiresAt: new Date(Date.now() - 1_000) }),
       );

@@ -140,9 +140,9 @@ describe("GoodreadsImportService", () => {
 
     const csv = [
       HEADER,
-      '1,First,X,X,,,,0,0,,,,,,,2025/01/01,to-read,,to-read,,0,,0,0',
-      '2,Second,X,X,,,,0,0,,,,,,,2025/01/01,to-read,,to-read,,0,,0,0',
-      '3,Third,X,X,,,,0,0,,,,,,,2025/01/01,to-read,,to-read,,0,,0,0',
+      "1,First,X,X,,,,0,0,,,,,,,2025/01/01,to-read,,to-read,,0,,0,0",
+      "2,Second,X,X,,,,0,0,,,,,,,2025/01/01,to-read,,to-read,,0,,0,0",
+      "3,Third,X,X,,,,0,0,,,,,,,2025/01/01,to-read,,to-read,,0,,0,0",
     ].join("\n");
 
     const preview = await service.preview("user-1", csv);
@@ -179,7 +179,10 @@ describe("GoodreadsImportService", () => {
     const { service } = setup({
       resolveByIsbns: jest.fn().mockResolvedValue({
         matches: new Map([
-          ["9782228937597", summary({ source: "GOOGLE_BOOKS", sourceId: "G-DUP" })],
+          [
+            "9782228937597",
+            summary({ source: "GOOGLE_BOOKS", sourceId: "G-DUP" }),
+          ],
         ]),
         failedIsbns: [],
       }),

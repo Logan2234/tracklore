@@ -65,6 +65,7 @@ function parseStatus(
   if (/\b(abandoned|dnf|did-?not-?finish)\b/i.test(bookshelves ?? "")) {
     return "DROPPED";
   }
+
   return STATUS_BY_SHELF[(exclusiveShelf ?? "").trim()] ?? "TO_READ";
 }
 
@@ -81,6 +82,7 @@ function parseOwnership(binding: string | undefined): BookOwnershipStatus {
   const value = (binding ?? "").trim().toLowerCase();
   if (value.includes("audio")) return "AUDIO";
   if (value.includes("kindle") || value.includes("ebook")) return "DIGITAL";
+
   if (value.includes("paperback") || value.includes("hardcover")) {
     return "PHYSICAL";
   }

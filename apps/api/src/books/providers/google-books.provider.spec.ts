@@ -308,9 +308,7 @@ describe("GoogleBooksProvider", () => {
     const isbns = Array.from({ length: 45 }, (_, i) => `978000000000${i}`);
     const fn = jest
       .fn()
-      .mockImplementationOnce(() =>
-        Promise.reject(new Error("network down")),
-      )
+      .mockImplementationOnce(() => Promise.reject(new Error("network down")))
       .mockImplementationOnce(() =>
         Promise.resolve(
           new Response(JSON.stringify({ totalItems: 0 }), { status: 200 }),

@@ -17,8 +17,7 @@
       services = res.services;
       checkedAt = res.checkedAt;
     } catch (err) {
-      error =
-        err instanceof ApiError ? err.message : "Statut indisponible";
+      error = err instanceof ApiError ? err.message : "Statut indisponible";
     } finally {
       loading = false;
     }
@@ -50,17 +49,32 @@
   function health(s: ServiceStatusDto): Health {
     if (!s.configured) {
       return s.required
-        ? { label: "Non configuré", cls: "border-danger/40 bg-danger/10 text-danger" }
-        : { label: "Non configuré", cls: "border-border bg-surface-2 text-dim" };
+        ? {
+            label: "Non configuré",
+            cls: "border-danger/40 bg-danger/10 text-danger",
+          }
+        : {
+            label: "Non configuré",
+            cls: "border-border bg-surface-2 text-dim",
+          };
     }
     if (s.reachable === true) {
-      return { label: "OK", cls: "border-success/40 bg-success/10 text-success" };
+      return {
+        label: "OK",
+        cls: "border-success/40 bg-success/10 text-success",
+      };
     }
     if (s.reachable === false) {
-      return { label: "En panne", cls: "border-danger/40 bg-danger/10 text-danger" };
+      return {
+        label: "En panne",
+        cls: "border-danger/40 bg-danger/10 text-danger",
+      };
     }
     // Configured but not probed (no cheap ping, e.g. VAPID).
-    return { label: "Configuré", cls: "border-accent/40 bg-accent/10 text-accent" };
+    return {
+      label: "Configuré",
+      cls: "border-accent/40 bg-accent/10 text-accent",
+    };
   }
 </script>
 

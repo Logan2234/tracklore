@@ -214,10 +214,12 @@ export class GoogleBooksProvider implements BookCatalogProvider {
 
       lastStatus = response.status;
       const transient = response.status === 429 || response.status >= 500;
+
       if (transient && attempt < GET_MAX_ATTEMPTS) {
         await sleep(retryDelayMs(response.headers.get("Retry-After"), attempt));
         continue;
       }
+
       break;
     }
 
@@ -230,11 +232,16 @@ export class GoogleBooksProvider implements BookCatalogProvider {
 const GET_MAX_ATTEMPTS = 3;
 
 /** `Retry-After` (seconds) when Google sends one; else exponential backoff. */
-function retryDelayMs(retryAfterHeader: string | null, attempt: number): number {
+function retryDelayMs(
+  retryAfterHeader: string | null,
+  attempt: number,
+): number {
   const retryAfterSec = Number(retryAfterHeader);
+
   if (Number.isFinite(retryAfterSec) && retryAfterSec > 0) {
     return retryAfterSec * 1000;
   }
+
   return 500 * 2 ** (attempt - 1); // 500ms, then 1000ms.
 }
 
@@ -245,9 +252,11 @@ function sleep(ms: number): Promise<void> {
 /** Split an array into consecutive slices of at most `size` items. */
 function chunk<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = [];
+
   for (let i = 0; i < items.length; i += size) {
     chunks.push(items.slice(i, i + size));
   }
+
   return chunks;
 }
 

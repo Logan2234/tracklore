@@ -40,8 +40,7 @@
       Notifications push
     </h1>
     <p class="mt-1 text-dim">
-      Envoie une notification de test à tous les appareils abonnés d'un
-      compte.
+      Envoie une notification de test à tous les appareils abonnés d'un compte.
     </p>
   </header>
 

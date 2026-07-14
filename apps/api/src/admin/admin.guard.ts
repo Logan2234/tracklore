@@ -23,6 +23,7 @@ export class AdminGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const userId = request.user?.sub;
+
     if (!userId) {
       throw new ForbiddenException("Admin access required");
     }
@@ -38,6 +39,7 @@ export class AdminGuard implements CanActivate {
     if (!entitlements.includes(ADMIN_ENTITLEMENT)) {
       throw new ForbiddenException("Admin access required");
     }
+
     return true;
   }
 }

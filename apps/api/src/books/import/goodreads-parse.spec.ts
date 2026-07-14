@@ -35,7 +35,7 @@ describe("parseGoodreadsCsv", () => {
       csv(
         '1,A,X,X,,,,0,0,,,,,,,2025/01/01,to-read,,to-read,,0,"Only private",0,0',
         '2,B,X,X,,,,0,0,,,,,,,2025/01/01,to-read,,to-read,"Only review",0,,0,0',
-        '3,C,X,X,,,,0,0,,,,,,,2025/01/01,to-read,,to-read,,0,,0,0',
+        "3,C,X,X,,,,0,0,,,,,,,2025/01/01,to-read,,to-read,,0,,0,0",
       ),
     );
 
@@ -49,14 +49,14 @@ describe("parseGoodreadsCsv", () => {
   it("derives ownership from Binding alone (Owned Copies is unreliable in practice)", () => {
     const rows = parseGoodreadsCsv(
       csv(
-        '1,A,X,X,,,,0,0,,Paperback,,,,,2025/01/01,to-read,,to-read,,0,,0,0',
-        '2,B,X,X,,,,0,0,,Kindle Edition,,,,,2025/01/01,to-read,,to-read,,0,,0,0',
-        '3,C,X,X,,,,0,0,,ebook,,,,,2025/01/01,to-read,,to-read,,0,,0,0',
-        '4,D,X,X,,,,0,0,,Audiobook,,,,,2025/01/01,to-read,,to-read,,0,,0,0',
-        '5,E,X,X,,,,0,0,,Hardcover,,,,,2025/01/01,to-read,,to-read,,0,,0,0',
+        "1,A,X,X,,,,0,0,,Paperback,,,,,2025/01/01,to-read,,to-read,,0,,0,0",
+        "2,B,X,X,,,,0,0,,Kindle Edition,,,,,2025/01/01,to-read,,to-read,,0,,0,0",
+        "3,C,X,X,,,,0,0,,ebook,,,,,2025/01/01,to-read,,to-read,,0,,0,0",
+        "4,D,X,X,,,,0,0,,Audiobook,,,,,2025/01/01,to-read,,to-read,,0,,0,0",
+        "5,E,X,X,,,,0,0,,Hardcover,,,,,2025/01/01,to-read,,to-read,,0,,0,0",
         // Empty binding → NONE, even though this is how Goodreads
         // actually exports "Owned Copies" for nearly every real row.
-        '6,F,X,X,,,,0,0,,,,,,,2025/01/01,to-read,,to-read,,0,,0,0',
+        "6,F,X,X,,,,0,0,,,,,,,2025/01/01,to-read,,to-read,,0,,0,0",
       ),
     );
 
@@ -73,17 +73,13 @@ describe("parseGoodreadsCsv", () => {
   it("maps every default shelf, doubles the star rating, and reads the read count", () => {
     const rows = parseGoodreadsCsv(
       csv(
-        '1,A,X,X,,,,0,0,,,,,,,2025/01/01,to-read,,to-read,,0,,0,0',
-        '2,B,X,X,,,,0,0,,,,,,,2025/01/01,currently-reading,,currently-reading,,0,,0,0',
-        '3,C,X,X,,,,5,0,,,,,,,2025/01/01,read,,read,,0,,3,0',
+        "1,A,X,X,,,,0,0,,,,,,,2025/01/01,to-read,,to-read,,0,,0,0",
+        "2,B,X,X,,,,0,0,,,,,,,2025/01/01,currently-reading,,currently-reading,,0,,0,0",
+        "3,C,X,X,,,,5,0,,,,,,,2025/01/01,read,,read,,0,,3,0",
       ),
     );
 
-    expect(rows.map((r) => r.status)).toEqual([
-      "TO_READ",
-      "READING",
-      "READ",
-    ]);
+    expect(rows.map((r) => r.status)).toEqual(["TO_READ", "READING", "READ"]);
     expect(rows[2].rating).toBe(10); // 5 stars doubled.
     expect(rows[2].readCount).toBe(3);
     expect(rows[0].rating).toBeNull();
@@ -95,10 +91,10 @@ describe("parseGoodreadsCsv", () => {
     // its 3 built-ins — here "read", the closest bucket to "I stopped".
     const rows = parseGoodreadsCsv(
       csv(
-        '1,Ward,Wildbow,X,,,,0,0,,ebook,,,,,2025/01/01,abandoned,abandoned (#1),read,,0,,1,0',
-        '2,DNF Book,X,X,,,,0,0,,,,,,,2025/01/01,dnf,,read,,0,,0,0',
+        "1,Ward,Wildbow,X,,,,0,0,,ebook,,,,,2025/01/01,abandoned,abandoned (#1),read,,0,,1,0",
+        "2,DNF Book,X,X,,,,0,0,,,,,,,2025/01/01,dnf,,read,,0,,0,0",
         // A plain "read" shelf, no dnf tag → stays READ.
-        '3,Finished,X,X,,,,0,0,,,,,,,2025/01/01,read,,read,,0,,1,0',
+        "3,Finished,X,X,,,,0,0,,,,,,,2025/01/01,read,,read,,0,,1,0",
       ),
     );
 
@@ -119,7 +115,7 @@ describe("parseGoodreadsCsv", () => {
   it("prefers ISBN13 over ISBN when both are present", () => {
     const rows = parseGoodreadsCsv(
       csv(
-        '1,A,X,X,,0261102214,9780261102217,0,0,,,,,,,2025/01/01,to-read,,to-read,,0,,0,0',
+        "1,A,X,X,,0261102214,9780261102217,0,0,,,,,,,2025/01/01,to-read,,to-read,,0,,0,0",
       ),
     );
 
@@ -129,11 +125,11 @@ describe("parseGoodreadsCsv", () => {
   it("parses every Date Read format found in real exports", () => {
     const rows = parseGoodreadsCsv(
       csv(
-        '1,A,X,X,,,,0,0,,,,,,2025/03/31,,to-read,,to-read,,0,,0,0', // YYYY/M/D, zero-padded
-        '2,B,X,X,,,,0,0,,,,,,1/1/2018,,to-read,,to-read,,0,,0,0', // M/D/YYYY
-        '3,C,X,X,,,,0,0,,,,,,12/26/2018,,to-read,,to-read,,0,,0,0', // MM/DD/YYYY
-        '4,D,X,X,,,,0,0,,,,,,7/15/2020,,to-read,,to-read,,0,,0,0', // M/DD/YYYY
-        '5,E,X,X,,,,0,0,,,,,,,,to-read,,to-read,,0,,0,0', // absent
+        "1,A,X,X,,,,0,0,,,,,,2025/03/31,,to-read,,to-read,,0,,0,0", // YYYY/M/D, zero-padded
+        "2,B,X,X,,,,0,0,,,,,,1/1/2018,,to-read,,to-read,,0,,0,0", // M/D/YYYY
+        "3,C,X,X,,,,0,0,,,,,,12/26/2018,,to-read,,to-read,,0,,0,0", // MM/DD/YYYY
+        "4,D,X,X,,,,0,0,,,,,,7/15/2020,,to-read,,to-read,,0,,0,0", // M/DD/YYYY
+        "5,E,X,X,,,,0,0,,,,,,,,to-read,,to-read,,0,,0,0", // absent
       ),
     );
 
@@ -148,7 +144,7 @@ describe("parseGoodreadsCsv", () => {
 
   it("skips rows without a title", () => {
     const rows = parseGoodreadsCsv(
-      csv('1,,X,,,,,0,0,,,,,,,2025/01/01,to-read,,to-read,,0,,0,0'),
+      csv("1,,X,,,,,0,0,,,,,,,2025/01/01,to-read,,to-read,,0,,0,0"),
     );
     expect(rows).toHaveLength(0);
   });

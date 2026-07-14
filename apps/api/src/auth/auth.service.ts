@@ -270,16 +270,15 @@ export class AuthService {
    */
   private async ensureAdminEntitlement(user: User): Promise<User> {
     const adminEmail = this.configService.get<string>("ADMIN_EMAIL");
-    if (
-      !adminEmail ||
-      user.email.toLowerCase() !== adminEmail.toLowerCase()
-    ) {
+
+    if (!adminEmail || user.email.toLowerCase() !== adminEmail.toLowerCase()) {
       return user;
     }
 
     const entitlements = Array.isArray(user.entitlements)
       ? (user.entitlements as string[])
       : [];
+
     if (entitlements.includes(ADMIN_ENTITLEMENT)) {
       return user;
     }

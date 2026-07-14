@@ -179,7 +179,10 @@ describe("StoryGraphImportService", () => {
     const { service } = setup({
       resolveByIsbns: jest.fn().mockResolvedValue({
         matches: new Map([
-          ["9782228937597", summary({ source: "GOOGLE_BOOKS", sourceId: "G-DUP" })],
+          [
+            "9782228937597",
+            summary({ source: "GOOGLE_BOOKS", sourceId: "G-DUP" }),
+          ],
         ]),
         failedIsbns: [],
       }),

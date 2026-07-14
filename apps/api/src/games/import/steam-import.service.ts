@@ -74,6 +74,7 @@ export class SteamImportService {
     for (const game of owned) {
       const igdbId = appToIgdb.get(String(game.appid));
       const detail = igdbId ? detailById.get(igdbId) : undefined;
+
       if (!igdbId || !detail) {
         unmatchedByAppId.set(String(game.appid), {
           appid: String(game.appid),
@@ -82,6 +83,7 @@ export class SteamImportService {
         });
         continue;
       }
+
       if (detail.summary.isAdult && !allowAdult) continue;
 
       const existing = matchedById.get(igdbId);

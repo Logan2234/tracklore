@@ -152,10 +152,7 @@ describe("MailService template gallery", () => {
     (nodemailer.createTransport as jest.Mock).mockReturnValue({ sendMail });
 
     const service = new MailService();
-    const sent = await service.sendTemplateTest(
-      "welcome",
-      "test@example.com",
-    );
+    const sent = await service.sendTemplateTest("welcome", "test@example.com");
 
     expect(sent).toBe(true);
     expect(sendMail).toHaveBeenCalledWith(

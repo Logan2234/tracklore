@@ -164,6 +164,7 @@ export class AdminService {
 
     let reachable: boolean | null = null;
     let detail: string | undefined;
+
     if (spec.probe) {
       try {
         reachable = await this.withTimeout(spec.probe);
@@ -195,6 +196,7 @@ export class AdminService {
   ): Promise<boolean> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+
     try {
       return await probe(controller.signal);
     } finally {

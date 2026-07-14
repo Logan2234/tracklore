@@ -115,6 +115,7 @@ export class MailService {
    */
   async verifyConnection(): Promise<boolean> {
     if (!this.transporter) return false;
+
     try {
       await this.transporter.verify();
       return true;

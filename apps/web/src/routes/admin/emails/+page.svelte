@@ -96,8 +96,8 @@
     {#if !smtpConfigured}
       <p
         class="mb-6 rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm text-dim">
-        SMTP n'est pas configuré — l'aperçu fonctionne, mais l'envoi de test
-        est désactivé.
+        SMTP n'est pas configuré — l'aperçu fonctionne, mais l'envoi de test est
+        désactivé.
       </p>
     {/if}
 
@@ -116,7 +116,8 @@
       </nav>
 
       <div class="min-w-0 space-y-4">
-        <div class="overflow-hidden rounded-xl border border-border bg-surface-2">
+        <div
+          class="overflow-hidden rounded-xl border border-border bg-surface-2">
           {#if previewLoading}
             <div class="h-96 animate-pulse"></div>
           {:else if previewHtml}

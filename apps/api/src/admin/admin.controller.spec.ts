@@ -8,7 +8,9 @@ import type { AdminService } from "./admin.service";
 function makeController() {
   const admin = {} as unknown as AdminService;
   const mail = {
-    listTemplates: jest.fn().mockReturnValue([{ key: "welcome", label: "Bienvenue" }]),
+    listTemplates: jest
+      .fn()
+      .mockReturnValue([{ key: "welcome", label: "Bienvenue" }]),
     isConfigured: jest.fn().mockReturnValue(true),
     renderTemplatePreview: jest.fn(),
     sendTemplateTest: jest.fn(),
