@@ -6,6 +6,7 @@ import type {
   NotificationDto,
   NotificationFeedDto,
 } from "@tracklore/shared";
+import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { selectNewEpisodeNotifications } from "./notification.util";
 import { PushService } from "./push.service";
@@ -22,6 +23,7 @@ export class NotificationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly push: PushService,
+    private readonly mail: MailService,
   ) {}
 
   /**
@@ -68,7 +70,13 @@ export class NotificationService {
   async scan(userId: string): Promise<number> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { notifyInApp: true, notifyPush: true, enabledDomains: true },
+      select: {
+        email: true,
+        notifyInApp: true,
+        notifyPush: true,
+        notifyEmail: true,
+        enabledDomains: true,
+      },
     });
 
     if (!user?.notifyInApp) return 0;
@@ -146,6 +154,19 @@ export class NotificationService {
             body: `S${n.seasonNumber}E${n.episodeNumber}${n.episodeTitle ? " · " + n.episodeTitle : ""}`,
             url: `/media/${n.mediaType.toLowerCase()}/${n.sourceId}`,
           }),
+        ),
+      );
+    }
+
+    if (user.notifyEmail) {
+      await Promise.all(
+        toCreate.map((n) =>
+          this.mail.sendNewEpisode(
+            user.email,
+            n.mediaTitle,
+            `S${n.seasonNumber}E${n.episodeNumber}${n.episodeTitle ? " · " + n.episodeTitle : ""}`,
+            `/media/${n.mediaType.toLowerCase()}/${n.sourceId}`,
+          ),
         ),
       );
     }

@@ -133,11 +133,13 @@ model User {
   birthDate         DateTime?
   // Opt-in to 18+ titles; only effective when birthDate proves the account is 18+.
   allowAdultContent Boolean   @default(false)
-  // Communication preferences. Email/push have no delivery channel yet (P2
-  // roadmap) — the flags are captured now so consent already exists once they do.
+  // Communication preferences: which channels deliver "new episode" alerts.
   notifyInApp       Boolean   @default(true)
   notifyEmail       Boolean   @default(false)
   notifyPush        Boolean   @default(false)
+  // Set once the verification email's link has been opened. Informational only
+  // in self-host (no feature is gated on it) — see EmailVerificationToken.
+  emailVerified     Boolean   @default(false)
   // Open-core seam: feature flags granted to this user (empty in self-host MVP).
   entitlements      Json      @default("[]")
   // Composition seam: content domains the user enabled. Drives the nav today;
@@ -146,14 +148,15 @@ model User {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  entries             LibraryEntry[]
-  episodeWatches      EpisodeWatch[]
-  refreshTokens       RefreshToken[]
-  notifications       Notification[]
-  pushSubscriptions   PushSubscription[]
-  gameEntries         GameEntry[]
-  bookEntries         BookEntry[]
-  passwordResetTokens PasswordResetToken[]
+  entries                 LibraryEntry[]
+  episodeWatches          EpisodeWatch[]
+  refreshTokens           RefreshToken[]
+  notifications           Notification[]
+  pushSubscriptions       PushSubscription[]
+  gameEntries             GameEntry[]
+  bookEntries             BookEntry[]
+  passwordResetTokens     PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
 }
 
 // One row per browser/device push subscription (Web Push). endpoint is the
@@ -222,10 +225,25 @@ model RefreshToken {
 }
 
 // One reset request per row; a fresh request invalidates the previous one (see
-// AuthService.requestPasswordReset). No email delivery (self-hosted, P1
-// scope) — the raw token is handed back in the API response for the user to
-// open directly.
+// AuthService.requestPasswordReset). The raw token is mailed as a link
+// (MailService) and only its hash is stored.
 model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// One verification link per row, issued at registration; a fresh one
+// invalidates the previous (see AuthService.register /
+// AuthService.verifyEmail). Purely informational — nothing is gated on
+// User.emailVerified in self-host.
+model EmailVerificationToken {
   id        String   @id @default(cuid())
   userId    String
   tokenHash String   @unique

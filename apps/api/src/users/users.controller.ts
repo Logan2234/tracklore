@@ -21,6 +21,7 @@ import * as bcrypt from "bcryptjs";
 import { BCRYPT_ROUNDS, toUserDto } from "../auth/auth.service";
 import type { JwtPayload } from "../auth/decorators/current-user.decorator";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
+import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { isAdult } from "./age.util";
 import { ChangeEmailDto } from "./dto/change-email.dto";
@@ -31,7 +32,10 @@ import { UpdateUsernameDto } from "./dto/update-username.dto";
 
 @Controller("users")
 export class UsersController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mail: MailService,
+  ) {}
 
   @Get("me")
   async getMe(@CurrentUser() payload: JwtPayload): Promise<UserDto> {
@@ -209,6 +213,7 @@ export class UsersController {
       where: { id: payload.sub },
       data: { email: dto.newEmail },
     });
+    await this.mail.sendEmailChanged(current.email, dto.newEmail);
     return toUserDto(user);
   }
 
@@ -234,6 +239,7 @@ export class UsersController {
       where: { id: payload.sub },
       data: { passwordHash: await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS) },
     });
+    await this.mail.sendPasswordChanged(current.email);
   }
 
   /**

@@ -1,3 +1,4 @@
+import type { MailService } from "../mail/mail.service";
 import type { PrismaService } from "../prisma/prisma.service";
 import { NotificationService } from "./notification.service";
 import type { PushService } from "./push.service";
@@ -10,7 +11,8 @@ describe("NotificationService.scanAll", () => {
       },
     } as unknown as PrismaService;
     const push = { sendToUser: jest.fn() } as never;
-    const service = new NotificationService(prisma, push);
+    const mail = { sendNewEpisode: jest.fn() } as never;
+    const service = new NotificationService(prisma, push, mail);
     return { service, prisma };
   }
 
@@ -77,12 +79,17 @@ describe("NotificationService.scan (push)", () => {
   function makeService(
     notifyPush: boolean,
     enabledDomains: string[] = ["MEDIA", "BOOKS", "GAMES"],
+    notifyEmail = false,
   ) {
     const prisma = {
       user: {
-        findUnique: jest
-          .fn()
-          .mockResolvedValue({ notifyInApp: true, notifyPush, enabledDomains }),
+        findUnique: jest.fn().mockResolvedValue({
+          email: "alice@example.com",
+          notifyInApp: true,
+          notifyPush,
+          notifyEmail,
+          enabledDomains,
+        }),
       },
       episode: { findMany: jest.fn().mockResolvedValue([episode]) },
       notification: {
@@ -91,8 +98,9 @@ describe("NotificationService.scan (push)", () => {
       },
     } as unknown as PrismaService;
     const push = { sendToUser: jest.fn() } as unknown as PushService;
-    const service = new NotificationService(prisma, push);
-    return { service, push, prisma };
+    const mail = { sendNewEpisode: jest.fn() } as unknown as MailService;
+    const service = new NotificationService(prisma, push, mail);
+    return { service, push, mail, prisma };
   }
 
   it("sends a push per new notification when notifyPush is enabled", async () => {
@@ -109,6 +117,23 @@ describe("NotificationService.scan (push)", () => {
     const { service, push } = makeService(false);
     await service.scan("u1");
     expect(push.sendToUser).not.toHaveBeenCalled();
+  });
+
+  it("sends an email per new notification when notifyEmail is enabled", async () => {
+    const { service, mail } = makeService(false, undefined, true);
+    await service.scan("u1");
+    expect(mail.sendNewEpisode).toHaveBeenCalledWith(
+      "alice@example.com",
+      "Severance",
+      "S2E5 · The One With The Finale",
+      "/media/series/42",
+    );
+  });
+
+  it("skips email entirely when notifyEmail is disabled", async () => {
+    const { service, mail } = makeService(true, undefined, false);
+    await service.scan("u1");
+    expect(mail.sendNewEpisode).not.toHaveBeenCalled();
   });
 
   it("creates no episode notifications when the MEDIA domain is disabled", async () => {

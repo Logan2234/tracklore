@@ -28,12 +28,14 @@ export interface UserDto {
   birthDate: string | null;
   /** Opt-in to seeing 18+ titles; only effective when birthDate proves the account is 18+. */
   allowAdultContent: boolean;
-  /** In-app notifications (new episode alerts) — the only channel actually delivered today. */
+  /** In-app notifications (new episode alerts). */
   notifyInApp: boolean;
-  /** Captured for when email delivery exists; not sent yet. */
+  /** Email delivery for new episode alerts. */
   notifyEmail: boolean;
-  /** Captured for when push delivery exists (P2 roadmap); not sent yet. */
+  /** Web Push delivery for new episode alerts. */
   notifyPush: boolean;
+  /** Whether the account's email has been confirmed via the verification link (informational only). */
+  emailVerified: boolean;
   /** Open-core seam: feature flags granted to this user (empty in self-host MVP). */
   entitlements: string[];
   /**
@@ -85,18 +87,13 @@ export interface ForgotPasswordRequestDto {
   email: string;
 }
 
-export interface ForgotPasswordResponseDto {
-  /**
-   * The raw reset token, handed back directly since there is no email
-   * delivery (self-hosted, single-user). Null when no account matches the
-   * email, without otherwise distinguishing the response.
-   */
-  token: string | null;
-}
-
 export interface ResetPasswordRequestDto {
   token: string;
   newPassword: string;
+}
+
+export interface VerifyEmailRequestDto {
+  token: string;
 }
 
 /** One active refresh-token session, i.e. one signed-in device. */

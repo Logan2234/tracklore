@@ -9,6 +9,7 @@ import type { User } from "@prisma/client";
 import type { AuthTokensDto, SessionDto, UserDto } from "@tracklore/shared";
 import * as bcrypt from "bcryptjs";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { randomUsernameSuffix, slugifyUsername } from "../users/username.util";
 import type { JwtPayload } from "./decorators/current-user.decorator";
@@ -18,6 +19,7 @@ import { RegisterDto } from "./dto/register.dto";
 const ACCESS_TOKEN_TTL = "15m";
 const REFRESH_TOKEN_TTL_DAYS = 30;
 const RESET_TOKEN_TTL_MINUTES = 60;
+const VERIFY_TOKEN_TTL_HOURS = 24;
 export const BCRYPT_ROUNDS = 12;
 
 export interface AuthResult {
@@ -31,6 +33,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly mail: MailService,
   ) {}
 
   async register(dto: RegisterDto, userAgent?: string): Promise<AuthResult> {
@@ -50,10 +53,43 @@ export class AuthService {
         username: await this.generateUniqueUsername(dto.displayName),
       },
     });
+
+    const verifyToken = randomBytes(32).toString("hex");
+    await this.prisma.emailVerificationToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: hashToken(verifyToken),
+        expiresAt: new Date(Date.now() + VERIFY_TOKEN_TTL_HOURS * 60 * 60_000),
+      },
+    });
+    await this.mail.sendWelcome(user.email, user.displayName);
+    await this.mail.sendVerifyEmail(user.email, verifyToken);
+
     return {
       user: toUserDto(user),
       tokens: await this.startSession(user, userAgent),
     };
+  }
+
+  /** Consumes an email-verification link. Informational only — nothing is gated on it. */
+  async verifyEmail(token: string): Promise<void> {
+    const stored = await this.prisma.emailVerificationToken.findUnique({
+      where: { tokenHash: hashToken(token) },
+    });
+
+    if (!stored || stored.expiresAt < new Date()) {
+      throw new UnauthorizedException("Invalid or expired verification token");
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: stored.userId },
+        data: { emailVerified: true },
+      }),
+      this.prisma.emailVerificationToken.deleteMany({
+        where: { userId: stored.userId },
+      }),
+    ]);
   }
 
   /** Accepts either the email or the username as the login identifier. */
@@ -150,13 +186,13 @@ export class AuthService {
 
   /**
    * Generates a fresh reset token for the account, invalidating any previous
-   * one. Returns null without erroring when the email doesn't match an
-   * account, so the controller's response shape doesn't leak which emails
-   * are registered.
+   * one, and emails it as a link. Silently no-ops when the email doesn't
+   * match an account, so the controller's response shape doesn't leak which
+   * emails are registered.
    */
-  async requestPasswordReset(email: string): Promise<string | null> {
+  async requestPasswordReset(email: string): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user) return null;
+    if (!user) return;
 
     const token = randomBytes(32).toString("hex");
     await this.prisma.$transaction([
@@ -171,7 +207,7 @@ export class AuthService {
         },
       }),
     ]);
-    return token;
+    await this.mail.sendPasswordResetLink(user.email, token);
   }
 
   /**
@@ -181,6 +217,7 @@ export class AuthService {
   async resetPassword(token: string, newPassword: string): Promise<void> {
     const stored = await this.prisma.passwordResetToken.findUnique({
       where: { tokenHash: hashToken(token) },
+      include: { user: true },
     });
 
     if (!stored || stored.expiresAt < new Date()) {
@@ -199,6 +236,7 @@ export class AuthService {
         where: { userId: stored.userId },
       }),
     ]);
+    await this.mail.sendPasswordChanged(stored.user.email);
   }
 
   /** Slugifies `seed` into a username, appending a random suffix on collision. */
@@ -287,6 +325,7 @@ export function toUserDto(user: User): UserDto {
     notifyInApp: user.notifyInApp,
     notifyEmail: user.notifyEmail,
     notifyPush: user.notifyPush,
+    emailVerified: user.emailVerified,
     entitlements: Array.isArray(user.entitlements)
       ? (user.entitlements as string[])
       : [],

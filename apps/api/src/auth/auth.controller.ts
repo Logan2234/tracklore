@@ -7,10 +7,7 @@ import {
   Post,
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
-import type {
-  AuthTokensDto,
-  ForgotPasswordResponseDto,
-} from "@tracklore/shared";
+import type { AuthTokensDto } from "@tracklore/shared";
 import { AuthResult, AuthService } from "./auth.service";
 import { Public } from "./decorators/public.decorator";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
@@ -18,6 +15,7 @@ import { LoginDto } from "./dto/login.dto";
 import { RefreshDto } from "./dto/refresh.dto";
 import { RegisterDto } from "./dto/register.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
+import { VerifyEmailDto } from "./dto/verify-email.dto";
 
 @Public()
 @Controller("auth")
@@ -57,12 +55,10 @@ export class AuthController {
   }
 
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.NO_CONTENT)
   @Post("forgot-password")
-  async forgotPassword(
-    @Body() dto: ForgotPasswordDto,
-  ): Promise<ForgotPasswordResponseDto> {
-    return { token: await this.authService.requestPasswordReset(dto.email) };
+  async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<void> {
+    await this.authService.requestPasswordReset(dto.email);
   }
 
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
@@ -70,5 +66,12 @@ export class AuthController {
   @Post("reset-password")
   async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
     await this.authService.resetPassword(dto.token, dto.newPassword);
+  }
+
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Post("verify-email")
+  async verifyEmail(@Body() dto: VerifyEmailDto): Promise<void> {
+    await this.authService.verifyEmail(dto.token);
   }
 }

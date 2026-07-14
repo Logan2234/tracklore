@@ -38,6 +38,18 @@ Create a free account on themoviedb.org, then copy the **API Read Access
 Token (v4)** from Settings → API into `TMDB_API_TOKEN`. Anime search (AniList)
 works without any key.
 
+### Email (SMTP)
+
+Password reset, email verification, account change confirmations and email
+alerts for new episodes all go through `SMTP_*` in `.env`. Empty = email is
+silently disabled, everything else still works (the reset-password flow just
+has no way to reach you).
+
+[Brevo](https://www.brevo.com) has a free SMTP relay (300 emails/day, no
+credit card): create an account (personal accounts are fine, no company or
+website required), then **SMTP & API** in the sidebar for `SMTP_HOST`,
+`SMTP_USER` and `SMTP_PASS`.
+
 ### Mobile access (ngrok)
 
 Install it as a PWA on your phone while the stack keeps running on your
@@ -98,6 +110,8 @@ pnpm --filter @tracklore/api test:e2e    # full API flow, isolated "e2e" schema
 - **P2** — push notifications ("new episode out") + Capacitor.
   In-app notifications, a periodic scan/refresh of tracked shows and **Web Push**
   (VAPID, service-worker `push` handler, per-device subscriptions) are shipped ✓.
+  **Email** is shipped ✓: password reset, email verification, account change
+  confirmations and (opt-in) new-episode alerts, via SMTP — see "Email" above.
   **Mobile access** is shipped ✓: the app installs as a PWA, and a ready-made
   ngrok setup (single-origin Caddy proxy) exposes the local stack to your phone
   from anywhere — see "Mobile access" above. The native (Capacitor) wrapper is

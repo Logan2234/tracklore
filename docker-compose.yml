@@ -40,6 +40,12 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@example.com}
+      # Outgoing email (SMTP); empty = email silently disabled. See "Email" in README.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: "${SMTP_FROM:-Tracklore <no-reply@tracklore.app>}"
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:8080}
     ports:
       - "${API_PORT:-3000}:3000"

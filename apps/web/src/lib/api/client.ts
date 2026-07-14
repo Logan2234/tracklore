@@ -23,7 +23,6 @@ import type {
   DeleteAccountRequestDto,
   EntryStatus,
   EpisodeWatchDto,
-  ForgotPasswordResponseDto,
   GameDetailDto,
   GameEntryDto,
   GameSearchResponseDto,
@@ -186,10 +185,8 @@ export async function register(body: RegisterRequestDto): Promise<void> {
   auth.user = result.user;
 }
 
-/** Generates a reset token for the account (null if the email is unknown). */
-export function forgotPassword(
-  email: string,
-): Promise<ForgotPasswordResponseDto> {
+/** Sends a reset link by email, if the address matches an account. */
+export function forgotPassword(email: string): Promise<void> {
   return request("/auth/forgot-password", {
     method: "POST",
     body: { email },
@@ -204,6 +201,14 @@ export function resetPassword(
   return request("/auth/reset-password", {
     method: "POST",
     body: { token, newPassword },
+    withAuth: false,
+  });
+}
+
+export function verifyEmail(token: string): Promise<void> {
+  return request("/auth/verify-email", {
+    method: "POST",
+    body: { token },
     withAuth: false,
   });
 }

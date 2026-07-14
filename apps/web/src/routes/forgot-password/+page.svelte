@@ -4,7 +4,6 @@
   let email = $state("");
   let error = $state<string | null>(null);
   let loading = $state(false);
-  let resetUrl = $state<string | null>(null);
   let submitted = $state(false);
 
   async function submit(event: SubmitEvent) {
@@ -12,10 +11,7 @@
     error = null;
     loading = true;
     try {
-      const { token } = await forgotPassword(email);
-      resetUrl = token
-        ? `${location.origin}/reset-password?token=${token}`
-        : null;
+      await forgotPassword(email);
       submitted = true;
     } catch (err) {
       error =
@@ -42,9 +38,8 @@
 
       {#if !submitted}
         <p class="text-sm text-dim">
-          Indique l'email de ton compte. Un lien de réinitialisation sera généré
-          (valable 1h) — cette instance n'envoie pas d'email, le lien s'affiche
-          directement ici.
+          Indique l'email de ton compte. Si un compte existe, un lien de
+          réinitialisation (valable 1h) va t'être envoyé par email.
         </p>
         <form onsubmit={submit} class="flex flex-col gap-4">
           <input
@@ -55,21 +50,13 @@
             class="input" />
           {#if error}<p class="text-sm text-danger">{error}</p>{/if}
           <button type="submit" class="btn btn-primary" disabled={loading}>
-            {loading ? "Génération…" : "Générer le lien"}
+            {loading ? "Envoi…" : "Envoyer le lien"}
           </button>
         </form>
-      {:else if resetUrl}
-        <p class="text-sm text-dim">
-          Voici ton lien de réinitialisation, valable 1h :
-        </p>
-        <a
-          href={resetUrl}
-          class="break-all text-sm font-semibold text-accent hover:underline">
-          {resetUrl}
-        </a>
       {:else}
         <p class="text-sm text-dim">
-          Si un compte existe avec cet email, un lien aurait été généré ici.
+          Si un compte existe avec cet email, un lien de réinitialisation vient
+          d'être envoyé.
         </p>
       {/if}
 
