@@ -44,8 +44,16 @@ import type {
   PushPublicKeyDto,
   PushSubscriptionRequestDto,
   RegisterRequestDto,
+  AdminPushDeviceDto,
+  AdminPushSendResponseDto,
+  AdminUserDto,
+  AdminStatsDto,
+  AdminTrendsDto,
+  TrendPeriod,
+  JobListResponseDto,
   MailTemplateListResponseDto,
   MailTemplatePreviewDto,
+  SchemaGraphResponseDto,
   SearchResponseDto,
   SendAdminTestPushRequestDto,
   SendTestEmailRequestDto,
@@ -147,7 +155,21 @@ async function request<T>(
   return (await response.json()) as T;
 }
 
-async function tryRefresh(): Promise<boolean> {
+// Refresh tokens rotate: the presented one is consumed server-side on success.
+// Concurrent 401s (e.g. a page firing several requests at once) must therefore
+// share a single refresh — otherwise the first consumes the token and the rest
+// replay the now-dead one, fail, and log the user out. This mutex holds the
+// in-flight refresh so late callers await it instead of starting their own.
+let refreshInFlight: Promise<boolean> | null = null;
+
+function tryRefresh(): Promise<boolean> {
+  refreshInFlight ??= doRefresh().finally(() => {
+    refreshInFlight = null;
+  });
+  return refreshInFlight;
+}
+
+async function doRefresh(): Promise<boolean> {
   try {
     const { tokens } = await request<{ tokens: AuthTokensDto }>(
       "/auth/refresh",
@@ -329,8 +351,11 @@ export function getAdminEmailTemplates(): Promise<MailTemplateListResponseDto> {
 
 export function getAdminEmailPreview(
   key: string,
+  values: Record<string, string> = {},
 ): Promise<MailTemplatePreviewDto> {
-  return request(`/admin/emails/${key}/preview`);
+  const params = new URLSearchParams(values);
+  const suffix = params.size > 0 ? `?${params}` : "";
+  return request(`/admin/emails/${key}/preview${suffix}`);
 }
 
 export function sendAdminTestEmail(
@@ -342,8 +367,57 @@ export function sendAdminTestEmail(
 
 export function sendAdminTestPush(
   body: SendAdminTestPushRequestDto,
-): Promise<void> {
+): Promise<AdminPushSendResponseDto> {
   return request("/admin/push/test", { method: "POST", body });
+}
+
+export function getAdminPushDevices(
+  email: string,
+): Promise<AdminPushDeviceDto[]> {
+  const params = new URLSearchParams({ email });
+  return request(`/admin/push/devices?${params}`);
+}
+
+/** Locally-generated architecture diagrams (DB ERD, module graph). */
+export function getAdminSchema(): Promise<SchemaGraphResponseDto> {
+  return request("/admin/schema");
+}
+
+/** Instance-wide dashboard: cross-account aggregates, distinct from the per-user /stats page. */
+export function getAdminStats(): Promise<AdminStatsDto> {
+  return request("/admin/stats");
+}
+
+/** Trend series at a chosen granularity, to re-query the évolution charts. */
+export function getAdminTrends(period: TrendPeriod): Promise<AdminTrendsDto> {
+  return request(`/admin/stats/trends?period=${period}`);
+}
+
+/** Every known scheduled job, with its recent run history. */
+export function getAdminJobs(): Promise<JobListResponseDto> {
+  return request("/admin/jobs");
+}
+
+/** Triggers a job immediately (both are idempotent). */
+export function runAdminJob(key: string): Promise<void> {
+  return request(`/admin/jobs/${key}/run`, { method: "POST" });
+}
+
+export function getAdminUsers(): Promise<AdminUserDto[]> {
+  return request("/admin/users");
+}
+
+export function getAdminUserSessions(userId: string): Promise<SessionDto[]> {
+  return request(`/admin/users/${userId}/sessions`);
+}
+
+export function revokeAdminUserSession(
+  userId: string,
+  sessionId: string,
+): Promise<void> {
+  return request(`/admin/users/${userId}/sessions/${sessionId}`, {
+    method: "DELETE",
+  });
 }
 
 // --- Catalog ---

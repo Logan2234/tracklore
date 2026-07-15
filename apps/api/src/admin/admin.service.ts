@@ -1,11 +1,27 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type {
+  SchemaGraphResponseDto,
   ServiceArea,
   ServiceStatusDto,
   ServiceStatusResponseDto,
 } from "@tracklore/shared";
 import { MailService } from "../mail/mail.service";
+
+// docs/ is gitignored and regenerated locally (`prisma generate` for the ERD,
+// `pnpm --filter @tracklore/api run graph` for the module graph). process.cwd()
+// is apps/api in both dev (pnpm --filter) and the Docker image (WORKDIR).
+const DOCS_DIR = join(process.cwd(), "..", "..", "docs");
+
+/** Strips the ```mermaid fence a generated doc wraps its diagram in. */
+function extractMermaid(markdown: string): string {
+  return markdown
+    .replace(/^```mermaid\n/, "")
+    .replace(/```\s*$/, "")
+    .trim();
+}
 
 /** Abort a probe after this delay so one dead service can't stall the page. */
 const PROBE_TIMEOUT_MS = 5_000;
@@ -17,6 +33,8 @@ interface ServiceSpec {
   required: boolean;
   /** Env var(s) that must all be set for the service to be configured. */
   envKeys: string[];
+  /** Where to obtain the missing key/credentials, shown when unconfigured. */
+  keyUrl?: string;
   /**
    * Live probe. Resolves to `true`/`false` when it ran, or `null` when there's
    * nothing cheap to ping (only the config presence is reported). Receives the
@@ -40,6 +58,7 @@ export class AdminService {
         area: "Écrans",
         required: true,
         envKeys: ["TMDB_API_TOKEN"],
+        keyUrl: "https://www.themoviedb.org/settings/api",
         probe: (signal) =>
           this.ping("https://api.themoviedb.org/3/configuration", {
             signal,
@@ -69,6 +88,7 @@ export class AdminService {
         area: "Écrans",
         required: false,
         envKeys: ["OMDB_API_KEY"],
+        keyUrl: "https://www.omdbapi.com/apikey.aspx",
         probe: (signal) =>
           this.ping(
             `https://www.omdbapi.com/?apikey=${this.env("OMDB_API_KEY")}&i=tt0111161`,
@@ -81,6 +101,7 @@ export class AdminService {
         area: "Jeux",
         required: true,
         envKeys: ["TWITCH_CLIENT_ID", "TWITCH_CLIENT_SECRET"],
+        keyUrl: "https://dev.twitch.tv/console/apps",
         // Exchanging the client credentials validates both the reachability of
         // Twitch's OAuth endpoint and that the secret pair is accepted.
         probe: (signal) =>
@@ -98,6 +119,7 @@ export class AdminService {
         area: "Jeux",
         required: false,
         envKeys: ["STEAM_API_KEY"],
+        keyUrl: "https://steamcommunity.com/dev/apikey",
         // Keyless health endpoint: reports Steam reachability independent of the
         // key (the key only gates the actual import).
         probe: (signal) =>
@@ -112,6 +134,8 @@ export class AdminService {
         area: "Livres",
         required: true,
         envKeys: ["GOOGLE_BOOKS_API_KEY"],
+        keyUrl:
+          "https://console.cloud.google.com/apis/library/books.googleapis.com",
         probe: (signal) =>
           this.ping(
             "https://www.googleapis.com/books/v1/volumes?q=isbn:9780262033848" +
@@ -125,6 +149,7 @@ export class AdminService {
         area: "Système",
         required: false,
         envKeys: ["SMTP_HOST", "SMTP_USER", "SMTP_PASS"],
+        keyUrl: "https://www.brevo.com",
         probe: () => this.mail.verifyConnection(),
       },
       {
@@ -136,6 +161,24 @@ export class AdminService {
         envKeys: ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY"],
       },
     ];
+  }
+
+  /** Reads the two locally-generated architecture diagrams, `null` when absent. */
+  async getSchemaGraphs(): Promise<SchemaGraphResponseDto> {
+    const [erd, modules] = await Promise.all([
+      this.readGraph("erd.md"),
+      this.readGraph("modules.md"),
+    ]);
+    return { erd, modules };
+  }
+
+  private async readGraph(filename: string): Promise<string | null> {
+    try {
+      const raw = await readFile(join(DOCS_DIR, filename), "utf-8");
+      return extractMermaid(raw);
+    } catch {
+      return null;
+    }
   }
 
   async getServicesStatus(): Promise<ServiceStatusResponseDto> {
@@ -159,17 +202,23 @@ export class AdminService {
         configured: false,
         reachable: null,
         detail: "Clé absente",
+        keyUrl: spec.keyUrl,
       };
     }
 
     let reachable: boolean | null = null;
     let detail: string | undefined;
+    let latencyMs: number | undefined;
 
     if (spec.probe) {
+      const start = Date.now();
+
       try {
         reachable = await this.withTimeout(spec.probe);
+        latencyMs = Date.now() - start;
         if (!reachable) detail = "Injoignable ou refusé";
       } catch {
+        latencyMs = Date.now() - start;
         reachable = false;
         detail = "Injoignable ou refusé";
       }
@@ -183,6 +232,7 @@ export class AdminService {
       configured,
       reachable,
       detail,
+      latencyMs,
     };
   }
 

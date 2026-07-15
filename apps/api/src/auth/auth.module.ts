@@ -10,5 +10,6 @@ import { SessionsController } from "./sessions.controller";
   imports: [JwtModule.register({ global: true }), MailModule],
   controllers: [AuthController, SessionsController],
   providers: [AuthService],
+  exports: [AuthService],
 })
 export class AuthModule {}

@@ -16,6 +16,8 @@
     values = [],
     multiselect = false,
     allLabel = "tous",
+    searchable = false,
+    searchPlaceholder = "Rechercher…",
     onChange,
   }: {
     label: string;
@@ -23,16 +25,28 @@
     values?: string[];
     multiselect?: boolean;
     allLabel?: string;
+    /** Adds a text filter at the top of the panel. Single-select only. */
+    searchable?: boolean;
+    searchPlaceholder?: string;
     onChange: (values: string[]) => void;
   } = $props();
 
   let open = $state(false);
+  let query = $state("");
+  let searchInput: HTMLInputElement | undefined;
 
   const selectedOption = $derived(options.find((o) => o.value === values[0]));
   const triggerText = $derived(
     multiselect
       ? `${label} : ${values.length === 0 ? allLabel : values.length}`
       : (selectedOption?.label ?? label),
+  );
+  const visibleOptions = $derived(
+    searchable && query.trim()
+      ? options.filter((o) =>
+          o.label.toLowerCase().includes(query.trim().toLowerCase()),
+        )
+      : options,
   );
 
   function choose(value: string) {
@@ -47,6 +61,14 @@
       open = false;
     }
   }
+
+  function toggleOpen() {
+    open = !open;
+    if (open) {
+      query = "";
+      if (searchable) queueMicrotask(() => searchInput?.focus());
+    }
+  }
 </script>
 
 <svelte:window onkeydown={(e) => e.key === "Escape" && (open = false)} />
@@ -58,7 +80,7 @@
     class:chip-on={multiselect && values.length > 0}
     aria-haspopup="listbox"
     aria-expanded={open}
-    onclick={() => (open = !open)}>
+    onclick={toggleOpen}>
     {triggerText}
     <Icon
       name="chevron-right"
@@ -76,7 +98,17 @@
     <div
       role="listbox"
       class="absolute left-0 z-40 mt-1 min-w-48 overflow-hidden rounded-lg border border-border bg-surface py-1 shadow-lg">
-      {#each options as o (o.value)}
+      {#if searchable}
+        <div class="border-b border-border p-1.5">
+          <input
+            bind:this={searchInput}
+            bind:value={query}
+            type="text"
+            placeholder={searchPlaceholder}
+            class="w-full rounded-md border border-border bg-surface-2 px-2 py-1 text-sm" />
+        </div>
+      {/if}
+      {#each visibleOptions as o (o.value)}
         {@const on = values.includes(o.value)}
         <button
           type="button"
@@ -101,6 +133,9 @@
           </span>
         </button>
       {/each}
+      {#if searchable && visibleOptions.length === 0}
+        <p class="px-3 py-2 text-sm text-dim">Aucun résultat.</p>
+      {/if}
     </div>
   {/if}
 </div>

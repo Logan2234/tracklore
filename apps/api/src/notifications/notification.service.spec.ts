@@ -1,7 +1,14 @@
+import type { JobRunService } from "../jobs/job-run.service";
 import type { MailService } from "../mail/mail.service";
 import type { PrismaService } from "../prisma/prisma.service";
 import { NotificationService } from "./notification.service";
 import type { PushService } from "./push.service";
+
+// Runs `fn` straight through without touching the DB, for services under test
+// that don't exercise job-recording behaviour themselves.
+const jobRunsStub = {
+  record: (_key: string, fn: () => Promise<unknown>) => fn(),
+} as unknown as JobRunService;
 
 describe("NotificationService.scanAll", () => {
   function makeService(userIds: string[]) {
@@ -12,7 +19,7 @@ describe("NotificationService.scanAll", () => {
     } as unknown as PrismaService;
     const push = { sendToUser: jest.fn() } as never;
     const mail = { sendNewEpisode: jest.fn() } as never;
-    const service = new NotificationService(prisma, push, mail);
+    const service = new NotificationService(prisma, push, mail, jobRunsStub);
     return { service, prisma };
   }
 
@@ -99,7 +106,7 @@ describe("NotificationService.scan (push)", () => {
     } as unknown as PrismaService;
     const push = { sendToUser: jest.fn() } as unknown as PushService;
     const mail = { sendNewEpisode: jest.fn() } as unknown as MailService;
-    const service = new NotificationService(prisma, push, mail);
+    const service = new NotificationService(prisma, push, mail, jobRunsStub);
     return { service, push, mail, prisma };
   }
 

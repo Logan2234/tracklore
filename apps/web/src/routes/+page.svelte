@@ -139,7 +139,9 @@
 
 <div class="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-10">
   <header class="mb-8">
-    <h1 class="font-display text-3xl font-extrabold tracking-tight md:text-4xl">
+    <h1
+      class="flex items-center gap-2 font-display text-3xl font-extrabold tracking-tight md:text-4xl">
+      <Icon name="home" class="h-7 w-7 text-accent" />
       {greeting}{#if auth.user}, {auth.user.displayName}{/if}.
     </h1>
     <p class="mt-1 text-dim">Reprends là où tu t’es arrêté.</p>
@@ -293,17 +295,34 @@
     </section>
   {/if}
 
-  <!-- Stats teaser -->
-  <a
-    href="/stats"
-    class="card flex items-center justify-between p-5 transition-[border-color] hover:border-accent">
-    <div class="flex items-center gap-3">
-      <Icon name="stats" class="h-6 w-6 text-accent" />
-      <div>
-        <p class="font-display font-bold">Tes statistiques</p>
-        <p class="text-sm text-dim">Écrans, jeux et livres en un coup d’œil.</p>
+  <!-- Quick links -->
+  <div class="grid gap-3 sm:grid-cols-2">
+    <a
+      href="/stats"
+      class="card flex items-center justify-between p-5 transition-[border-color] hover:border-accent">
+      <div class="flex items-center gap-3">
+        <Icon name="stats" class="h-6 w-6 text-accent" />
+        <div>
+          <p class="font-display font-bold">Tes statistiques</p>
+          <p class="text-sm text-dim">
+            Écrans, jeux et livres en un coup d’œil.
+          </p>
+        </div>
       </div>
-    </div>
-    <span class="text-dim">→</span>
-  </a>
+      <span class="text-dim">→</span>
+    </a>
+
+    <a
+      href="/account"
+      class="card flex items-center justify-between p-5 transition-[border-color] hover:border-accent">
+      <div class="flex items-center gap-3">
+        <Icon name="user" class="h-6 w-6 text-accent" />
+        <div>
+          <p class="font-display font-bold">Mon compte</p>
+          <p class="text-sm text-dim">Profil, préférences et notifications.</p>
+        </div>
+      </div>
+      <span class="text-dim">→</span>
+    </a>
+  </div>
 </div>

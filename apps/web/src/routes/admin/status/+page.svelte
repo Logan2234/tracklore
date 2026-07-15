@@ -135,9 +135,25 @@
                     {/if}
                   </div>
                   {#if s.detail}
-                    <p class="mt-0.5 text-xs text-dim">{s.detail}</p>
+                    <p class="mt-0.5 text-xs text-dim">
+                      {s.detail}
+                      {#if !s.configured && s.keyUrl}
+                        · <a
+                          href={s.keyUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent">
+                          Obtenir une clé
+                        </a>
+                      {/if}
+                    </p>
                   {/if}
                 </div>
+                {#if s.latencyMs !== undefined}
+                  <span class="shrink-0 text-xs text-dim tabular-nums">
+                    {s.latencyMs} ms
+                  </span>
+                {/if}
                 <span
                   class="shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold {h.cls}">
                   {h.label}

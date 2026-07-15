@@ -6,6 +6,8 @@
     changePassword,
     checkUsernameAvailable,
     confirmEmailChange,
+    deleteAccount,
+    exportMyData,
     logout,
     updateMe,
     updateUsername,
@@ -208,7 +210,9 @@
   }
 
   // --- Sécurité: username / email / password, each in its own modal. ---
-  type SecurityModal = "username" | "email" | "password" | null;
+  type SecurityModal =
+    "username" | "email" | "password" | "deleteAccount" | null;
+
   let openModal = $state<SecurityModal>(null);
 
   function closeModal() {
@@ -355,11 +359,61 @@
       passwordSaving = false;
     }
   }
+
+  // --- Export ---
+  let exporting = $state(false);
+  let exportError = $state("");
+
+  async function downloadExport() {
+    exporting = true;
+    exportError = "";
+    try {
+      const data = await exportMyData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `tracklore-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      exportError = err instanceof ApiError ? err.message : "Export impossible";
+    } finally {
+      exporting = false;
+    }
+  }
+
+  // --- Suppression du compte (irréversible) ---
+  let deletePasswordInput = $state("");
+  let deleteError = $state("");
+  let deleteSaving = $state(false);
+
+  function openDeleteModal() {
+    deletePasswordInput = "";
+    deleteError = "";
+  }
+
+  async function confirmDeleteAccount() {
+    deleteError = "";
+    deleteSaving = true;
+    try {
+      await deleteAccount({ currentPassword: deletePasswordInput });
+      await goto("/login");
+    } catch (err) {
+      deleteError =
+        err instanceof ApiError ? err.message : "Suppression impossible";
+    } finally {
+      deleteSaving = false;
+    }
+  }
 </script>
 
 <div class="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
   <h1
-    class="mb-6 font-display text-3xl font-extrabold tracking-tight md:text-4xl">
+    class="mb-6 flex items-center gap-2 font-display text-3xl font-extrabold tracking-tight md:text-4xl">
+    <Icon name="user" class="h-7 w-7 text-accent" />
     Compte
   </h1>
 
@@ -623,7 +677,7 @@
     </section>
 
     <!-- Import -->
-    <section class="card p-5 md:p-6">
+    <section class="card mb-5 p-5 md:p-6">
       <h2 class="mb-1 font-display text-lg font-bold">Import</h2>
       <p class="mb-4 text-sm text-dim">
         Retrouve ta bibliothèque en l'important depuis une autre appli.
@@ -643,23 +697,36 @@
     </section>
 
     <!-- Données -->
-    <section class="card mt-5 p-5 md:p-6">
-      <h2 class="mb-1 font-display text-lg font-bold">Mes données</h2>
+    <section class="card mb-5 p-5 md:p-6">
+      <h2 class="mb-1 font-display text-lg font-bold">Export</h2>
       <p class="mb-4 text-sm text-dim">
-        Exporte une copie de tes données, ou supprime définitivement ton compte.
+        Télécharge une copie complète de tes données — profil, bibliothèque et
+        historique de visionnage — au format JSON.
       </p>
-      <a
-        href="/account/data"
-        class="flex items-center gap-3 rounded-lg border border-border bg-bg p-4 transition-colors hover:border-accent hover:bg-surface-2">
-        <Icon name="download" class="h-6 w-6 text-accent" />
-        <span class="flex-1">
-          <span class="block font-semibold">Export et suppression</span>
-          <span class="text-sm text-dim">
-            Télécharge tes données au format JSON, ou supprime ton compte.
-          </span>
-        </span>
-        <Icon name="chevron-right" class="h-5 w-5 text-dim" />
-      </a>
+      <button
+        class="btn btn-primary"
+        disabled={exporting}
+        onclick={downloadExport}>
+        <Icon name="download" class="mr-1.5 inline h-4 w-4" />
+        {exporting ? "Préparation…" : "Télécharger mes données (JSON)"}
+      </button>
+      {#if exportError}
+        <p class="mt-2 text-sm text-danger">{exportError}</p>
+      {/if}
+    </section>
+
+    <section class="card border-danger/40 p-5 md:p-6">
+      <h2 class="mb-1 font-display text-lg font-bold text-danger">
+        Zone de danger
+      </h2>
+      <p class="mb-4 text-sm text-dim">
+        La suppression du compte efface définitivement ton profil, ta
+        bibliothèque, ton historique de visionnage et tes notifications. Cette
+        action est irréversible.
+      </p>
+      <button class="btn btn-danger" onclick={openDeleteModal}>
+        Supprimer mon compte
+      </button>
     </section>
 
     {#if openModal === "username"}
@@ -849,5 +916,44 @@
         </form>
       </Modal>
     {/if}
+  {/if}
+
+  {#if openModal === "deleteAccount"}
+    <Modal title="Supprimer le compte" onclose={closeModal}>
+      <form
+        class="flex flex-col gap-3"
+        onsubmit={(e) => {
+          e.preventDefault();
+          confirmDeleteAccount();
+        }}>
+        <p class="text-sm text-dim">
+          Ton compte et toutes les données associées — bibliothèque, historique
+          de visionnage, notes et notifications — seront définitivement
+          supprimés. Cette action ne peut pas être annulée.
+        </p>
+        <label class="block">
+          <span class="mb-1.5 block text-sm font-semibold">
+            Confirme avec ton mot de passe
+          </span>
+          <PasswordInput
+            autocomplete="current-password"
+            bind:value={deletePasswordInput} />
+        </label>
+        {#if deleteError}
+          <p class="text-sm text-danger">{deleteError}</p>
+        {/if}
+        <div class="mt-2 flex justify-end gap-2">
+          <button type="button" class="btn btn-ghost" onclick={closeModal}>
+            Annuler
+          </button>
+          <button
+            type="submit"
+            class="btn btn-danger"
+            disabled={deleteSaving || !deletePasswordInput}>
+            {deleteSaving ? "Suppression…" : "Supprimer définitivement"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   {/if}
 </div>

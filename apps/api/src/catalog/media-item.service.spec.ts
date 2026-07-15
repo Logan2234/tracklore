@@ -1,5 +1,12 @@
+import type { JobRunService } from "../jobs/job-run.service";
 import type { PrismaService } from "../prisma/prisma.service";
 import { MediaItemService } from "./media-item.service";
+
+// Runs `fn` straight through without touching the DB — refreshStale's own
+// behaviour is what's under test here, not the job-recording wrapper.
+const jobRunsStub = {
+  record: (_key: string, fn: () => Promise<unknown>) => fn(),
+} as unknown as JobRunService;
 
 describe("MediaItemService.refreshStale", () => {
   function makeService(items: unknown[]) {
@@ -10,6 +17,7 @@ describe("MediaItemService.refreshStale", () => {
       prisma,
       undefined as never,
       undefined as never,
+      jobRunsStub,
     );
     return { service, prisma };
   }

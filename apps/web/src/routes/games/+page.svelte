@@ -113,10 +113,12 @@
 
 <div class="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-10">
   <header class="mb-6">
-    <h1 class="font-display text-3xl font-extrabold tracking-tight md:text-4xl">
+    <h1
+      class="flex items-center gap-2 font-display text-3xl font-extrabold tracking-tight md:text-4xl">
+      <Icon name="gamepad" class="h-7 w-7 text-accent" />
       Jeux
     </h1>
-    <p class="timecode mt-1 text-sm">
+    <p class="mt-1 text-dim">
       {shown.length} jeu{shown.length > 1 ? "x" : ""}
     </p>
   </header>

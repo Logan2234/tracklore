@@ -31,7 +31,6 @@ export const ADMIN_NAV: AdminNavItem[] = [
     description: "Comptes enregistrés et sessions actives.",
     icon: "user",
     match: (p) => p.startsWith("/admin/users"),
-    soon: true,
   },
   {
     href: "/admin/emails",
@@ -46,7 +45,6 @@ export const ADMIN_NAV: AdminNavItem[] = [
     description: "Usage global et tailles des bibliothèques.",
     icon: "stats",
     match: (p) => p.startsWith("/admin/stats"),
-    soon: true,
   },
   {
     href: "/admin/push",
@@ -61,15 +59,6 @@ export const ADMIN_NAV: AdminNavItem[] = [
     description: "Visibilité des scans/refresh planifiés (cron).",
     icon: "calendar",
     match: (p) => p.startsWith("/admin/jobs"),
-    soon: true,
-  },
-  {
-    href: "/admin/entitlements",
-    label: "Fonctionnalités",
-    description: "Éditeur des entitlements (feature-flags).",
-    icon: "star",
-    match: (p) => p.startsWith("/admin/entitlements"),
-    soon: true,
   },
   {
     href: "/admin/imports",
@@ -101,7 +90,6 @@ export const ADMIN_NAV: AdminNavItem[] = [
     description: "Graphe du schéma DB et des modules de l'app.",
     icon: "library",
     match: (p) => p.startsWith("/admin/schema"),
-    soon: true,
   },
   {
     href: "/admin/security",

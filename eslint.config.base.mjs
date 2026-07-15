@@ -30,7 +30,6 @@ export function baseConfig(dirname, { browser = false } = {}) {
         globals: {
           ...(browser ? globals.browser : {}),
           ...globals.node,
-          ...globals.jest,
         },
         sourceType: "commonjs",
         parserOptions: {

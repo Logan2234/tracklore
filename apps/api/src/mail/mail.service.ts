@@ -10,9 +10,17 @@ interface SendArgs {
 
 type TemplateBody = Omit<SendArgs, "to">;
 
+/** One editable sample-data field for a gallery template (e.g. the recipient's display name). */
+export interface MailTemplateField {
+  key: string;
+  label: string;
+  default: string;
+}
+
 export interface MailTemplateInfo {
   key: string;
   label: string;
+  fields: MailTemplateField[];
 }
 
 // Séance palette (light/"programme" variant — the only one that renders
@@ -34,50 +42,81 @@ export class MailService {
   private readonly webOrigin: string;
 
   /**
-   * Every template, keyed for the admin preview/test-send gallery. Each build
-   * function takes only fixed sample data — it must render without any live
-   * user/request context, since the gallery calls it out of band.
+   * Every template, keyed for the admin preview/test-send gallery. `fields`
+   * describes the editable sample data (admin can override any of them to
+   * test edge cases — long text, special characters…); `build` must render
+   * without any live user/request context, since the gallery calls it out
+   * of band with just those field values (defaults if not overridden).
    */
   private readonly templates: Record<
     string,
-    { label: string; build: () => TemplateBody }
+    {
+      label: string;
+      fields: MailTemplateField[];
+      build: (values: Record<string, string>) => TemplateBody;
+    }
   > = {
     welcome: {
       label: "Bienvenue",
-      build: () => this.buildWelcome("Alice"),
+      fields: [{ key: "displayName", label: "Nom", default: "Alice" }],
+      build: (v) => this.buildWelcome(v.displayName),
     },
     verifyEmail: {
       label: "Confirmation d'email",
-      build: () => this.buildVerifyEmail("sample-verify-token"),
+      fields: [
+        { key: "token", label: "Token", default: "sample-verify-token" },
+      ],
+      build: (v) => this.buildVerifyEmail(v.token),
     },
     passwordResetLink: {
       label: "Lien de réinitialisation",
-      build: () => this.buildPasswordResetLink("sample-reset-token"),
+      fields: [{ key: "token", label: "Token", default: "sample-reset-token" }],
+      build: (v) => this.buildPasswordResetLink(v.token),
     },
     passwordChanged: {
       label: "Mot de passe modifié",
+      fields: [],
       build: () => this.buildPasswordChanged(),
     },
     emailChangedOld: {
       label: "Email modifié (ancienne adresse)",
-      build: () => this.buildEmailChangedOld("nouvelle@example.com"),
+      fields: [
+        {
+          key: "newEmail",
+          label: "Nouvelle adresse",
+          default: "nouvelle@example.com",
+        },
+      ],
+      build: (v) => this.buildEmailChangedOld(v.newEmail),
     },
     emailChangedNew: {
       label: "Email modifié (nouvelle adresse)",
-      build: () => this.buildEmailChangedNew("ancienne@example.com"),
+      fields: [
+        {
+          key: "oldEmail",
+          label: "Ancienne adresse",
+          default: "ancienne@example.com",
+        },
+      ],
+      build: (v) => this.buildEmailChangedNew(v.oldEmail),
     },
     emailChangeCode: {
       label: "Code de confirmation d'email",
-      build: () => this.buildEmailChangeCode("482913"),
+      fields: [{ key: "code", label: "Code", default: "482913" }],
+      build: (v) => this.buildEmailChangeCode(v.code),
     },
     newEpisode: {
       label: "Nouvel épisode",
-      build: () =>
-        this.buildNewEpisode(
-          "One Piece",
-          "L'épisode 1089 est disponible.",
-          "/media/series/12345",
-        ),
+      fields: [
+        { key: "mediaTitle", label: "Titre média", default: "One Piece" },
+        {
+          key: "body",
+          label: "Message",
+          default: "L'épisode 1089 est disponible.",
+        },
+        { key: "path", label: "Chemin", default: "/media/series/12345" },
+      ],
+      build: (v) => this.buildNewEpisode(v.mediaTitle, v.body, v.path),
     },
   };
 
@@ -125,26 +164,56 @@ export class MailService {
     }
   }
 
-  /** Every template available in the admin preview/test-send gallery. */
+  /** Every template available in the admin preview/test-send gallery, with its editable fields. */
   listTemplates(): MailTemplateInfo[] {
-    return Object.entries(this.templates).map(([key, { label }]) => ({
+    return Object.entries(this.templates).map(([key, { label, fields }]) => ({
       key,
       label,
+      fields,
     }));
   }
 
-  /** Renders one template with fixed sample data, for admin preview (never sent). */
-  renderTemplatePreview(key: string): TemplateBody | null {
+  /**
+   * Renders one template for admin preview (never sent). `overrides` replaces
+   * a field's default sample value when present and non-empty — lets the
+   * admin test edge cases (long text, special characters) without touching code.
+   */
+  renderTemplatePreview(
+    key: string,
+    overrides?: Record<string, string>,
+  ): TemplateBody | null {
     const template = this.templates[key];
-    return template ? template.build() : null;
+    if (!template) return null;
+    return template.build(this.resolveFieldValues(template.fields, overrides));
   }
 
-  /** Sends one template, rendered with the same sample data as the preview, to `to`. */
-  async sendTemplateTest(key: string, to: string): Promise<boolean> {
+  /** Sends one template, rendered with the same (possibly overridden) sample data as the preview, to `to`. */
+  async sendTemplateTest(
+    key: string,
+    to: string,
+    overrides?: Record<string, string>,
+  ): Promise<boolean> {
     const template = this.templates[key];
     if (!template) return false;
-    await this.send({ to, ...template.build() });
+    await this.send({
+      to,
+      ...template.build(this.resolveFieldValues(template.fields, overrides)),
+    });
     return true;
+  }
+
+  private resolveFieldValues(
+    fields: MailTemplateField[],
+    overrides?: Record<string, string>,
+  ): Record<string, string> {
+    const values: Record<string, string> = {};
+
+    for (const field of fields) {
+      const override = overrides?.[field.key];
+      values[field.key] = override ? override : field.default;
+    }
+
+    return values;
   }
 
   async sendPasswordResetLink(to: string, token: string): Promise<void> {

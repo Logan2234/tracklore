@@ -20,7 +20,9 @@
 
 <div class="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
   <div class="mb-6 flex items-center justify-between gap-4">
-    <h1 class="font-display text-3xl font-extrabold tracking-tight md:text-4xl">
+    <h1
+      class="flex items-center gap-2 font-display text-3xl font-extrabold tracking-tight md:text-4xl">
+      <Icon name="bell" class="h-7 w-7 text-accent" />
       Notifications
     </h1>
     {#if notifications.unread > 0}

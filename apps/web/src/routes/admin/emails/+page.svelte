@@ -14,8 +14,21 @@
   let error = $state<string | null>(null);
 
   let selectedKey = $state<string | null>(null);
+  const selectedTemplate = $derived(
+    templates?.find((t) => t.key === selectedKey) ?? null,
+  );
+
+  /** Editable sample-data values for the selected template, keyed by field key. */
+  let fieldValues = $state<Record<string, string>>({});
+
+  let previewSubject = $state<string | null>(null);
   let previewHtml = $state<string | null>(null);
+  let previewText = $state<string | null>(null);
   let previewLoading = $state(false);
+  let previewTab = $state<"html" | "text">("html");
+
+  let copied = $state(false);
+  let previewDebounce: ReturnType<typeof setTimeout> | undefined;
 
   let testTo = $state("");
   let sending = $state(false);
@@ -28,7 +41,7 @@
       const res = await getAdminEmailTemplates();
       templates = res.templates;
       smtpConfigured = res.smtpConfigured;
-      if (templates.length > 0) await selectTemplate(templates[0].key);
+      if (templates.length > 0) selectTemplate(templates[0].key);
     } catch (err) {
       error = err instanceof ApiError ? err.message : "Gabarits indisponibles";
     } finally {
@@ -36,19 +49,44 @@
     }
   }
 
-  async function selectTemplate(key: string) {
+  function selectTemplate(key: string) {
     selectedKey = key;
-    previewHtml = null;
     sendResult = null;
+    const template = templates?.find((t) => t.key === key);
+    fieldValues = Object.fromEntries(
+      (template?.fields ?? []).map((f) => [f.key, f.default]),
+    );
+    void loadPreview();
+  }
+
+  function onFieldInput(key: string, value: string) {
+    fieldValues = { ...fieldValues, [key]: value };
+    clearTimeout(previewDebounce);
+    previewDebounce = setTimeout(() => void loadPreview(), 300);
+  }
+
+  async function loadPreview() {
+    if (!selectedKey) return;
     previewLoading = true;
     try {
-      const preview = await getAdminEmailPreview(key);
+      const preview = await getAdminEmailPreview(selectedKey, fieldValues);
+      previewSubject = preview.subject;
       previewHtml = preview.html;
+      previewText = preview.text;
     } catch {
+      previewSubject = null;
       previewHtml = null;
+      previewText = null;
     } finally {
       previewLoading = false;
     }
+  }
+
+  async function copyHtml() {
+    if (!previewHtml) return;
+    await navigator.clipboard.writeText(previewHtml);
+    copied = true;
+    setTimeout(() => (copied = false), 1500);
   }
 
   async function sendTest() {
@@ -56,7 +94,10 @@
     sending = true;
     sendResult = null;
     try {
-      await sendAdminTestEmail(selectedKey, { to: testTo });
+      await sendAdminTestEmail(selectedKey, {
+        to: testTo,
+        values: fieldValues,
+      });
       sendResult = { ok: true, message: `Envoyé à ${testTo}.` };
     } catch (err) {
       sendResult = {
@@ -81,7 +122,7 @@
       Emails
     </h1>
     <p class="mt-1 text-dim">
-      Aperçu des gabarits (données d'exemple) et envoi de test.
+      Aperçu des gabarits (données d'exemple modifiables) et envoi de test.
     </p>
   </header>
 
@@ -116,16 +157,68 @@
       </nav>
 
       <div class="min-w-0 space-y-4">
+        {#if selectedTemplate && selectedTemplate.fields.length > 0}
+          <div class="card grid gap-3 p-4 sm:grid-cols-2">
+            {#each selectedTemplate.fields as f (f.key)}
+              <div>
+                <label
+                  for="field-{f.key}"
+                  class="mb-1 block text-xs font-semibold text-dim">
+                  {f.label}
+                </label>
+                <input
+                  id="field-{f.key}"
+                  type="text"
+                  value={fieldValues[f.key] ?? f.default}
+                  oninput={(e) => onFieldInput(f.key, e.currentTarget.value)}
+                  class="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm" />
+              </div>
+            {/each}
+          </div>
+        {/if}
+
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex gap-1">
+            <button
+              onclick={() => (previewTab = "html")}
+              class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {previewTab ===
+              'html'
+                ? 'bg-accent/15 text-accent'
+                : 'text-dim hover:bg-surface-2 hover:text-fg'}">
+              HTML
+            </button>
+            <button
+              onclick={() => (previewTab = "text")}
+              class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {previewTab ===
+              'text'
+                ? 'bg-accent/15 text-accent'
+                : 'text-dim hover:bg-surface-2 hover:text-fg'}">
+              Texte brut
+            </button>
+          </div>
+          <button
+            onclick={copyHtml}
+            disabled={!previewHtml}
+            class="rounded-lg px-3 py-1.5 text-xs font-semibold text-dim transition-colors hover:bg-surface-2 hover:text-fg disabled:opacity-50">
+            {copied ? "Copié !" : "Copier le HTML"}
+          </button>
+        </div>
+
         <div
           class="overflow-hidden rounded-xl border border-border bg-surface-2">
           {#if previewLoading}
             <div class="h-96 animate-pulse"></div>
-          {:else if previewHtml}
+          {:else if previewTab === "html" && previewHtml}
             <iframe
               title="Aperçu de l'email"
               sandbox=""
               srcdoc={previewHtml}
               class="h-[520px] w-full border-0 bg-white"></iframe>
+          {:else if previewTab === "text" && previewText}
+            <pre
+              class="h-[520px] overflow-auto bg-surface p-4 text-xs whitespace-pre-wrap text-fg">{previewSubject
+                ? `Sujet : ${previewSubject}\n\n`
+                : ""}{previewText}</pre>
           {:else}
             <div class="grid h-96 place-items-center text-sm text-dim">
               Aperçu indisponible.

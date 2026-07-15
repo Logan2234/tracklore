@@ -10,14 +10,15 @@
   "packageManager": "pnpm@11.9.0",
   "scripts": {
     "dev": "pnpm --parallel --filter \"./apps/*\" dev",
-    "build": "pnpm --filter \"./packages/*\" build && pnpm --filter \"./apps/*\" build",
+    "build:package": "pnpm --filter \"./packages/*\" build",
+    "build": "pnpm build:package && pnpm --filter \"./apps/*\" build",
     "test": "pnpm --filter \"./apps/*\" test",
     "lint": "pnpm --recursive --no-bail lint",
     "lint:fix": "pnpm --recursive --no-bail lint:fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "spelunk": "pnpm --filter \"./apps/api\" spelunk",
-    "clean": "pnpm --recursive --no-bail clean",
+    "clean": "pnpm --recursive --no-bail run clean",
     "clean:dev": "pnpm --recursive --no-bail clean:dev && rm -rf node_modules docs/*"
   },
   "devDependencies": {

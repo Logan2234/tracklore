@@ -17,12 +17,24 @@ function makeController() {
   } as unknown as MailService;
   const push = {
     sendToUser: jest.fn(),
+    listSubscriptions: jest.fn().mockResolvedValue([]),
+    sendToUserDetailed: jest.fn().mockResolvedValue([]),
   } as unknown as PushService;
   const prisma = {
     user: { findUnique: jest.fn() },
   } as unknown as PrismaService;
 
-  const controller = new AdminController(admin, mail, push, prisma);
+  const controller = new AdminController(
+    admin,
+    mail,
+    push,
+    prisma,
+    undefined as never,
+    undefined as never,
+    undefined as never,
+    undefined as never,
+    undefined as never,
+  );
   return { controller, mail, push, prisma };
 }
 
@@ -73,7 +85,7 @@ describe("AdminController.sendAdminTestPush", () => {
     await expect(
       controller.sendAdminTestPush({ email: "nobody@example.com" }),
     ).rejects.toThrow(NotFoundException);
-    expect(push.sendToUser).not.toHaveBeenCalled();
+    expect(push.sendToUserDetailed).not.toHaveBeenCalled();
   });
 
   it("sends to the matching account's devices", async () => {
@@ -82,7 +94,7 @@ describe("AdminController.sendAdminTestPush", () => {
 
     await controller.sendAdminTestPush({ email: "alice@example.com" });
 
-    expect(push.sendToUser).toHaveBeenCalledWith(
+    expect(push.sendToUserDetailed).toHaveBeenCalledWith(
       "user-1",
       expect.objectContaining({ title: expect.any(String) }),
     );

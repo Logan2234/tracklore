@@ -6,6 +6,8 @@ import type {
   MediaDetailsDto,
   MediaType,
 } from "@tracklore/shared";
+import { JOB_KEYS } from "../jobs/job-keys";
+import { JobRunService } from "../jobs/job-run.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { AnilistProvider } from "./providers/anilist.provider";
 import type {
@@ -25,6 +27,7 @@ export class MediaItemService {
     private readonly prisma: PrismaService,
     private readonly tmdbProvider: TmdbProvider,
     private readonly anilistProvider: AnilistProvider,
+    private readonly jobRuns: JobRunService,
   ) {}
 
   /**
@@ -34,6 +37,17 @@ export class MediaItemService {
    */
   @Cron(CronExpression.EVERY_6_HOURS)
   async refreshStale(): Promise<number> {
+    return this.jobRuns.record(
+      JOB_KEYS.MEDIA_REFRESH_STALE,
+      () => this.runRefreshStale(),
+      (refreshed) =>
+        refreshed > 0
+          ? `${refreshed} média(s) rafraîchi(s)`
+          : "Rien à rafraîchir",
+    );
+  }
+
+  private async runRefreshStale(): Promise<number> {
     const staleBefore = new Date(Date.now() - SYNC_TTL_MS);
     const items = await this.prisma.mediaItem.findMany({
       where: {

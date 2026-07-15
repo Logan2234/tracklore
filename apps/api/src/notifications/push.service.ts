@@ -9,6 +9,19 @@ export interface PushPayload {
   url: string;
 }
 
+export interface PushDevice {
+  id: string;
+  userAgent: string | null;
+  createdAt: Date;
+}
+
+export interface PushSendOutcome {
+  userAgent: string | null;
+  ok: boolean;
+  /** Present when `ok` is false — the HTTP status if the push service rejected it, or the error message. */
+  error?: string;
+}
+
 @Injectable()
 export class PushService {
   private readonly logger = new Logger(PushService.name);
@@ -54,17 +67,32 @@ export class PushService {
     });
   }
 
+  /** Every device the user has a live subscription on, most recent first. */
+  async listSubscriptions(userId: string): Promise<PushDevice[]> {
+    return this.prisma.pushSubscription.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, userAgent: true, createdAt: true },
+    });
+  }
+
   /** Sends to every device the user has subscribed on; prunes dead subscriptions. */
   async sendToUser(userId: string, payload: PushPayload): Promise<void> {
-    if (!this.enabled) return;
+    await this.sendToUserDetailed(userId, payload);
+  }
 
+  /** Same as {@link sendToUser}, but reports the per-device outcome instead of swallowing it. */
+  async sendToUserDetailed(
+    userId: string,
+    payload: PushPayload,
+  ): Promise<PushSendOutcome[]> {
     const subscriptions = await this.prisma.pushSubscription.findMany({
       where: { userId },
     });
-    if (subscriptions.length === 0) return;
+    if (!this.enabled || subscriptions.length === 0) return [];
 
-    await Promise.all(
-      subscriptions.map(async (sub) => {
+    return Promise.all(
+      subscriptions.map(async (sub): Promise<PushSendOutcome> => {
         try {
           await webpush.sendNotification(
             {
@@ -73,6 +101,7 @@ export class PushService {
             },
             JSON.stringify(payload),
           );
+          return { userAgent: sub.userAgent, ok: true };
         } catch (err) {
           const statusCode = (err as { statusCode?: number }).statusCode;
 
@@ -84,6 +113,12 @@ export class PushService {
           } else {
             this.logger.error(`Push failed for subscription ${sub.id}`, err);
           }
+
+          return {
+            userAgent: sub.userAgent,
+            ok: false,
+            error: statusCode ? `HTTP ${statusCode}` : String(err),
+          };
         }
       }),
     );

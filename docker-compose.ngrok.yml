@@ -15,6 +15,7 @@ services:
   api:
     environment:
       WEB_ORIGIN: https://${NGROK_DOMAIN:?set NGROK_DOMAIN in .env}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
 
   caddy:
     image: caddy:2-alpine

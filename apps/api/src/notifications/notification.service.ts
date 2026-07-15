@@ -7,6 +7,8 @@ import type {
   NotificationFeedDto,
 } from "@tracklore/shared";
 import { MailService } from "../mail/mail.service";
+import { JOB_KEYS } from "../jobs/job-keys";
+import { JobRunService } from "../jobs/job-run.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { selectNewEpisodeNotifications } from "./notification.util";
 import { PushService } from "./push.service";
@@ -24,6 +26,7 @@ export class NotificationService {
     private readonly prisma: PrismaService,
     private readonly push: PushService,
     private readonly mail: MailService,
+    private readonly jobRuns: JobRunService,
   ) {}
 
   /**
@@ -33,6 +36,15 @@ export class NotificationService {
    */
   @Cron(CronExpression.EVERY_HOUR)
   async scanAll(): Promise<number> {
+    return this.jobRuns.record(
+      JOB_KEYS.NOTIFICATIONS_SCAN,
+      () => this.runScanAll(),
+      (created) =>
+        created > 0 ? `${created} notification(s) créée(s)` : "Rien de nouveau",
+    );
+  }
+
+  private async runScanAll(): Promise<number> {
     const users = await this.prisma.user.findMany({
       where: { notifyInApp: true },
       select: { id: true },

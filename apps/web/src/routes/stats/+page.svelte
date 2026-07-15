@@ -14,6 +14,7 @@
     ApiError,
   } from "$lib/api/client";
   import { auth } from "$lib/auth.svelte";
+  import Icon from "$lib/components/Icon.svelte";
   import { isDomainEnabled } from "$lib/domains";
   import { Domain } from "@tracklore/shared";
 
@@ -190,7 +191,9 @@
 
 <div class="mx-auto max-w-4xl px-4 py-6 md:px-8 md:py-10">
   <header class="mb-8">
-    <h1 class="font-display text-3xl font-extrabold tracking-tight md:text-4xl">
+    <h1
+      class="flex items-center gap-2 font-display text-3xl font-extrabold tracking-tight md:text-4xl">
+      <Icon name="stats" class="h-7 w-7 text-accent" />
       Statistiques
     </h1>
     <p class="mt-1 text-dim">Ton activité en un coup d’œil.</p>
