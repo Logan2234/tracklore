@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from "$app/state";
   import Icon from "$lib/components/Icon.svelte";
+  import PageHeader from "$lib/components/PageHeader.svelte";
   import BookSearchPanel from "$lib/components/search/BookSearchPanel.svelte";
   import GameSearchPanel from "$lib/components/search/GameSearchPanel.svelte";
   import MediaSearchPanel from "$lib/components/search/MediaSearchPanel.svelte";
@@ -43,14 +44,11 @@
 </script>
 
 <div class="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-10">
-  <header class="mb-6">
-    <h1
-      class="flex items-center gap-2 font-display text-3xl font-extrabold tracking-tight md:text-4xl">
-      <Icon name="search" class="h-7 w-7 text-accent" />
-      Recherche
-    </h1>
-    <p class="mt-1 text-dim">Trouve un titre et ajoute-le à ta bibliothèque.</p>
-  </header>
+  <PageHeader
+    icon="search"
+    title="Recherche"
+    subtitle="Trouve un titre et ajoute-le à ta bibliothèque."
+    class="mb-6" />
 
   <div class="relative mb-5">
     <span

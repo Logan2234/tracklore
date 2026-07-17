@@ -8,7 +8,9 @@
   } from "$lib/api/client";
   import { auth } from "$lib/auth.svelte";
   import { isDomainEnabled } from "$lib/domains";
+  import EmptyState from "$lib/components/EmptyState.svelte";
   import Icon from "$lib/components/Icon.svelte";
+  import PageHeader from "$lib/components/PageHeader.svelte";
   import Poster from "$lib/components/Poster.svelte";
   import { Domain } from "@tracklore/shared";
   import type {
@@ -138,24 +140,18 @@
 </script>
 
 <div class="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-10">
-  <header class="mb-8">
-    <h1
-      class="flex items-center gap-2 font-display text-3xl font-extrabold tracking-tight md:text-4xl">
-      <Icon name="home" class="h-7 w-7 text-accent" />
-      {greeting}{#if auth.user}, {auth.user.displayName}{/if}.
-    </h1>
-    <p class="mt-1 text-dim">Reprends là où tu t’es arrêté.</p>
-  </header>
+  <PageHeader
+    icon="home"
+    title={`${greeting}${auth.user ? ", " + auth.user.displayName : ""}.`}
+    subtitle="Reprends là où tu t’es arrêté." />
 
   {#if loading}
     <p class="timecode text-sm mb-10">Chargement…</p>
   {:else if nothing}
-    <div
-      class="rounded-xl border border-dashed border-border px-6 py-16 text-center text-dim mb-10">
+    <EmptyState class="mb-10">
       Rien en cours pour l’instant.
-      <a href="/search" class="font-semibold text-accent hover:underline"
-        >Trouve un titre</a> à suivre.
-    </div>
+      <a href="/search" class="link-accent">Trouve un titre</a> à suivre.
+    </EmptyState>
   {/if}
 
   <!-- Écrans -->

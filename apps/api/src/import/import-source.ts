@@ -7,7 +7,7 @@
  */
 
 /** External identifiers a source may expose for a title (any subset). */
-export type ExternalIdMap = {
+type ExternalIdMap = {
   tvdb?: string;
   tmdb?: string;
   imdb?: string;
@@ -15,7 +15,7 @@ export type ExternalIdMap = {
 };
 
 /** One distinct watched episode of a show, rewatches folded into the count. */
-export interface ImportWatchedEpisode {
+interface ImportWatchedEpisode {
   season: number;
   episode: number;
   /** The source's own episode id (e.g. TVDB) — used to fold in rewatch counts. */

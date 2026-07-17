@@ -1,4 +1,14 @@
-import type { CatalogSource, EntryStatus, MediaType } from "../enums";
+import type {
+  BookOwnershipStatus,
+  BookSource,
+  BookStatus,
+  CatalogSource,
+  EntryStatus,
+  GameOwnershipStatus,
+  GameSource,
+  GameStatus,
+  MediaType,
+} from "../enums";
 import type { UserDto } from "./auth";
 
 /** One library entry in a data export: the media plus the user's tracking. */
@@ -30,6 +40,64 @@ export interface DataExportWatch {
   watchedAt: string;
 }
 
+/** One game library entry in a data export. */
+export interface DataExportGameEntry {
+  game: {
+    title: string;
+    canonicalSource: GameSource;
+    sourceId: string;
+    externalIds: { source: string; externalId: string }[];
+  };
+  status: GameStatus;
+  rating: number | null;
+  notes: string | null;
+  favorite: boolean;
+  playtimeMinutes: number;
+  ownershipStatus: GameOwnershipStatus;
+  ownershipSource: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  createdAt: string;
+  /** Completed replays beyond the first, oldest first. */
+  replays: string[];
+}
+
+/** One book library entry in a data export. */
+export interface DataExportBookEntry {
+  book: {
+    title: string;
+    authors: string[];
+    canonicalSource: BookSource;
+    sourceId: string;
+    externalIds: { source: string; externalId: string }[];
+  };
+  status: BookStatus;
+  rating: number | null;
+  notes: string | null;
+  favorite: boolean;
+  currentPage: number;
+  ownershipStatus: BookOwnershipStatus;
+  ownershipSource: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  createdAt: string;
+  /** Completed rereads beyond the first, oldest first. */
+  replays: string[];
+}
+
+/** One in-app notification in a data export. */
+export interface DataExportNotification {
+  type: string;
+  mediaTitle: string;
+  mediaType: MediaType;
+  seasonNumber: number;
+  episodeNumber: number;
+  episodeTitle: string | null;
+  airDate: string;
+  readAt: string | null;
+  createdAt: string;
+}
+
 /** Full portable dump of everything the account holds (GDPR "download my data"). */
 export interface UserDataExportDto {
   /** ISO datetime the export was produced. */
@@ -37,4 +105,7 @@ export interface UserDataExportDto {
   account: UserDto;
   library: DataExportEntry[];
   episodeWatches: DataExportWatch[];
+  games: DataExportGameEntry[];
+  books: DataExportBookEntry[];
+  notifications: DataExportNotification[];
 }

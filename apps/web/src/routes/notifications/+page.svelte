@@ -1,7 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { notifications } from "$lib/notifications.svelte";
+  import EmptyState from "$lib/components/EmptyState.svelte";
   import Icon from "$lib/components/Icon.svelte";
+  import PageHeader from "$lib/components/PageHeader.svelte";
 
   let loading = $state(true);
 
@@ -19,29 +21,25 @@
 </script>
 
 <div class="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
-  <div class="mb-6 flex items-center justify-between gap-4">
-    <h1
-      class="flex items-center gap-2 font-display text-3xl font-extrabold tracking-tight md:text-4xl">
-      <Icon name="bell" class="h-7 w-7 text-accent" />
-      Notifications
-    </h1>
-    {#if notifications.unread > 0}
-      <button
-        class="text-sm font-semibold text-accent hover:underline"
-        onclick={() => notifications.markAllRead()}>
-        Tout marquer comme lu
-      </button>
-    {/if}
-  </div>
+  <PageHeader icon="bell" title="Notifications" class="mb-6">
+    {#snippet actions()}
+      {#if notifications.unread > 0}
+        <button
+          class="text-sm link-accent"
+          onclick={() => notifications.markAllRead()}>
+          Tout marquer comme lu
+        </button>
+      {/if}
+    {/snippet}
+  </PageHeader>
 
   {#if loading}
     <p class="timecode text-sm">Chargement…</p>
   {:else if notifications.items.length === 0}
-    <div
-      class="rounded-xl border border-dashed border-border px-6 py-16 text-center text-dim">
+    <EmptyState>
       Rien de neuf. Les nouveaux épisodes de tes séries suivies apparaîtront
       ici.
-    </div>
+    </EmptyState>
   {:else}
     <ul class="flex flex-col gap-2">
       {#each notifications.items as n (n.id)}

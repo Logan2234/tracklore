@@ -60,8 +60,7 @@
       </button>
       <p class="text-center text-sm text-dim">
         Déjà inscrit ?
-        <a href="/login" class="font-semibold text-accent hover:underline"
-          >Se connecter</a>
+        <a href="/login" class="link-accent">Se connecter</a>
       </p>
     </form>
   </div>

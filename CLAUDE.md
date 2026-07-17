@@ -102,3 +102,7 @@ self-contained adapter-node `build/` output.
   put web+api behind one origin and expose it via ngrok for phone access (set
   `NGROK_DOMAIN` in `.env`); see README "Mobile access". Single-user; a 2nd
   user means moving to a public host (VPS/PaaS).
+- Before adding a new Svelte component, check `apps/web/src/lib/components/`
+  (shared) and any route-local `components/` folder for one that already
+  covers the need — extend or reuse it rather than writing a new one from
+  scratch.

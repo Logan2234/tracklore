@@ -1,5 +1,7 @@
 import type { GameOwnershipStatus, GameSource, GameStatus } from "../enums";
 import type { RatingDto } from "./catalog";
+import type { ImportResultDto } from "./import";
+import type { GenreCountDto } from "./library";
 
 /** A game as returned by a live catalogue search (not persisted). */
 export interface GameSummaryDto {
@@ -122,12 +124,6 @@ export interface GameDetailDto extends GameDetailsDto {
   entry: GameEntryDto | null;
 }
 
-/** How often a genre appears across the user's games. */
-export interface GameGenreCountDto {
-  genre: string;
-  count: number;
-}
-
 /** How many of the user's games are available on a platform. */
 export interface GamePlatformCountDto {
   platform: string;
@@ -186,9 +182,7 @@ export interface SteamImportCommitRequestDto {
   games: SteamImportCommitGameDto[];
 }
 
-export interface SteamImportResultDto {
-  imported: number;
-}
+export type SteamImportResultDto = ImportResultDto;
 
 /**
  * Aggregated stats for the user's game library. No playtime yet (games have no
@@ -205,5 +199,5 @@ export interface GameStatsDto {
   /** Most-common platforms across the library, descending (top few). */
   topPlatforms: GamePlatformCountDto[];
   /** Most-common genres across the library, descending (top few). */
-  topGenres: GameGenreCountDto[];
+  topGenres: GenreCountDto[];
 }

@@ -1,6 +1,9 @@
 FROM node:22-alpine
 
-RUN npm install -g pnpm@11.9.0
+# postgresql17-client matches the postgres:17-alpine server in docker-compose.yml
+# — pg_dump/psql (admin backup & restore) shell out to it via BackupService.
+RUN apk add --no-cache postgresql17-client \
+  && npm install -g pnpm@11.9.0
 WORKDIR /app
 
 # Manifests first for layer caching (all workspace manifests are required

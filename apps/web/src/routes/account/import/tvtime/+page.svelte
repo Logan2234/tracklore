@@ -15,6 +15,7 @@
     searchCatalog,
     ApiError,
   } from "$lib/api/client";
+  import Banner from "$lib/components/Banner.svelte";
   import Poster from "$lib/components/Poster.svelte";
   import Icon from "$lib/components/Icon.svelte";
 
@@ -326,10 +327,7 @@
   </div>
 
   {#if error}
-    <p
-      class="mb-4 rounded-lg border border-danger bg-danger/10 px-4 py-3 text-sm text-danger">
-      {error}
-    </p>
+    <Banner variant="error" class="mb-4">{error}</Banner>
   {/if}
 
   {#if phase === "upload"}
@@ -342,8 +340,7 @@
           href="https://gdpr.tvtime.com/gdpr/self-service"
           target="_blank"
           rel="noopener noreferrer"
-          class="font-semibold text-accent hover:underline"
-          >export GDPR TV Time ↗</a
+          class="link-accent">export GDPR TV Time ↗</a
         >. On l’analyse pour te laisser trier collection par collection avant
         d’écrire quoi que ce soit.
       </p>

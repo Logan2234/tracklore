@@ -1,20 +1,24 @@
 <script lang="ts">
+  import { getAdminVersion } from "$lib/api/client";
   import { ADMIN_NAV } from "$lib/admin-nav";
   import { auth } from "$lib/auth.svelte";
   import Icon from "$lib/components/Icon.svelte";
+  import PageHeader from "$lib/components/PageHeader.svelte";
+
+  let version = $state<string | null>(null);
+
+  $effect(() => {
+    getAdminVersion()
+      .then((v) => (version = v.version))
+      .catch(() => {});
+  });
 </script>
 
 <div class="mx-auto max-w-4xl px-4 py-6 md:px-8 md:py-10">
-  <header class="mb-8">
-    <h1
-      class="flex items-center gap-2 font-display text-3xl font-extrabold tracking-tight md:text-4xl">
-      <Icon name="shield" class="h-7 w-7 text-accent" />
-      Administration
-    </h1>
-    <p class="mt-1 text-dim">
-      Connecté en tant que {auth.user?.displayName}. Choisis une section.
-    </p>
-  </header>
+  <PageHeader
+    icon="shield"
+    title="Administration"
+    subtitle={`Connecté en tant que ${auth.user?.displayName}. Choisis une section.`} />
 
   <!-- Landing grid of sub-pages. Reserved for key metrics (stats…) later. -->
   <div class="grid gap-3 sm:grid-cols-2">
@@ -54,4 +58,8 @@
       {/if}
     {/each}
   </div>
+
+  {#if version}
+    <p class="mt-8 text-center text-xs text-dim">Tracklore v{version}</p>
+  {/if}
 </div>

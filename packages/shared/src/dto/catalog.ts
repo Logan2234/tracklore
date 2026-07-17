@@ -145,23 +145,16 @@ export interface MediaDetailSeasonDto {
  * catalogue metadata (cached if persisted, else fetched live) + the current
  * user's library state. `entry` is null when the media is not in the library.
  */
-export interface MediaDetailDto {
-  source: CatalogSource;
-  sourceId: string;
-  type: MediaType;
-  title: string;
+export interface MediaDetailDto extends Omit<
+  MediaDetailsDto,
+  "seasons" | "status" | "originalTitle"
+> {
+  /** Always present here (may be null), unlike the optional field on MediaSummaryDto. */
   originalTitle: string | null;
-  year: number | null;
-  posterUrl: string | null;
-  backdropUrl: string | null;
-  overview: string | null;
-  genres: string[];
   /** Raw airing status from the source (e.g. "Ended", "RELEASING"). */
   airingStatus: string | null;
   /** Normalised: the show has finished airing (no more episodes coming). */
   airingFinished: boolean;
-  /** 18+ title (TMDB `adult` movies, AniList hentai). Restricted per-account. */
-  isAdult: boolean;
   seasons: MediaDetailSeasonDto[];
   entry: LibraryEntryDto | null;
 }

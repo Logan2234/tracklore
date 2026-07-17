@@ -54,8 +54,7 @@
       </button>
       <p class="text-center text-sm text-dim">
         Pas encore de compte ?
-        <a href="/register" class="font-semibold text-accent hover:underline"
-          >Créer un compte</a>
+        <a href="/register" class="link-accent">Créer un compte</a>
       </p>
     </form>
   </div>

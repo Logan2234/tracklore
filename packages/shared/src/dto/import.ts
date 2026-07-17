@@ -150,6 +150,11 @@ export interface ImportCommitRequest {
 /** Cap on how many sample items each report array holds. */
 export const IMPORT_REPORT_SAMPLE_CAP = 100;
 
+/** Outcome of a simple (non-interactive) import: how many rows were written. */
+export interface ImportResultDto {
+  imported: number;
+}
+
 export function entryStatusFromProgress(
   watched: number,
   total: number,

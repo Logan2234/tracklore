@@ -1,6 +1,8 @@
 <script lang="ts">
   import { ApiError, getCalendar } from "$lib/api/client";
-  import Icon from "$lib/components/Icon.svelte";
+  import Banner from "$lib/components/Banner.svelte";
+  import EmptyState from "$lib/components/EmptyState.svelte";
+  import PageHeader from "$lib/components/PageHeader.svelte";
   import Poster from "$lib/components/Poster.svelte";
   import type { CalendarEntryDto } from "@tracklore/shared";
   import { SvelteDate } from "svelte/reactivity";
@@ -68,27 +70,17 @@
 </script>
 
 <div class="mx-auto max-w-4xl px-4 py-6 md:px-8 md:py-10">
-  <header class="mb-8">
-    <h1
-      class="flex items-center gap-2 font-display text-3xl font-extrabold tracking-tight md:text-4xl">
-      <Icon name="calendar" class="h-7 w-7 text-accent" />
-      Calendrier
-    </h1>
-    <p class="mt-1 text-dim">Les prochains épisodes de ce que tu suis.</p>
-  </header>
+  <PageHeader
+    icon="calendar"
+    title="Calendrier"
+    subtitle="Les prochains épisodes de ce que tu suis." />
 
   {#if error}
-    <p
-      class="rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-      {error}
-    </p>
+    <Banner variant="error">{error}</Banner>
   {:else if loading}
     <p class="timecode text-sm">Chargement…</p>
   {:else if days.length === 0}
-    <div
-      class="rounded-xl border border-dashed border-border px-6 py-16 text-center text-dim">
-      Aucun épisode à venir dans ce que tu suis.
-    </div>
+    <EmptyState>Aucun épisode à venir dans ce que tu suis.</EmptyState>
   {:else}
     <div class="flex flex-col gap-8">
       {#each days as day (day.key)}

@@ -61,6 +61,13 @@ export const ADMIN_NAV: AdminNavItem[] = [
     match: (p) => p.startsWith("/admin/jobs"),
   },
   {
+    href: "/admin/backup",
+    label: "Sauvegarde",
+    description: "Export/restauration complète de la base de données.",
+    icon: "archive",
+    match: (p) => p.startsWith("/admin/backup"),
+  },
+  {
     href: "/admin/imports",
     label: "Imports",
     description: "Journal des imports (Steam, StoryGraph, TV Time…).",
@@ -94,9 +101,9 @@ export const ADMIN_NAV: AdminNavItem[] = [
   {
     href: "/admin/security",
     label: "Sécurité",
-    description: "Journal des actions sensibles (reset, changement d'email).",
+    description:
+      "Journal des actions sensibles (création/suppression de compte, identifiants, connexions échouées).",
     icon: "shield",
     match: (p) => p.startsWith("/admin/security"),
-    soon: true,
   },
 ];

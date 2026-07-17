@@ -1,7 +1,8 @@
 <script lang="ts">
   import { getAdminServices, ApiError } from "$lib/api/client";
   import { auth } from "$lib/auth.svelte";
-  import Icon from "$lib/components/Icon.svelte";
+  import Banner from "$lib/components/Banner.svelte";
+  import PageHeader from "$lib/components/PageHeader.svelte";
   import type { ServiceStatusDto } from "@tracklore/shared";
 
   let services = $state<ServiceStatusDto[] | null>(null);
@@ -79,30 +80,22 @@
 </script>
 
 <div class="mx-auto max-w-4xl px-4 py-6 md:px-8 md:py-10">
-  <header class="mb-8 flex items-start justify-between gap-4">
-    <div>
-      <h1
-        class="flex items-center gap-2 font-display text-3xl font-extrabold tracking-tight md:text-4xl">
-        <Icon name="monitor" class="h-7 w-7 text-accent" />
-        Services
-      </h1>
-      <p class="mt-1 text-dim">
-        État des services externes dont dépend l’application.
-      </p>
-    </div>
-    <button
-      onclick={load}
-      disabled={loading}
-      class="btn-secondary shrink-0 disabled:opacity-50">
-      {loading ? "…" : "Rafraîchir"}
-    </button>
-  </header>
+  <PageHeader
+    icon="monitor"
+    title="Services"
+    subtitle="État des services externes dont dépend l’application.">
+    {#snippet actions()}
+      <button
+        onclick={load}
+        disabled={loading}
+        class="btn btn-ghost shrink-0 disabled:opacity-50">
+        {loading ? "…" : "Rafraîchir"}
+      </button>
+    {/snippet}
+  </PageHeader>
 
   {#if error}
-    <p
-      class="rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-      {error}
-    </p>
+    <Banner variant="error">{error}</Banner>
   {:else if loading && !services}
     <div class="space-y-3">
       {#each { length: 5 } as _, i (i)}

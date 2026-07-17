@@ -1,0 +1,162 @@
+<script lang="ts">
+  import { getAdminSecurityEvents, ApiError } from "$lib/api/client";
+  import Banner from "$lib/components/Banner.svelte";
+  import EmptyState from "$lib/components/EmptyState.svelte";
+  import PageHeader from "$lib/components/PageHeader.svelte";
+  import type { SecurityEventDto, SecurityEventType } from "@tracklore/shared";
+
+  const TYPE_LABELS: Record<SecurityEventType, string> = {
+    USER_REGISTERED: "Inscription",
+    USER_DELETED: "Suppression de compte",
+    EMAIL_CHANGED: "Changement d'email",
+    PASSWORD_CHANGED: "Changement de mot de passe",
+    PASSWORD_RESET: "Réinitialisation de mot de passe",
+    LOGIN_FAILED: "Échec de connexion",
+  };
+
+  const TYPE_COLORS: Record<SecurityEventType, string> = {
+    USER_REGISTERED: "border-success/40 bg-success/10 text-success",
+    USER_DELETED: "border-danger/40 bg-danger/10 text-danger",
+    EMAIL_CHANGED: "border-accent/40 bg-accent/10 text-accent",
+    PASSWORD_CHANGED: "border-accent/40 bg-accent/10 text-accent",
+    PASSWORD_RESET: "border-accent/40 bg-accent/10 text-accent",
+    LOGIN_FAILED: "border-danger/40 bg-danger/10 text-danger",
+  };
+
+  const TYPES = Object.keys(TYPE_LABELS) as SecurityEventType[];
+
+  let activeType = $state<SecurityEventType | null>(null);
+  let identifierInput = $state("");
+  let identifierFilter = $state("");
+  let events = $state<SecurityEventDto[]>([]);
+  let page = $state(1);
+  let hasMore = $state(true);
+  let loading = $state(false);
+  let error = $state("");
+
+  const dateFmt = new Intl.DateTimeFormat("fr-FR", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+
+  async function load(reset: boolean) {
+    loading = true;
+    error = "";
+    const targetPage = reset ? 1 : page + 1;
+    try {
+      const res = await getAdminSecurityEvents({
+        type: activeType ?? undefined,
+        identifier: identifierFilter || undefined,
+        page: targetPage,
+      });
+      events = reset ? res.events : [...events, ...res.events];
+      page = targetPage;
+      hasMore = res.events.length === 50;
+    } catch (err) {
+      error = err instanceof ApiError ? err.message : "Journal indisponible";
+    } finally {
+      loading = false;
+    }
+  }
+
+  function selectType(type: SecurityEventType | null) {
+    activeType = type;
+    void load(true);
+  }
+
+  let searchTimeout: ReturnType<typeof setTimeout>;
+  function onIdentifierInput() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      identifierFilter = identifierInput.trim();
+      void load(true);
+    }, 300);
+  }
+
+  $effect(() => {
+    void load(true);
+  });
+</script>
+
+<div class="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
+  <PageHeader
+    icon="shield"
+    title="Sécurité"
+    subtitle="Actions sensibles sur les comptes : création, suppression, changements d'identifiants, connexions échouées." />
+
+  <div class="mb-4 flex flex-wrap items-center gap-2">
+    <button
+      class="chip"
+      class:chip-on={activeType === null}
+      onclick={() => selectType(null)}>
+      Tous
+    </button>
+    {#each TYPES as t (t)}
+      <button
+        class="chip"
+        class:chip-on={activeType === t}
+        onclick={() => selectType(t)}>
+        {TYPE_LABELS[t]}
+      </button>
+    {/each}
+  </div>
+
+  <input
+    type="text"
+    bind:value={identifierInput}
+    oninput={onIdentifierInput}
+    placeholder="Filtrer par email ou identifiant…"
+    class="mb-5 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm" />
+
+  {#if error}
+    <Banner variant="error" class="mb-4">{error}</Banner>
+  {/if}
+
+  {#if loading && events.length === 0}
+    <div class="space-y-2">
+      {#each { length: 6 } as _, i (i)}
+        <div class="card h-16 animate-pulse"></div>
+      {/each}
+    </div>
+  {:else if events.length === 0}
+    <EmptyState>Aucun évènement ne correspond à ce filtre.</EmptyState>
+  {:else}
+    <ul class="space-y-2">
+      {#each events as e (e.id)}
+        <li class="card p-3.5">
+          <div class="flex flex-wrap items-center gap-2">
+            <span
+              class="rounded-full border px-2 py-0.5 text-xs font-bold {TYPE_COLORS[
+                e.type
+              ]}">
+              {TYPE_LABELS[e.type]}
+            </span>
+            <span class="font-semibold text-fg">{e.identifier}</span>
+            <span class="ml-auto text-xs text-dim">
+              {dateFmt.format(new Date(e.createdAt))}
+            </span>
+          </div>
+          {#if e.detail || e.userAgent}
+            <p class="mt-1.5 truncate text-xs text-dim">
+              {#if e.detail}{e.detail}{/if}
+              {#if e.detail && e.userAgent}·{/if}
+              {#if e.userAgent}{e.userAgent}{/if}
+            </p>
+          {/if}
+          {#if !e.userId}
+            <p class="mt-1 text-xs text-dim italic">Compte supprimé depuis</p>
+          {/if}
+        </li>
+      {/each}
+    </ul>
+
+    {#if hasMore}
+      <button
+        class="btn btn-ghost mt-4 w-full"
+        disabled={loading}
+        onclick={() => load(false)}>
+        {loading ? "Chargement…" : "Charger plus"}
+      </button>
+    {/if}
+  {/if}
+</div>

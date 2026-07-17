@@ -1,7 +1,9 @@
 <script lang="ts">
   import { getAdminJobs, runAdminJob, ApiError } from "$lib/api/client";
   import { auth } from "$lib/auth.svelte";
+  import Banner from "$lib/components/Banner.svelte";
   import Icon from "$lib/components/Icon.svelte";
+  import PageHeader from "$lib/components/PageHeader.svelte";
   import type { JobDto } from "@tracklore/shared";
 
   let jobs = $state<JobDto[] | null>(null);
@@ -53,31 +55,22 @@
 </script>
 
 <div class="mx-auto max-w-4xl px-4 py-6 md:px-8 md:py-10">
-  <header class="mb-8 flex items-start justify-between gap-4">
-    <div>
-      <h1
-        class="flex items-center gap-2 font-display text-3xl font-extrabold tracking-tight md:text-4xl">
-        <Icon name="calendar" class="h-7 w-7 text-accent" />
-        Jobs & tâches
-      </h1>
-      <p class="mt-1 text-dim">
-        Historique des scans/rafraîchissements planifiés, déclenchables à la
-        demande.
-      </p>
-    </div>
-    <button
-      onclick={load}
-      disabled={loading}
-      class="btn-secondary shrink-0 disabled:opacity-50">
-      {loading ? "…" : "Rafraîchir"}
-    </button>
-  </header>
+  <PageHeader
+    icon="calendar"
+    title="Jobs & tâches"
+    subtitle="Historique des scans/rafraîchissements planifiés, déclenchables à la demande.">
+    {#snippet actions()}
+      <button
+        onclick={load}
+        disabled={loading}
+        class="btn btn-ghost shrink-0 disabled:opacity-50">
+        {loading ? "…" : "Rafraîchir"}
+      </button>
+    {/snippet}
+  </PageHeader>
 
   {#if error}
-    <p
-      class="mb-6 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-      {error}
-    </p>
+    <Banner variant="error" class="mb-6">{error}</Banner>
   {/if}
 
   {#if loading && !jobs}
@@ -99,7 +92,7 @@
             <button
               onclick={() => runJob(job.key)}
               disabled={running === job.key}
-              class="btn-secondary shrink-0 text-xs disabled:opacity-50">
+              class="btn btn-primary shrink-0 text-xs disabled:opacity-50">
               {running === job.key ? "En cours…" : "Lancer maintenant"}
             </button>
           </div>

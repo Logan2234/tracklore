@@ -1,8 +1,9 @@
 <script lang="ts">
   import { getAdminSchema, ApiError } from "$lib/api/client";
   import { auth } from "$lib/auth.svelte";
-  import Icon from "$lib/components/Icon.svelte";
+  import Banner from "$lib/components/Banner.svelte";
   import MermaidDiagram from "$lib/components/MermaidDiagram.svelte";
+  import PageHeader from "$lib/components/PageHeader.svelte";
   import type { SchemaGraphResponseDto } from "@tracklore/shared";
 
   type Tab = "erd" | "modules";
@@ -46,16 +47,11 @@
 </script>
 
 <div class="px-4 py-6 md:px-8 md:py-10">
-  <header class="mb-6">
-    <h1
-      class="flex items-center gap-2 font-display text-3xl font-extrabold tracking-tight md:text-4xl">
-      <Icon name="library" class="h-7 w-7 text-accent" />
-      Schéma
-    </h1>
-    <p class="mt-1 text-dim">
-      Graphe de la base de données et des modules de l'app, générés localement.
-    </p>
-  </header>
+  <PageHeader
+    icon="library"
+    title="Schéma"
+    subtitle="Graphe de la base de données et des modules de l'app, générés localement."
+    class="mb-6" />
 
   <div class="mb-5 flex flex-wrap gap-2">
     {#each TABS as t (t.value)}
@@ -69,10 +65,7 @@
   </div>
 
   {#if error}
-    <p
-      class="rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-      {error}
-    </p>
+    <Banner variant="error">{error}</Banner>
   {:else if loading && !data}
     <div class="card h-64 animate-pulse"></div>
   {:else if activeGraph}

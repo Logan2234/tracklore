@@ -1,18 +1,25 @@
 <script lang="ts">
   import { page } from "$app/state";
   import {
-    getAdminUsers,
     getAdminPushDevices,
+    getAdminStats,
+    getAdminUsers,
+    sendAdminBroadcastPush,
     sendAdminTestPush,
     ApiError,
   } from "$lib/api/client";
+  import Banner from "$lib/components/Banner.svelte";
   import Combobox from "$lib/components/Combobox.svelte";
-  import Icon from "$lib/components/Icon.svelte";
+  import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
+  import PageHeader from "$lib/components/PageHeader.svelte";
   import type {
     AdminPushDeviceDto,
     AdminPushSendResponseDto,
+    AdminPushBroadcastResponseDto,
     AdminUserDto,
   } from "@tracklore/shared";
+
+  // --- Individual test ---
 
   let users = $state<AdminUserDto[]>([]);
   let email = $state(page.url.searchParams.get("email") ?? "");
@@ -60,6 +67,7 @@
         body: body.trim() || undefined,
       });
       await loadDevices();
+      await refreshCounts();
     } catch (err) {
       sendError = err instanceof ApiError ? err.message : "Échec de l'envoi";
     } finally {
@@ -79,21 +87,67 @@
     sendError = null;
     void loadDevices();
   });
+
+  // --- Broadcast to every account ---
+
+  let accountCount = $state<number | null>(null);
+  let deviceCount = $state<number | null>(null);
+
+  async function refreshCounts() {
+    try {
+      const stats = await getAdminStats();
+      accountCount = stats.accounts.withPush;
+      deviceCount = stats.activity.totalPushDevices;
+    } catch {
+      accountCount = null;
+      deviceCount = null;
+    }
+  }
+
+  $effect(() => {
+    void refreshCounts();
+  });
+
+  let broadcastTitle = $state("");
+  let broadcastBody = $state("");
+  let showBroadcastConfirm = $state(false);
+  let broadcasting = $state(false);
+  let broadcastResult = $state<AdminPushBroadcastResponseDto | null>(null);
+  let broadcastError = $state<string | null>(null);
+
+  function openBroadcastConfirm() {
+    broadcastResult = null;
+    broadcastError = null;
+    showBroadcastConfirm = true;
+  }
+
+  async function confirmBroadcast() {
+    broadcasting = true;
+    broadcastError = null;
+    try {
+      broadcastResult = await sendAdminBroadcastPush({
+        title: broadcastTitle.trim() || undefined,
+        body: broadcastBody.trim() || undefined,
+      });
+      showBroadcastConfirm = false;
+    } catch (err) {
+      broadcastError =
+        err instanceof ApiError ? err.message : "Échec de la diffusion";
+      showBroadcastConfirm = false;
+    } finally {
+      broadcasting = false;
+    }
+  }
 </script>
 
 <div class="mx-auto max-w-xl px-4 py-6 md:px-8 md:py-10">
-  <header class="mb-8">
-    <h1
-      class="flex items-center gap-2 font-display text-3xl font-extrabold tracking-tight md:text-4xl">
-      <Icon name="bell" class="h-7 w-7 text-accent" />
-      Notifications push
-    </h1>
-    <p class="mt-1 text-dim">
-      Envoie une notification de test aux appareils abonnés d'un compte.
-    </p>
-  </header>
+  <PageHeader
+    icon="bell"
+    title="Notifications push"
+    subtitle="Envoie une notification de test ou une diffusion générale." />
 
-  <div class="card space-y-4 p-4">
+  <section class="card mb-6 space-y-4 p-4 md:p-5">
+    <h2 class="font-display text-lg font-bold">Test individuel</h2>
     <div>
       <span class="mb-1 block text-xs font-semibold text-dim">Compte</span>
       <Combobox
@@ -137,10 +191,9 @@
     </div>
 
     {#if !devicesLoading && devices && devices.length === 0}
-      <p
-        class="rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs text-dim">
+      <Banner variant="warning">
         Aucun appareil abonné pour ce compte — l'envoi n'atteindra personne.
-      </p>
+      </Banner>
     {:else if devices && devices.length > 0}
       <div>
         <p class="mb-1.5 text-xs font-semibold text-dim">
@@ -163,34 +216,116 @@
     <button
       onclick={send}
       disabled={!email || sending}
-      class="btn-secondary disabled:opacity-50">
+      class="btn btn-primary disabled:opacity-50">
       {sending ? "Envoi…" : "Envoyer un test"}
     </button>
-  </div>
 
-  {#if sendError}
-    <p
-      class="mt-4 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-      {sendError}
-    </p>
-  {:else if result}
-    {#if result.subscriptionCount === 0}
-      <p
-        class="mt-4 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-        Aucun appareil abonné — rien n'a été envoyé.
-      </p>
-    {:else}
-      <div class="mt-4 space-y-2">
-        {#each result.results as r, i (i)}
-          <p
-            class="rounded-lg border px-4 py-2 text-sm {r.ok
-              ? 'border-success/40 bg-success/10 text-success'
-              : 'border-danger/40 bg-danger/10 text-danger'}">
-            {r.userAgent ?? "Appareil inconnu"} —
-            {r.ok ? "envoyé" : (r.error ?? "échec")}
-          </p>
-        {/each}
-      </div>
+    {#if sendError}
+      <Banner variant="error">{sendError}</Banner>
+    {:else if result}
+      {#if result.subscriptionCount === 0}
+        <Banner variant="warning">
+          Aucun appareil abonné — rien n'a été envoyé.
+        </Banner>
+      {:else}
+        <div class="space-y-2">
+          {#each result.results as r, i (i)}
+            <p
+              class="rounded-lg border px-4 py-2 text-sm {r.ok
+                ? 'border-success/40 bg-success/10 text-success'
+                : 'border-danger/40 bg-danger/10 text-danger'}">
+              {r.userAgent ?? "Appareil inconnu"} —
+              {r.ok ? "envoyé" : (r.error ?? "échec")}
+            </p>
+          {/each}
+        </div>
+      {/if}
     {/if}
-  {/if}
+  </section>
+
+  <section class="card border-accent/40 space-y-4 p-4 md:p-5">
+    <div>
+      <h2 class="font-display text-lg font-bold">Diffusion générale</h2>
+      <p class="mt-1 text-sm text-dim">
+        Envoie le même message à tous les appareils abonnés, tous comptes
+        confondus.
+        {#if accountCount !== null && deviceCount !== null}
+          Portée actuelle : <strong class="text-fg">{accountCount}</strong>
+          compte{accountCount > 1 ? "s" : ""} /
+          <strong class="text-fg">{deviceCount}</strong>
+          appareil{deviceCount > 1 ? "s" : ""}.
+        {/if}
+      </p>
+    </div>
+
+    <div>
+      <label
+        for="admin-broadcast-title"
+        class="mb-1 block text-xs font-semibold text-dim">
+        Titre (optionnel)
+      </label>
+      <input
+        id="admin-broadcast-title"
+        type="text"
+        bind:value={broadcastTitle}
+        placeholder="Tracklore (admin)"
+        maxlength="100"
+        class="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm" />
+    </div>
+
+    <div>
+      <label
+        for="admin-broadcast-body"
+        class="mb-1 block text-xs font-semibold text-dim">
+        Message (optionnel)
+      </label>
+      <textarea
+        id="admin-broadcast-body"
+        bind:value={broadcastBody}
+        placeholder="Message envoyé à tous les comptes depuis le panel admin."
+        maxlength="500"
+        rows="2"
+        class="w-full resize-none rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+      ></textarea>
+    </div>
+
+    <button
+      onclick={openBroadcastConfirm}
+      disabled={!accountCount}
+      class="btn btn-primary disabled:opacity-50">
+      Diffuser à tous les comptes
+    </button>
+
+    {#if broadcastError}
+      <Banner variant="error">{broadcastError}</Banner>
+    {:else if broadcastResult}
+      <Banner variant={broadcastResult.failureCount === 0 ? "info" : "warning"}>
+        Diffusé à {broadcastResult.accountCount} compte{broadcastResult.accountCount >
+        1
+          ? "s"
+          : ""}
+        — {broadcastResult.successCount} appareil{broadcastResult.successCount >
+        1
+          ? "s"
+          : ""} atteint{broadcastResult.successCount > 1 ? "s" : ""}
+        {#if broadcastResult.failureCount > 0}
+          , {broadcastResult.failureCount} échec{broadcastResult.failureCount >
+          1
+            ? "s"
+            : ""}
+        {/if}.
+      </Banner>
+    {/if}
+  </section>
 </div>
+
+{#if showBroadcastConfirm}
+  <ConfirmationModal
+    title="Diffuser à tous les comptes ?"
+    message={`Cette notification sera envoyée à ${accountCount ?? 0} compte${(accountCount ?? 0) > 1 ? "s" : ""} (${deviceCount ?? 0} appareil${(deviceCount ?? 0) > 1 ? "s" : ""}). Cette action ne peut pas être annulée une fois lancée.`}
+    confirmLabel="Diffuser"
+    danger
+    busy={broadcasting}
+    onConfirm={confirmBroadcast}
+    onCancel={() => (showBroadcastConfirm = false)} />
+{/if}

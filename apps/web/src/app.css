@@ -108,6 +108,14 @@ body {
   .mock {
     @apply decoration-dim/50 cursor-help underline decoration-dotted underline-offset-4;
   }
+  .link-accent {
+    @apply text-accent font-semibold hover:underline;
+  }
+  /* Loading placeholder; pair with sizing utilities (and `rounded` when the
+     real content isn't square-cornered, e.g. text-line placeholders). */
+  .skeleton {
+    @apply bg-surface-2 animate-pulse;
+  }
 }
 
 /* Tailwind's preflight resets buttons to `cursor: default`; restore the

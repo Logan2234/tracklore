@@ -1,6 +1,6 @@
 import { Domain } from "@tracklore/shared";
 
-export type NavIcon =
+type NavIcon =
   | "home"
   | "library"
   | "search"
@@ -12,7 +12,7 @@ export type NavIcon =
   | "user"
   | "shield";
 
-export interface NavItem {
+interface NavItem {
   href: string;
   label: string;
   icon: NavIcon;

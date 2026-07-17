@@ -5,7 +5,8 @@
     sendAdminTestEmail,
     ApiError,
   } from "$lib/api/client";
-  import Icon from "$lib/components/Icon.svelte";
+  import Banner from "$lib/components/Banner.svelte";
+  import PageHeader from "$lib/components/PageHeader.svelte";
   import type { MailTemplateInfoDto } from "@tracklore/shared";
 
   let templates = $state<MailTemplateInfoDto[] | null>(null);
@@ -115,31 +116,21 @@
 </script>
 
 <div class="mx-auto max-w-5xl px-4 py-6 md:px-8 md:py-10">
-  <header class="mb-8">
-    <h1
-      class="flex items-center gap-2 font-display text-3xl font-extrabold tracking-tight md:text-4xl">
-      <Icon name="mail" class="h-7 w-7 text-accent" />
-      Emails
-    </h1>
-    <p class="mt-1 text-dim">
-      Aperçu des gabarits (données d'exemple modifiables) et envoi de test.
-    </p>
-  </header>
+  <PageHeader
+    icon="mail"
+    title="Emails"
+    subtitle="Aperçu des gabarits (données d'exemple modifiables) et envoi de test." />
 
   {#if error}
-    <p
-      class="rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-      {error}
-    </p>
+    <Banner variant="error">{error}</Banner>
   {:else if loading}
     <div class="card h-96 animate-pulse"></div>
   {:else if templates}
     {#if !smtpConfigured}
-      <p
-        class="mb-6 rounded-lg border border-border bg-surface-2 px-4 py-3 text-sm text-dim">
+      <Banner variant="warning" class="mb-6">
         SMTP n'est pas configuré — l'aperçu fonctionne, mais l'envoi de test est
         désactivé.
-      </p>
+      </Banner>
     {/if}
 
     <div class="grid gap-6 md:grid-cols-[220px_1fr]">
@@ -213,10 +204,10 @@
               title="Aperçu de l'email"
               sandbox=""
               srcdoc={previewHtml}
-              class="h-[520px] w-full border-0 bg-white"></iframe>
+              class="h-130 w-full border-0 bg-white"></iframe>
           {:else if previewTab === "text" && previewText}
             <pre
-              class="h-[520px] overflow-auto bg-surface p-4 text-xs whitespace-pre-wrap text-fg">{previewSubject
+              class="h-130 overflow-auto bg-surface p-4 text-xs whitespace-pre-wrap text-fg">{previewSubject
                 ? `Sujet : ${previewSubject}\n\n`
                 : ""}{previewText}</pre>
           {:else}
@@ -236,7 +227,7 @@
           <button
             onclick={sendTest}
             disabled={!smtpConfigured || !testTo || sending}
-            class="btn-secondary shrink-0 disabled:opacity-50">
+            class="btn btn-primary shrink-0 disabled:opacity-50">
             {sending ? "Envoi…" : "Envoyer un test"}
           </button>
         </div>

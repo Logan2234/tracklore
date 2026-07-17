@@ -68,8 +68,7 @@
       {/if}
 
       <p class="text-center text-sm text-dim">
-        <a href="/login" class="font-semibold text-accent hover:underline"
-          >Retour à la connexion</a>
+        <a href="/login" class="link-accent">Retour à la connexion</a>
       </p>
     </div>
   </div>

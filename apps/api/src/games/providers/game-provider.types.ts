@@ -1,6 +1,6 @@
 import type { GameSource, GameSummaryDto, RatingDto } from "@tracklore/shared";
 
-export interface ProviderGameExternalId {
+interface ProviderGameExternalId {
   source: GameSource;
   externalId: string;
 }

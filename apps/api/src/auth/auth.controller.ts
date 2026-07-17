@@ -64,8 +64,11 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.NO_CONTENT)
   @Post("reset-password")
-  async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
-    await this.authService.resetPassword(dto.token, dto.newPassword);
+  async resetPassword(
+    @Body() dto: ResetPasswordDto,
+    @Headers("user-agent") userAgent?: string,
+  ): Promise<void> {
+    await this.authService.resetPassword(dto.token, dto.newPassword, userAgent);
   }
 
   @Throttle({ default: { limit: 10, ttl: 60_000 } })

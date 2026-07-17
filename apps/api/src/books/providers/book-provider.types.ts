@@ -1,6 +1,6 @@
 import type { BookSource, BookSummaryDto, RatingDto } from "@tracklore/shared";
 
-export interface ProviderBookExternalId {
+interface ProviderBookExternalId {
   source: BookSource;
   externalId: string;
 }
