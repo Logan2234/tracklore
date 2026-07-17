@@ -1,5 +1,7 @@
 import type { BookStatsDto, BookStatus } from "@tracklore/shared";
 
+import { topN } from "../common/top-n.util";
+
 /** One library book reduced to the fields the stats aggregation needs. */
 export interface BookStatInput {
   status: BookStatus;
@@ -7,9 +9,6 @@ export interface BookStatInput {
   genres: string[];
   authors: string[];
 }
-
-// Breakdowns are capped so the UI stays legible.
-const TOP_N = 6;
 
 /** Pure aggregation of a user's books into library counts + breakdowns. */
 export function aggregateBookStats(books: BookStatInput[]): BookStatsDto {
@@ -48,9 +47,6 @@ export function aggregateBookStats(books: BookStatInput[]): BookStatsDto {
     }
   }
 
-  const top = (counts: Map<string, number>) =>
-    [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, TOP_N);
-
   return {
     totalBooks: books.length,
     toRead,
@@ -58,10 +54,10 @@ export function aggregateBookStats(books: BookStatInput[]): BookStatsDto {
     read,
     dropped,
     favorites,
-    topAuthors: top(authorCounts).map(([author, count]) => ({
+    topAuthors: topN(authorCounts).map(([author, count]) => ({
       author,
       count,
     })),
-    topGenres: top(genreCounts).map(([genre, count]) => ({ genre, count })),
+    topGenres: topN(genreCounts).map(([genre, count]) => ({ genre, count })),
   };
 }

@@ -30,6 +30,13 @@ enum Domain {
   GAMES
 }
 
+// Operational permission level, orthogonal to User.entitlements (the future
+// paid-tier seam). See packages/shared/src/enums.ts Role for the rationale.
+enum Role {
+  USER
+  ADMIN
+}
+
 // Sources we actually fetch from (canonical).
 enum CatalogSource {
   TMDB
@@ -67,11 +74,9 @@ enum MediaOwnershipStatus {
   BORROWED
 }
 
-// Source a game's catalogue data comes from. IGDB is the only one we fetch
-// from today; RAWG is reserved so the multi-source seam exists before it lands.
+// Source a game's catalogue data comes from. IGDB is the only one today.
 enum GameSource {
   IGDB
-  RAWG
 }
 
 // A game's library status. Unlike EntryStatus it is entirely user-set: games
@@ -141,7 +146,11 @@ model User {
   // in self-host (no feature is gated on it) — see UserToken.
   emailVerified     Boolean   @default(false)
   // Open-core seam: feature flags granted to this user (empty in self-host MVP).
+  // NOT used for admin permission — see `role` below.
   entitlements      Json      @default("[]")
+  // Operational permission level (gates /admin). Separate axis from
+  // `entitlements` (paid tier): an admin isn't "the highest tier".
+  role              Role      @default(USER)
   // Composition seam: content domains the user enabled. Drives the nav today;
   // search/notif filtering follow at P3. Default = every domain visible.
   enabledDomains    Domain[]  @default([MEDIA, BOOKS, GAMES])
@@ -157,6 +166,7 @@ model User {
   bookEntries         BookEntry[]
   tokens              UserToken[]
   emailChangeRequests EmailChangeRequest[]
+  securityEvents      SecurityEvent[]
 }
 
 // One row per browser/device push subscription (Web Push). endpoint is the
@@ -207,7 +217,7 @@ model Notification {
 // rows per jobKey at write time (see JobRunService) so the table stays bounded
 // on a self-host instance running for years.
 model JobRun {
-  id         String    @id @default(cuid())
+  id         String   @id @default(cuid())
   // Stable identifier, e.g. "notifications.scan", "media.refreshStale".
   jobKey     String
   startedAt  DateTime
@@ -264,6 +274,35 @@ model UserToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, type])
+}
+
+enum SecurityEventType {
+  USER_REGISTERED
+  USER_DELETED
+  EMAIL_CHANGED
+  PASSWORD_CHANGED
+  PASSWORD_RESET
+  LOGIN_FAILED
+}
+
+// One sensitive account action, for the admin "Sécurité" page. userId is
+// nullable + onDelete: SetNull (not Cascade) so the trail survives account
+// deletion — USER_DELETED itself would otherwise vanish the instant it's
+// written. `identifier` is denormalised for the same reason, and also covers
+// LOGIN_FAILED against an unknown email/username (no userId to attach).
+model SecurityEvent {
+  id         String            @id @default(cuid())
+  type       SecurityEventType
+  userId     String?
+  identifier String
+  detail     String?
+  userAgent  String?
+  createdAt  DateTime          @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([type, createdAt])
+  @@index([userId])
 }
 
 // One pending email change per row; a fresh request invalidates the previous

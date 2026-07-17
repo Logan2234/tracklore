@@ -1,5 +1,6 @@
 import type { BookOwnershipStatus, BookStatus } from "@tracklore/shared";
 import { parseCsv } from "../../import/tvtime/csv";
+import { parseReadCount, parseStarRatingToTen } from "./csv-field.util";
 
 /** One Goodreads CSV row reduced to the fields the import needs. */
 export interface ParsedGoodreadsRow {
@@ -41,7 +42,7 @@ export function parseGoodreadsCsv(text: string): ParsedGoodreadsRow[] {
       authors: splitAuthors(record["Author"], record["Additional Authors"]),
       isbn: normaliseIsbn(record["ISBN13"]) ?? normaliseIsbn(record["ISBN"]),
       status: parseStatus(record["Exclusive Shelf"], record["Bookshelves"]),
-      rating: parseRating(record["My Rating"]),
+      rating: parseStarRatingToTen(record["My Rating"]),
       notes: combineNotes(record["Private Notes"], record["My Review"]),
       startedAt: null,
       finishedAt: toIso(record["Date Read"]),
@@ -105,12 +106,6 @@ function combineNotes(
   return parts.length > 0 ? parts.join("\n\n") : null;
 }
 
-/** Defaults to 0 (unread) on anything unparseable. */
-function parseReadCount(value: string | undefined): number {
-  const count = Number((value ?? "").trim());
-  return Number.isFinite(count) && count > 0 ? Math.trunc(count) : 0;
-}
-
 /** Goodreads splits "Author" (primary) from "Additional Authors" (", "-joined). */
 function splitAuthors(
   primary: string | undefined,
@@ -133,12 +128,6 @@ function splitAuthors(
 function normaliseIsbn(value: string | undefined): string | null {
   const cleaned = (value ?? "").replace(/^=/, "").replace(/["\s-]/g, "");
   return /^(\d{9}[\dX]|\d{13})$/.test(cleaned) ? cleaned : null;
-}
-
-/** Goodreads rates 0–5 in whole steps (0 = unrated); we store 0–10. */
-function parseRating(value: string | undefined): number | null {
-  const stars = Number((value ?? "").trim());
-  return Number.isFinite(stars) && stars > 0 ? stars * 2 : null;
 }
 
 /**

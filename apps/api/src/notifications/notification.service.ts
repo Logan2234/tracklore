@@ -1,22 +1,36 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import type { MediaExternalId, MediaItem, Notification } from "@prisma/client";
+import type { Notification } from "@prisma/client";
 import type {
   MediaType,
   NotificationDto,
   NotificationFeedDto,
 } from "@tracklore/shared";
+import { canonicalExternalId } from "../common/external-id.util";
 import { MailService } from "../mail/mail.service";
 import { JOB_KEYS } from "../jobs/job-keys";
 import { JobRunService } from "../jobs/job-run.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { selectNewEpisodeNotifications } from "./notification.util";
+import {
+  type NewEpisodeNotification,
+  selectNewEpisodeNotifications,
+} from "./notification.util";
 import { PushService } from "./push.service";
 
 /** How far back a scan looks, so following an old show never floods the feed. */
 const WINDOW_DAYS = 14;
 /** Most recent notifications returned in the feed. */
 const FEED_LIMIT = 50;
+
+/** Push/email body: `S1E2 · Title` (title suffix only when known). */
+function notificationBody(n: NewEpisodeNotification): string {
+  return `S${n.seasonNumber}E${n.episodeNumber}${n.episodeTitle ? " · " + n.episodeTitle : ""}`;
+}
+
+/** Deep link to the media detail page for a notification. */
+function notificationUrl(n: NewEpisodeNotification): string {
+  return `/media/${n.mediaType.toLowerCase()}/${n.sourceId}`;
+}
 
 @Injectable()
 export class NotificationService {
@@ -145,7 +159,10 @@ export class NotificationService {
         episodeTitle: e.title,
         mediaTitle: e.season.mediaItem.title,
         mediaType: e.season.mediaItem.type as MediaType,
-        sourceId: canonicalSourceId(e.season.mediaItem),
+        sourceId: canonicalExternalId(
+          e.season.mediaItem,
+          e.season.mediaItem.externalIds,
+        ),
         trackedSince: e.season.mediaItem.entries[0].createdAt,
       })),
       { since, now, alreadyNotified },
@@ -163,8 +180,8 @@ export class NotificationService {
         toCreate.map((n) =>
           this.push.sendToUser(userId, {
             title: n.mediaTitle,
-            body: `S${n.seasonNumber}E${n.episodeNumber}${n.episodeTitle ? " · " + n.episodeTitle : ""}`,
-            url: `/media/${n.mediaType.toLowerCase()}/${n.sourceId}`,
+            body: notificationBody(n),
+            url: notificationUrl(n),
           }),
         ),
       );
@@ -176,8 +193,8 @@ export class NotificationService {
           this.mail.sendNewEpisode(
             user.email,
             n.mediaTitle,
-            `S${n.seasonNumber}E${n.episodeNumber}${n.episodeTitle ? " · " + n.episodeTitle : ""}`,
-            `/media/${n.mediaType.toLowerCase()}/${n.sourceId}`,
+            notificationBody(n),
+            notificationUrl(n),
           ),
         ),
       );
@@ -215,15 +232,6 @@ export class NotificationService {
       throw new NotFoundException("Notification not found");
     }
   }
-}
-
-function canonicalSourceId(
-  media: MediaItem & { externalIds: MediaExternalId[] },
-): string {
-  return (
-    media.externalIds.find((ext) => ext.source === media.canonicalSource)
-      ?.externalId ?? ""
-  );
 }
 
 function toDto(n: Notification): NotificationDto {

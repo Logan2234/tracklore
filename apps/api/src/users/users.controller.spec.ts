@@ -29,7 +29,14 @@ describe("UsersController — email change", () => {
       sendEmailChangeCode: jest.fn(),
       sendEmailChanged: jest.fn(),
     };
-    controller = new UsersController(prisma, mail);
+    const security = { record: jest.fn() };
+    const dataExport = { buildExport: jest.fn() };
+    controller = new UsersController(
+      prisma,
+      mail,
+      security as any,
+      dataExport as any,
+    );
   });
 
   describe("changeEmail", () => {
@@ -115,6 +122,7 @@ describe("UsersController — email change", () => {
         notifyPush: false,
         emailVerified: false,
         entitlements: [],
+        role: "USER",
         enabledDomains: [],
         createdAt: new Date(),
       });

@@ -1,5 +1,6 @@
 import type { BookOwnershipStatus, BookStatus } from "@tracklore/shared";
 import { parseCsv } from "../../import/tvtime/csv";
+import { parseReadCount, parseStarRatingToTen } from "./csv-field.util";
 
 /** One StoryGraph CSV row reduced to the fields the import needs. */
 export interface ParsedStoryGraphRow {
@@ -47,7 +48,7 @@ export function parseStoryGraphCsv(text: string): ParsedStoryGraphRow[] {
         status:
           STATUS_BY_READ_STATUS[(record["Read Status"] ?? "").trim()] ??
           "TO_READ",
-        rating: parseRating(record["Star Rating"]),
+        rating: parseStarRatingToTen(record["Star Rating"]),
         notes: emptyToNull(record["Review"]),
         startedAt,
         finishedAt,
@@ -79,12 +80,6 @@ function parseOwnership(
   return "NONE";
 }
 
-/** Defaults to 0 (unread) on anything unparseable. */
-function parseReadCount(value: string | undefined): number {
-  const count = Number((value ?? "").trim());
-  return Number.isFinite(count) && count > 0 ? Math.trunc(count) : 0;
-}
-
 /** StoryGraph joins multiple authors with ", " inside one quoted field. */
 function splitAuthors(value: string | undefined): string[] {
   if (!value) return [];
@@ -98,12 +93,6 @@ function splitAuthors(value: string | undefined): string[] {
 function normaliseIsbn(value: string | undefined): string | null {
   const cleaned = (value ?? "").replace(/[\s-]/g, "");
   return /^(\d{9}[\dX]|\d{13})$/.test(cleaned) ? cleaned : null;
-}
-
-/** StoryGraph rates 0–5 in quarter steps; we store 0–10 in half steps. */
-function parseRating(value: string | undefined): number | null {
-  const stars = Number((value ?? "").trim());
-  return Number.isFinite(stars) && stars > 0 ? stars * 2 : null;
 }
 
 /**

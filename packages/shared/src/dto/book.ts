@@ -1,5 +1,7 @@
 import type { BookOwnershipStatus, BookSource, BookStatus } from "../enums";
 import type { RatingDto } from "./catalog";
+import type { ImportResultDto } from "./import";
+import type { GenreCountDto } from "./library";
 
 /** A book as returned by a live catalogue search (not persisted). */
 export interface BookSummaryDto {
@@ -118,20 +120,16 @@ export interface BookDetailDto extends BookDetailsDto {
   entry: BookEntryDto | null;
 }
 
-/** How often a genre appears across the user's books. */
-export interface BookGenreCountDto {
-  genre: string;
-  count: number;
-}
-
-// --- StoryGraph import ---
+// --- CSV import (StoryGraph + Goodreads share one shape; they only differ in
+// whether the source export has a "date started" column) ---
 
 /**
- * One CSV row from a StoryGraph export matched to a Google Books volume (preview
- * step). The reading metadata (status/rating/notes/dates) is already mapped from
- * the row; the user only chooses whether to import it and may tweak the status.
+ * One CSV row from a StoryGraph/Goodreads export matched to a Google Books
+ * volume (preview step). The reading metadata (status/rating/notes/dates) is
+ * already mapped from the row; the user only chooses whether to import it and
+ * may tweak the status.
  */
-export interface StoryGraphMatchedBookDto {
+export interface CsvMatchedBookDto<TStartedAt> {
   source: BookSource;
   /** Catalogue id in `source` — the identity used to persist the book. */
   sourceId: string;
@@ -142,15 +140,14 @@ export interface StoryGraphMatchedBookDto {
   /** Original title from the CSV, shown when the match looks uncertain. */
   csvTitle: string;
   status: BookStatus;
-  /** 0–10 (StoryGraph's 0–5 stars doubled); null when unrated. */
+  /** 0–10 (source's 0–5 stars doubled); null when unrated. */
   rating: number | null;
   /** The CSV review, kept as the entry's notes; null when empty. */
   notes: string | null;
-  startedAt: string | null;
+  startedAt: TStartedAt;
   finishedAt: string | null;
-  /** Derived from the CSV's "Format" + "Owned?" columns. */
   ownershipStatus: BookOwnershipStatus;
-  /** StoryGraph "Read Count" — logs (count - 1) replays on import. */
+  /** Source's "Read Count" — logs (count - 1) replays on import. */
   readCount: number;
   /** Already in the user's Tracklore library (so the UI can flag/skip it). */
   alreadyInLibrary: boolean;
@@ -160,25 +157,25 @@ export interface StoryGraphMatchedBookDto {
  * One CSV row Google Books had no volume for — the reading metadata is kept
  * so the user can still import it once manually associated to a book.
  */
-export interface StoryGraphUnmatchedBookDto {
+export interface CsvUnmatchedBookDto<TStartedAt> {
   csvTitle: string;
   status: BookStatus;
   rating: number | null;
   notes: string | null;
-  startedAt: string | null;
+  startedAt: TStartedAt;
   finishedAt: string | null;
   ownershipStatus: BookOwnershipStatus;
   readCount: number;
 }
 
-/** Preview of a StoryGraph import: what we could match, before writing anything. */
-export interface StoryGraphImportPreviewDto {
+/** Preview of a CSV import: what we could match, before writing anything. */
+export interface CsvImportPreviewDto<TStartedAt> {
   /** Total data rows read from the CSV. */
   totalRows: number;
   /** Rows matched to a Google Books volume. */
-  matched: StoryGraphMatchedBookDto[];
+  matched: CsvMatchedBookDto<TStartedAt>[];
   /** Rows Google Books had no volume for — may be associated manually. */
-  unmatched: StoryGraphUnmatchedBookDto[];
+  unmatched: CsvUnmatchedBookDto<TStartedAt>[];
   /**
    * How many of `unmatched` failed because the Google Books call itself
    * errored (rate limit, outage) rather than genuinely finding no volume —
@@ -188,121 +185,53 @@ export interface StoryGraphImportPreviewDto {
 }
 
 /** One book the user chose to import, with the reading metadata to assign it. */
-export interface StoryGraphImportCommitBookDto {
+export interface CsvImportCommitBookDto<TStartedAt> {
   source: BookSource;
   sourceId: string;
   status: BookStatus;
   rating: number | null;
   notes: string | null;
-  startedAt: string | null;
+  startedAt: TStartedAt;
   finishedAt: string | null;
   ownershipStatus: BookOwnershipStatus;
   readCount: number;
 }
 
-export interface StoryGraphImportPreviewRequestDto {
-  /** The raw StoryGraph export CSV text. */
+interface CsvImportPreviewRequestDto {
+  /** The raw export CSV text. */
   csv: string;
 }
 
-export interface StoryGraphImportCommitRequestDto {
-  books: StoryGraphImportCommitBookDto[];
+interface CsvImportCommitRequestDto<TStartedAt> {
+  books: CsvImportCommitBookDto<TStartedAt>[];
 }
 
-export interface StoryGraphImportResultDto {
-  imported: number;
-}
+// --- StoryGraph import ---
+// (ownershipStatus derived from the CSV's "Format" + "Owned?" columns)
+
+export type StoryGraphMatchedBookDto = CsvMatchedBookDto<string | null>;
+export type StoryGraphUnmatchedBookDto = CsvUnmatchedBookDto<string | null>;
+export type StoryGraphImportPreviewDto = CsvImportPreviewDto<string | null>;
+export type StoryGraphImportCommitBookDto = CsvImportCommitBookDto<
+  string | null
+>;
+export type StoryGraphImportPreviewRequestDto = CsvImportPreviewRequestDto;
+export type StoryGraphImportCommitRequestDto = CsvImportCommitRequestDto<
+  string | null
+>;
+export type StoryGraphImportResultDto = ImportResultDto;
 
 // --- Goodreads import ---
+// (ownershipStatus derived from the CSV's "Owned Copies" + "Binding" columns;
+// the export has no "date started" column, hence `startedAt: null`)
 
-/**
- * One CSV row from a Goodreads export matched to a Google Books volume
- * (preview step). The reading metadata (status/rating/notes/dates) is already
- * mapped from the row; the user only chooses whether to import it and may
- * tweak the status.
- */
-export interface GoodreadsMatchedBookDto {
-  source: BookSource;
-  /** Catalogue id in `source` — the identity used to persist the book. */
-  sourceId: string;
-  /** Title of the matched catalogue work (may differ from the CSV title). */
-  title: string;
-  authors: string[];
-  coverUrl: string | null;
-  /** Original title from the CSV, shown when the match looks uncertain. */
-  csvTitle: string;
-  status: BookStatus;
-  /** 0–10 (Goodreads' 0–5 stars doubled); null when unrated. */
-  rating: number | null;
-  /** The CSV "My Review", kept as the entry's notes; null when empty. */
-  notes: string | null;
-  /** Goodreads' export has no "date started" column. */
-  startedAt: null;
-  finishedAt: string | null;
-  /** Derived from the CSV's "Owned Copies" + "Binding" columns. */
-  ownershipStatus: BookOwnershipStatus;
-  /** Goodreads "Read Count" — logs (count - 1) replays on import. */
-  readCount: number;
-  /** Already in the user's Tracklore library (so the UI can flag/skip it). */
-  alreadyInLibrary: boolean;
-}
-
-/**
- * One CSV row Google Books had no volume for — the reading metadata is kept
- * so the user can still import it once manually associated to a book.
- */
-export interface GoodreadsUnmatchedBookDto {
-  csvTitle: string;
-  status: BookStatus;
-  rating: number | null;
-  notes: string | null;
-  startedAt: null;
-  finishedAt: string | null;
-  ownershipStatus: BookOwnershipStatus;
-  readCount: number;
-}
-
-/** Preview of a Goodreads import: what we could match, before writing anything. */
-export interface GoodreadsImportPreviewDto {
-  /** Total data rows read from the CSV. */
-  totalRows: number;
-  /** Rows matched to a Google Books volume. */
-  matched: GoodreadsMatchedBookDto[];
-  /** Rows Google Books had no volume for — may be associated manually. */
-  unmatched: GoodreadsUnmatchedBookDto[];
-  /**
-   * How many of `unmatched` failed because the Google Books call itself
-   * errored (rate limit, outage) rather than genuinely finding no volume —
-   * distinguishes "retry the import later" from "needs manual matching".
-   */
-  apiErrorCount: number;
-}
-
-/** One book the user chose to import, with the reading metadata to assign it. */
-export interface GoodreadsImportCommitBookDto {
-  source: BookSource;
-  sourceId: string;
-  status: BookStatus;
-  rating: number | null;
-  notes: string | null;
-  startedAt: string | null;
-  finishedAt: string | null;
-  ownershipStatus: BookOwnershipStatus;
-  readCount: number;
-}
-
-export interface GoodreadsImportPreviewRequestDto {
-  /** The raw Goodreads export CSV text. */
-  csv: string;
-}
-
-export interface GoodreadsImportCommitRequestDto {
-  books: GoodreadsImportCommitBookDto[];
-}
-
-export interface GoodreadsImportResultDto {
-  imported: number;
-}
+export type GoodreadsMatchedBookDto = CsvMatchedBookDto<null>;
+export type GoodreadsUnmatchedBookDto = CsvUnmatchedBookDto<null>;
+export type GoodreadsImportPreviewDto = CsvImportPreviewDto<null>;
+export type GoodreadsImportCommitBookDto = CsvImportCommitBookDto<null>;
+export type GoodreadsImportPreviewRequestDto = CsvImportPreviewRequestDto;
+export type GoodreadsImportCommitRequestDto = CsvImportCommitRequestDto<null>;
+export type GoodreadsImportResultDto = ImportResultDto;
 
 /** How many of the user's books an author wrote. */
 export interface BookAuthorCountDto {
@@ -324,5 +253,5 @@ export interface BookStatsDto {
   /** Most-read authors across the library, descending (top few). */
   topAuthors: BookAuthorCountDto[];
   /** Most-common genres across the library, descending (top few). */
-  topGenres: BookGenreCountDto[];
+  topGenres: GenreCountDto[];
 }

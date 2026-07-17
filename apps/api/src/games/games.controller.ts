@@ -23,6 +23,7 @@ import {
 } from "@tracklore/shared";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { JwtPayload } from "../auth/decorators/current-user.decorator";
+import { parseEnumParam } from "../common/parse-enum-param.util";
 import { AgeGateService } from "../users/age-gate.service";
 import { DomainGateService } from "../users/domain-gate.service";
 import { filterAdultContent } from "../users/age.util";
@@ -148,11 +149,5 @@ export class GamesController {
 }
 
 function parseGameSource(value: string): GameSource {
-  const upper = value.toUpperCase();
-
-  if (upper !== GameSource.IGDB && upper !== GameSource.RAWG) {
-    throw new BadRequestException(`Unknown game source '${value}'`);
-  }
-
-  return upper;
+  return parseEnumParam(value, [GameSource.IGDB], "game source");
 }

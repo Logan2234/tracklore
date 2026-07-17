@@ -25,6 +25,7 @@ import type {
   StatsDto,
 } from "@tracklore/shared";
 import { MediaItemService } from "../catalog/media-item.service";
+import { canonicalExternalId } from "../common/external-id.util";
 import { PrismaService } from "../prisma/prisma.service";
 import { AgeGateService } from "../users/age-gate.service";
 import { UpdateEntryDto } from "./dto/update-entry.dto";
@@ -566,7 +567,8 @@ export class LibraryService {
         sourceId,
         ref.mediaItem,
       );
-      await this.assertAdultAllowed(userId, detail.isAdult);
+      const allowAdult = await this.ageGate.allowsAdultContent(userId);
+      this.ageGate.assertAdultAllowed(detail.isAdult, allowAdult);
       return detail;
     }
 
@@ -575,7 +577,8 @@ export class LibraryService {
       sourceId,
       type,
     );
-    await this.assertAdultAllowed(userId, details.isAdult);
+    const allowAdult = await this.ageGate.allowsAdultContent(userId);
+    this.ageGate.assertAdultAllowed(details.isAdult, allowAdult);
     return {
       source,
       sourceId,
@@ -605,20 +608,6 @@ export class LibraryService {
       })),
       entry: null,
     };
-  }
-
-  /** Blocks 18+ titles for accounts that haven't opted in (or aren't 18+). */
-  private async assertAdultAllowed(
-    userId: string,
-    isAdultTitle: boolean,
-  ): Promise<void> {
-    if (!isAdultTitle) return;
-
-    if (!(await this.ageGate.allowsAdultContent(userId))) {
-      throw new ForbiddenException(
-        "This title is restricted to accounts with adult content enabled",
-      );
-    }
   }
 
   private async mediaDetailFromCache(
@@ -693,16 +682,6 @@ export class LibraryService {
   }
 }
 
-/** External ID of a media in its own canonical source (always present). */
-function canonicalSourceId(
-  media: MediaItem & { externalIds: MediaExternalId[] },
-): string {
-  return (
-    media.externalIds.find((ext) => ext.source === media.canonicalSource)
-      ?.externalId ?? ""
-  );
-}
-
 function toMediaItemDto(
   media: MediaItem & { externalIds: MediaExternalId[] },
 ): MediaItemDto {
@@ -712,7 +691,7 @@ function toMediaItemDto(
     title: media.title,
     posterUrl: media.posterUrl,
     canonicalSource: media.canonicalSource,
-    sourceId: canonicalSourceId(media),
+    sourceId: canonicalExternalId(media, media.externalIds),
   };
 }
 

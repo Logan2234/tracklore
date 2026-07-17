@@ -1,5 +1,7 @@
 import type { GameStatsDto, GameStatus } from "@tracklore/shared";
 
+import { topN } from "../common/top-n.util";
+
 /** One library game reduced to the fields the stats aggregation needs. */
 export interface GameStatInput {
   status: GameStatus;
@@ -7,9 +9,6 @@ export interface GameStatInput {
   genres: string[];
   platforms: string[];
 }
-
-// Breakdowns are capped so the UI stays legible.
-const TOP_N = 6;
 
 /** Pure aggregation of a user's games into library counts + breakdowns. */
 export function aggregateGameStats(games: GameStatInput[]): GameStatsDto {
@@ -48,9 +47,6 @@ export function aggregateGameStats(games: GameStatInput[]): GameStatsDto {
     }
   }
 
-  const top = (counts: Map<string, number>) =>
-    [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, TOP_N);
-
   return {
     totalGames: games.length,
     backlog,
@@ -58,10 +54,10 @@ export function aggregateGameStats(games: GameStatInput[]): GameStatsDto {
     completed,
     dropped,
     favorites,
-    topPlatforms: top(platformCounts).map(([platform, count]) => ({
+    topPlatforms: topN(platformCounts).map(([platform, count]) => ({
       platform,
       count,
     })),
-    topGenres: top(genreCounts).map(([genre, count]) => ({ genre, count })),
+    topGenres: topN(genreCounts).map(([genre, count]) => ({ genre, count })),
   };
 }

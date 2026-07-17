@@ -1,4 +1,9 @@
-import { ConflictException, UnauthorizedException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+  UnauthorizedException,
+} from "@nestjs/common";
 import type { ConfigService } from "@nestjs/config";
 import type { JwtService } from "@nestjs/jwt";
 import type { User } from "@prisma/client";
@@ -6,6 +11,7 @@ import * as bcrypt from "bcryptjs";
 import { createHash } from "node:crypto";
 import type { MailService } from "../mail/mail.service";
 import type { PrismaService } from "../prisma/prisma.service";
+import type { SecurityEventService } from "../security/security-event.service";
 import { AuthService } from "./auth.service";
 
 const SECRETS: Record<string, string> = {
@@ -30,6 +36,7 @@ function makeUser(overrides: Partial<User> = {}): User {
     notifyEmail: true,
     notifyPush: true,
     entitlements: [],
+    role: "USER",
     enabledDomains: ["MOVIE", "SERIES", "ANIME", "GAME", "BOOK"],
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -83,8 +90,18 @@ function makeService(adminEmail?: string) {
     sendPasswordChanged: jest.fn(),
   } as unknown as MailService;
 
-  const service = new AuthService(prisma, jwtService, configService, mail);
-  return { service, prisma, jwtService, configService, mail };
+  const security = {
+    record: jest.fn(),
+  } as unknown as SecurityEventService;
+
+  const service = new AuthService(
+    prisma,
+    jwtService,
+    configService,
+    mail,
+    security,
+  );
+  return { service, prisma, jwtService, configService, mail, security };
 }
 
 describe("AuthService.register", () => {
@@ -103,7 +120,7 @@ describe("AuthService.register", () => {
   });
 
   it("creates the user with a bcrypt hash, opens a session and sends welcome/verify emails", async () => {
-    const { service, prisma, mail } = makeService();
+    const { service, prisma, mail, security } = makeService();
     (prisma.user.findUnique as jest.Mock)
       .mockResolvedValueOnce(null) // email uniqueness check
       .mockResolvedValueOnce(null); // username uniqueness check
@@ -136,6 +153,12 @@ describe("AuthService.register", () => {
     expect(mail.sendVerifyEmail).toHaveBeenCalledWith(
       "alice@example.com",
       expect.any(String),
+    );
+    expect(security.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "USER_REGISTERED",
+        identifier: "alice@example.com",
+      }),
     );
   });
 
@@ -171,15 +194,21 @@ describe("AuthService.login", () => {
   });
 
   it("throws UnauthorizedException when the password doesn't match", async () => {
-    const { service, prisma } = makeService();
+    const { service, prisma, security } = makeService();
     const passwordHash = await bcrypt.hash("correct-password", 4);
-    (prisma.user.findFirst as jest.Mock).mockResolvedValue(
-      makeUser({ passwordHash }),
-    );
+    const user = makeUser({ passwordHash });
+    (prisma.user.findFirst as jest.Mock).mockResolvedValue(user);
 
     await expect(
       service.login({ identifier: "alice@example.com", password: "wrong" }),
     ).rejects.toThrow(UnauthorizedException);
+    expect(security.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "LOGIN_FAILED",
+        userId: user.id,
+        identifier: "alice@example.com",
+      }),
+    );
   });
 
   it("returns tokens and records a session on success", async () => {
@@ -221,10 +250,10 @@ describe("AuthService.login", () => {
 });
 
 describe("AuthService admin bootstrap (ADMIN_EMAIL)", () => {
-  it("grants the admin entitlement on login when the email matches", async () => {
+  it("grants the ADMIN role on login when the email matches", async () => {
     const { service, prisma } = makeService("alice@example.com");
     const passwordHash = await bcrypt.hash("correct-password", 4);
-    const user = makeUser({ passwordHash, entitlements: [] });
+    const user = makeUser({ passwordHash, role: "USER" });
     (prisma.user.findFirst as jest.Mock).mockResolvedValue(user);
     (prisma.user.update as jest.Mock).mockImplementation(
       async ({ data }: { data: Partial<User> }) =>
@@ -238,15 +267,15 @@ describe("AuthService admin bootstrap (ADMIN_EMAIL)", () => {
 
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: user.id },
-      data: { entitlements: ["admin"] },
+      data: { role: "ADMIN" },
     });
-    expect(result.user.entitlements).toContain("admin");
+    expect(result.user.role).toBe("ADMIN");
   });
 
   it("matches the email case-insensitively", async () => {
     const { service, prisma } = makeService("Alice@Example.com");
     const passwordHash = await bcrypt.hash("correct-password", 4);
-    const user = makeUser({ passwordHash, entitlements: [] });
+    const user = makeUser({ passwordHash, role: "USER" });
     (prisma.user.findFirst as jest.Mock).mockResolvedValue(user);
     (prisma.user.update as jest.Mock).mockImplementation(
       async ({ data }: { data: Partial<User> }) =>
@@ -261,10 +290,10 @@ describe("AuthService admin bootstrap (ADMIN_EMAIL)", () => {
     expect(prisma.user.update).toHaveBeenCalled();
   });
 
-  it("is idempotent: no update when the entitlement is already present", async () => {
+  it("is idempotent: no update when the role is already ADMIN", async () => {
     const { service, prisma } = makeService("alice@example.com");
     const passwordHash = await bcrypt.hash("correct-password", 4);
-    const user = makeUser({ passwordHash, entitlements: ["admin"] });
+    const user = makeUser({ passwordHash, role: "ADMIN" });
     (prisma.user.findFirst as jest.Mock).mockResolvedValue(user);
 
     await service.login({
@@ -278,7 +307,7 @@ describe("AuthService admin bootstrap (ADMIN_EMAIL)", () => {
   it("does not promote a non-matching account", async () => {
     const { service, prisma } = makeService("admin@example.com");
     const passwordHash = await bcrypt.hash("correct-password", 4);
-    const user = makeUser({ passwordHash, entitlements: [] });
+    const user = makeUser({ passwordHash, role: "USER" });
     (prisma.user.findFirst as jest.Mock).mockResolvedValue(user);
 
     const result = await service.login({
@@ -287,13 +316,13 @@ describe("AuthService admin bootstrap (ADMIN_EMAIL)", () => {
     });
 
     expect(prisma.user.update).not.toHaveBeenCalled();
-    expect(result.user.entitlements).not.toContain("admin");
+    expect(result.user.role).toBe("USER");
   });
 
   it("does nothing when ADMIN_EMAIL is unset (hosted mode)", async () => {
     const { service, prisma } = makeService();
     const passwordHash = await bcrypt.hash("correct-password", 4);
-    const user = makeUser({ passwordHash, entitlements: [] });
+    const user = makeUser({ passwordHash, role: "USER" });
     (prisma.user.findFirst as jest.Mock).mockResolvedValue(user);
 
     await service.login({
@@ -375,6 +404,18 @@ describe("AuthService.listSessions", () => {
     expect(prisma.refreshToken.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { userId: "user-1" } }),
     );
+  });
+});
+
+describe("AuthService.revokeAllSessions", () => {
+  it("deletes every refresh token for the account, no exception", async () => {
+    const { service, prisma } = makeService();
+
+    await service.revokeAllSessions("user-1");
+
+    expect(prisma.refreshToken.deleteMany).toHaveBeenCalledWith({
+      where: { userId: "user-1" },
+    });
   });
 });
 
@@ -462,7 +503,7 @@ describe("AuthService.resetPassword", () => {
   });
 
   it("updates the password, revokes every session and reset token, and emails a confirmation", async () => {
-    const { service, prisma, mail } = makeService();
+    const { service, prisma, mail, security } = makeService();
     const user = makeUser();
     (prisma.userToken.findUnique as jest.Mock).mockResolvedValue({
       userId: "user-1",
@@ -485,6 +526,60 @@ describe("AuthService.resetPassword", () => {
       where: { userId: "user-1" },
     });
     expect(mail.sendPasswordChanged).toHaveBeenCalledWith(user.email);
+    expect(security.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "PASSWORD_RESET",
+        userId: "user-1",
+        identifier: user.email,
+      }),
+    );
+  });
+});
+
+describe("AuthService.resendVerificationEmail", () => {
+  it("throws NotFoundException when the account doesn't exist", async () => {
+    const { service, prisma } = makeService();
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+
+    await expect(service.resendVerificationEmail("nobody")).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it("throws BadRequestException when already verified", async () => {
+    const { service, prisma, mail } = makeService();
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(
+      makeUser({ emailVerified: true }),
+    );
+
+    await expect(service.resendVerificationEmail("user-1")).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(mail.sendVerifyEmail).not.toHaveBeenCalled();
+  });
+
+  it("replaces any previous token and emails a fresh link", async () => {
+    const { service, prisma, mail } = makeService();
+    const user = makeUser({ emailVerified: false });
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(user);
+
+    await service.resendVerificationEmail("user-1");
+
+    expect(prisma.userToken.deleteMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", type: "EMAIL_VERIFICATION" },
+    });
+    expect(prisma.userToken.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: "user-1",
+          type: "EMAIL_VERIFICATION",
+        }),
+      }),
+    );
+    expect(mail.sendVerifyEmail).toHaveBeenCalledWith(
+      user.email,
+      expect.any(String),
+    );
   });
 });
 

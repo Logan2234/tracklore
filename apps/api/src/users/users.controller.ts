@@ -5,6 +5,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   NotFoundException,
@@ -12,6 +13,7 @@ import {
   Query,
   UnauthorizedException,
 } from "@nestjs/common";
+import type { User } from "@prisma/client";
 import type {
   UserDataExportDto,
   UserDto,
@@ -24,7 +26,9 @@ import type { JwtPayload } from "../auth/decorators/current-user.decorator";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { SecurityEventService } from "../security/security-event.service";
 import { isAdult } from "./age.util";
+import { DataExportService } from "./data-export.service";
 import { ChangeEmailDto } from "./dto/change-email.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { ConfirmEmailChangeDto } from "./dto/confirm-email-change.dto";
@@ -40,6 +44,8 @@ export class UsersController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
+    private readonly security: SecurityEventService,
+    private readonly dataExport: DataExportService,
   ) {}
 
   @Get("me")
@@ -57,80 +63,8 @@ export class UsersController {
 
   /** Full portable dump of the account's data (GDPR "download my data"). */
   @Get("me/export")
-  async exportData(
-    @CurrentUser() payload: JwtPayload,
-  ): Promise<UserDataExportDto> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-    });
-
-    if (!user) {
-      throw new NotFoundException("User not found");
-    }
-
-    const entries = await this.prisma.libraryEntry.findMany({
-      where: { userId: payload.sub },
-      include: { mediaItem: { include: { externalIds: true } } },
-      orderBy: { createdAt: "asc" },
-    });
-
-    const watches = await this.prisma.episodeWatch.findMany({
-      where: { userId: payload.sub },
-      include: {
-        episode: {
-          include: {
-            season: {
-              include: { mediaItem: { include: { externalIds: true } } },
-            },
-          },
-        },
-      },
-      orderBy: { watchedAt: "asc" },
-    });
-
-    return {
-      exportedAt: new Date().toISOString(),
-      account: toUserDto(user),
-      library: entries.map((entry) => ({
-        media: {
-          type: entry.mediaItem.type,
-          title: entry.mediaItem.title,
-          canonicalSource: entry.mediaItem.canonicalSource,
-          sourceId:
-            entry.mediaItem.externalIds.find(
-              (id) => id.source === entry.mediaItem.canonicalSource,
-            )?.externalId ?? "",
-          externalIds: entry.mediaItem.externalIds.map((id) => ({
-            source: id.source,
-            externalId: id.externalId,
-          })),
-        },
-        status: entry.status,
-        rating: entry.rating,
-        notes: entry.notes,
-        favorite: entry.favorite,
-        startedAt: entry.startedAt?.toISOString() ?? null,
-        finishedAt: entry.finishedAt?.toISOString() ?? null,
-        createdAt: entry.createdAt.toISOString(),
-      })),
-      episodeWatches: watches.map((watch) => {
-        const media = watch.episode.season.mediaItem;
-        return {
-          media: {
-            type: media.type,
-            title: media.title,
-            sourceId:
-              media.externalIds.find(
-                (id) => id.source === media.canonicalSource,
-              )?.externalId ?? "",
-          },
-          seasonNumber: watch.episode.season.number,
-          episodeNumber: watch.episode.number,
-          episodeTitle: watch.episode.title,
-          watchedAt: watch.watchedAt.toISOString(),
-        };
-      }),
-    };
+  exportData(@CurrentUser() payload: JwtPayload): Promise<UserDataExportDto> {
+    return this.dataExport.buildExport(payload.sub);
   }
 
   @Patch("me")
@@ -198,17 +132,7 @@ export class UsersController {
     @CurrentUser() payload: JwtPayload,
     @Body() dto: ChangeEmailDto,
   ): Promise<void> {
-    const current = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-    });
-
-    if (!current) {
-      throw new NotFoundException("User not found");
-    }
-
-    if (!(await bcrypt.compare(dto.currentPassword, current.passwordHash))) {
-      throw new UnauthorizedException("Current password is incorrect");
-    }
+    await this.requireVerifiedUser(payload.sub, dto.currentPassword);
 
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.newEmail },
@@ -241,6 +165,7 @@ export class UsersController {
   async confirmEmailChange(
     @CurrentUser() payload: JwtPayload,
     @Body() dto: ConfirmEmailChangeDto,
+    @Headers("user-agent") userAgent?: string,
   ): Promise<UserDto> {
     const current = await this.prisma.user.findUnique({
       where: { id: payload.sub },
@@ -286,6 +211,13 @@ export class UsersController {
       }),
     ]);
     await this.mail.sendEmailChanged(current.email, stored.newEmail);
+    await this.security.record({
+      type: "EMAIL_CHANGED",
+      userId: payload.sub,
+      identifier: stored.newEmail,
+      detail: `${current.email} → ${stored.newEmail}`,
+      userAgent,
+    });
     return toUserDto(user);
   }
 
@@ -294,18 +226,12 @@ export class UsersController {
   async changePassword(
     @CurrentUser() payload: JwtPayload,
     @Body() dto: ChangePasswordDto,
+    @Headers("user-agent") userAgent?: string,
   ): Promise<void> {
-    const current = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-    });
-
-    if (!current) {
-      throw new NotFoundException("User not found");
-    }
-
-    if (!(await bcrypt.compare(dto.currentPassword, current.passwordHash))) {
-      throw new UnauthorizedException("Current password is incorrect");
-    }
+    const current = await this.requireVerifiedUser(
+      payload.sub,
+      dto.currentPassword,
+    );
 
     if (await bcrypt.compare(dto.newPassword, current.passwordHash)) {
       throw new BadRequestException(
@@ -318,6 +244,12 @@ export class UsersController {
       data: { passwordHash: await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS) },
     });
     await this.mail.sendPasswordChanged(current.email);
+    await this.security.record({
+      type: "PASSWORD_CHANGED",
+      userId: payload.sub,
+      identifier: current.email,
+      userAgent,
+    });
   }
 
   /**
@@ -331,19 +263,21 @@ export class UsersController {
   async deleteAccount(
     @CurrentUser() payload: JwtPayload,
     @Body() dto: DeleteAccountDto,
+    @Headers("user-agent") userAgent?: string,
   ): Promise<void> {
-    const current = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
+    const current = await this.requireVerifiedUser(
+      payload.sub,
+      dto.currentPassword,
+    );
+
+    // Recorded before the delete so the FK (onDelete: SetNull) still resolves;
+    // the row itself survives the account's removal.
+    await this.security.record({
+      type: "USER_DELETED",
+      userId: payload.sub,
+      identifier: current.email,
+      userAgent,
     });
-
-    if (!current) {
-      throw new NotFoundException("User not found");
-    }
-
-    if (!(await bcrypt.compare(dto.currentPassword, current.passwordHash))) {
-      throw new UnauthorizedException("Current password is incorrect");
-    }
-
     await this.prisma.user.delete({ where: { id: payload.sub } });
   }
 
@@ -384,5 +318,27 @@ export class UsersController {
       data: { username: dto.username },
     });
     return toUserDto(user);
+  }
+
+  /**
+   * Loads the account and re-confirms its password — the shared guard for the
+   * sensitive self-service actions (email/password change, deletion), where
+   * the current password is required since email doubles as the login id.
+   */
+  private async requireVerifiedUser(
+    userId: string,
+    currentPassword: string,
+  ): Promise<User> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    if (!(await bcrypt.compare(currentPassword, user.passwordHash))) {
+      throw new UnauthorizedException("Current password is incorrect");
+    }
+
+    return user;
   }
 }

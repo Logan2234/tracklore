@@ -18,15 +18,10 @@ export class GameItemService {
     private readonly igdbProvider: IgdbProvider,
   ) {}
 
-  providerFor(source: GameSource): GameCatalogProvider {
-    // IGDB is the only source wired today; the switch keeps the seam explicit
-    // for when RAWG lands.
-    switch (source) {
-      case "IGDB":
-      case "RAWG":
-      default:
-        return this.igdbProvider;
-    }
+  providerFor(_source: GameSource): GameCatalogProvider {
+    // IGDB is the only game source today; this indirection keeps the
+    // multi-source seam for when another one lands.
+    return this.igdbProvider;
   }
 
   /** Live details straight from the provider — nothing is persisted. */

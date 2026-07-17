@@ -1,8 +1,4 @@
-import {
-  BadGatewayException,
-  Injectable,
-  NotFoundException,
-} from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type {
   CastDetailDto,
@@ -15,6 +11,7 @@ import {
   MediaSummaryDto,
   MediaType,
 } from "@tracklore/shared";
+import { fetchJson } from "../../common/http.util";
 import { OmdbService } from "../omdb.service";
 import type {
   CatalogProvider,
@@ -386,24 +383,16 @@ export class TmdbProvider implements CatalogProvider {
       url.searchParams.set(key, value);
     }
 
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${this.configService.getOrThrow<string>("TMDB_API_TOKEN")}`,
-        Accept: "application/json",
+    return fetchJson<T>(
+      url,
+      {
+        headers: {
+          Authorization: `Bearer ${this.configService.getOrThrow<string>("TMDB_API_TOKEN")}`,
+          Accept: "application/json",
+        },
       },
-    });
-
-    if (response.status === 404) {
-      throw new NotFoundException("Media not found on TMDB");
-    }
-
-    if (!response.ok) {
-      throw new BadGatewayException(
-        `TMDB request failed with status ${response.status}`,
-      );
-    }
-
-    return (await response.json()) as T;
+      { sourceLabel: "TMDB", notFoundMessage: "Media not found on TMDB" },
+    );
   }
 }
 

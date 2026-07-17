@@ -1,0 +1,205 @@
+import { BadRequestException, NotFoundException } from "@nestjs/common";
+import type { AuthService } from "../auth/auth.service";
+import type { PrismaService } from "../prisma/prisma.service";
+import type { SecurityEventService } from "../security/security-event.service";
+import type { DataExportService } from "../users/data-export.service";
+import { AdminUsersController } from "./admin-users.controller";
+
+function makeController() {
+  const prisma = {
+    user: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    refreshToken: { groupBy: jest.fn().mockResolvedValue([]) },
+  } as unknown as PrismaService;
+  const authService = {
+    resendVerificationEmail: jest.fn(),
+    requestPasswordReset: jest.fn(),
+  } as unknown as AuthService;
+  const dataExport = {
+    buildExport: jest.fn(),
+  } as unknown as DataExportService;
+  const securityEvents = {
+    record: jest.fn(),
+  } as unknown as SecurityEventService;
+
+  const controller = new AdminUsersController(
+    prisma,
+    authService,
+    dataExport,
+    securityEvents,
+  );
+  return { controller, prisma, authService, dataExport, securityEvents };
+}
+
+describe("AdminUsersController.listUsers", () => {
+  it("merges each account's most recent session into lastActiveAt", async () => {
+    const { controller, prisma } = makeController();
+    (prisma.user.findMany as jest.Mock).mockResolvedValue([
+      {
+        id: "user-1",
+        email: "a@example.com",
+        username: "a",
+        displayName: "A",
+        emailVerified: true,
+        role: "USER",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+      {
+        id: "user-2",
+        email: "b@example.com",
+        username: "b",
+        displayName: "B",
+        emailVerified: false,
+        role: "USER",
+        createdAt: new Date("2026-01-02T00:00:00.000Z"),
+      },
+    ]);
+    (prisma.refreshToken.groupBy as jest.Mock).mockResolvedValue([
+      {
+        userId: "user-1",
+        _max: { lastUsedAt: new Date("2026-02-01T00:00:00.000Z") },
+      },
+    ]);
+
+    const result = await controller.listUsers();
+
+    expect(result[0].lastActiveAt).toBe("2026-02-01T00:00:00.000Z");
+    expect(result[1].lastActiveAt).toBeNull();
+  });
+});
+
+describe("AdminUsersController.updateUserRole", () => {
+  it("rejects an admin demoting themselves", async () => {
+    const { controller } = makeController();
+
+    await expect(
+      controller.updateUserRole("user-1", { role: "USER" }, {
+        sub: "user-1",
+      } as any),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it("allows an admin granting/revoking another account's role", async () => {
+    const { controller, prisma } = makeController();
+    (prisma.user.update as jest.Mock).mockResolvedValue({
+      role: "ADMIN",
+    });
+
+    const result = await controller.updateUserRole(
+      "user-2",
+      { role: "ADMIN" },
+      { sub: "user-1" } as any,
+    );
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: "user-2" },
+      data: { role: "ADMIN" },
+    });
+    expect(result).toEqual({ role: "ADMIN" });
+  });
+
+  it("allows an admin keeping their own ADMIN role", async () => {
+    const { controller, prisma } = makeController();
+    (prisma.user.update as jest.Mock).mockResolvedValue({
+      role: "ADMIN",
+    });
+
+    await expect(
+      controller.updateUserRole("user-1", { role: "ADMIN" }, {
+        sub: "user-1",
+      } as any),
+    ).resolves.toEqual({ role: "ADMIN" });
+  });
+});
+
+describe("AdminUsersController.getUserExport", () => {
+  it("delegates to DataExportService for the target account", async () => {
+    const { controller, dataExport } = makeController();
+    (dataExport.buildExport as jest.Mock).mockResolvedValue({
+      exportedAt: "now",
+    });
+
+    const result = await controller.getUserExport("user-2");
+
+    expect(dataExport.buildExport).toHaveBeenCalledWith("user-2");
+    expect(result).toEqual({ exportedAt: "now" });
+  });
+});
+
+describe("AdminUsersController.resendVerification", () => {
+  it("delegates to AuthService for the target account", async () => {
+    const { controller, authService } = makeController();
+
+    await controller.resendVerification("user-2");
+
+    expect(authService.resendVerificationEmail).toHaveBeenCalledWith("user-2");
+  });
+});
+
+describe("AdminUsersController.sendPasswordResetLink", () => {
+  it("throws NotFoundException when no account matches", async () => {
+    const { controller, prisma } = makeController();
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+
+    await expect(controller.sendPasswordResetLink("nobody")).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it("requests a reset for the target account's email", async () => {
+    const { controller, prisma, authService } = makeController();
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      email: "alice@example.com",
+    });
+
+    await controller.sendPasswordResetLink("user-2");
+
+    expect(authService.requestPasswordReset).toHaveBeenCalledWith(
+      "alice@example.com",
+    );
+  });
+});
+
+describe("AdminUsersController.deleteUser", () => {
+  it("rejects an admin deleting their own account", async () => {
+    const { controller } = makeController();
+
+    await expect(
+      controller.deleteUser("user-1", { sub: "user-1" } as any),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it("throws NotFoundException when no account matches", async () => {
+    const { controller, prisma } = makeController();
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      controller.deleteUser("nobody", { sub: "user-1" } as any),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it("records USER_DELETED before deleting the account", async () => {
+    const { controller, prisma, securityEvents } = makeController();
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      id: "user-2",
+      email: "bob@example.com",
+    });
+
+    await controller.deleteUser("user-2", { sub: "user-1" } as any);
+
+    expect(securityEvents.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "USER_DELETED",
+        userId: "user-2",
+        identifier: "bob@example.com",
+      }),
+    );
+    expect(prisma.user.delete).toHaveBeenCalledWith({
+      where: { id: "user-2" },
+    });
+  });
+});

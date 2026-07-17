@@ -1,4 +1,4 @@
-import type { Domain, MediaType } from "../enums";
+import type { Domain, MediaType, Role, SecurityEventType } from "../enums";
 
 /** Which app area a dependency powers, for grouping in the admin status page. */
 export type ServiceArea = "Écrans" | "Jeux" | "Livres" | "Système";
@@ -89,6 +89,22 @@ export interface AdminPushSendResponseDto {
   /** How many devices the account had subscribed at send time. */
   subscriptionCount: number;
   results: AdminPushSendOutcomeDto[];
+}
+
+/** A push sent to every subscribed device on the instance, not just one account. */
+export interface SendAdminBroadcastPushRequestDto {
+  /** Defaults to a canned admin-broadcast message when omitted. */
+  title?: string;
+  body?: string;
+}
+
+export interface AdminPushBroadcastResponseDto {
+  /** Distinct accounts targeted (at least one active subscription). */
+  accountCount: number;
+  /** Total devices targeted, across all those accounts. */
+  deviceCount: number;
+  successCount: number;
+  failureCount: number;
 }
 
 /** One device an account has subscribed to push on. */
@@ -216,6 +232,52 @@ export interface AdminUserDto {
   username: string;
   displayName: string;
   emailVerified: boolean;
-  entitlements: string[];
+  role: Role;
   createdAt: string;
+  /** Most recent `RefreshToken.lastUsedAt` across every device, null if never signed in. */
+  lastActiveAt: string | null;
+}
+
+export interface UpdateAdminUserRoleRequestDto {
+  role: Role;
+}
+
+export interface AdminUserRoleDto {
+  role: Role;
+}
+
+/** A full plain-SQL dump of the instance database, for the admin backup page. */
+export interface AdminBackupDto {
+  sql: string;
+  generatedAt: string;
+  sizeBytes: number;
+}
+
+/** Replaces the entire instance database with a previously downloaded dump. */
+export interface AdminBackupRestoreRequestDto {
+  sql: string;
+}
+
+/** Running app version, for the admin/account footer. */
+export interface AdminVersionDto {
+  version: string;
+}
+
+/** One sensitive account action, as listed on the admin "Sécurité" page. */
+export interface SecurityEventDto {
+  id: string;
+  type: SecurityEventType;
+  /** Null once the account has since been deleted (USER_DELETED itself, or any earlier event on it). */
+  userId: string | null;
+  /** Email or username involved — kept even after the account is gone, so the trail stays legible. */
+  identifier: string;
+  /** Free-form context, e.g. the old → new email on an EMAIL_CHANGED event. */
+  detail: string | null;
+  userAgent: string | null;
+  createdAt: string;
+}
+
+export interface SecurityEventListResponseDto {
+  events: SecurityEventDto[];
+  page: number;
 }

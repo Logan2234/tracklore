@@ -1,5 +1,7 @@
 import type { EntryStatus, MediaType, StatsDto } from "@tracklore/shared";
 
+import { topN } from "../common/top-n.util";
+
 /**
  * Fallback runtime (minutes) used when a title has no captured `runtimeMin`
  * yet — e.g. cached before the field existed and not re-synced. Rough
@@ -85,10 +87,10 @@ export function aggregateStats(
     .filter((t) => t.hours > 0)
     .sort((a, b) => b.hours - a.hours);
 
-  const topGenres = [...genreCount.entries()]
-    .map(([genre, count]) => ({ genre, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 6);
+  const topGenres = topN(genreCount).map(([genre, count]) => ({
+    genre,
+    count,
+  }));
 
   return {
     hoursWatched: Math.round(totalMinutes / 60),

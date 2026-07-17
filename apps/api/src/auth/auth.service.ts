@@ -1,6 +1,8 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -9,9 +11,9 @@ import type { User } from "@prisma/client";
 import type { AuthTokensDto, SessionDto, UserDto } from "@tracklore/shared";
 import * as bcrypt from "bcryptjs";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { ADMIN_ENTITLEMENT } from "../admin/admin.guard";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { SecurityEventService } from "../security/security-event.service";
 import { randomUsernameSuffix, slugifyUsername } from "../users/username.util";
 import type { JwtPayload } from "./decorators/current-user.decorator";
 import { LoginDto } from "./dto/login.dto";
@@ -35,6 +37,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly mail: MailService,
+    private readonly security: SecurityEventService,
   ) {}
 
   async register(dto: RegisterDto, userAgent?: string): Promise<AuthResult> {
@@ -66,8 +69,14 @@ export class AuthService {
     });
     await this.mail.sendWelcome(user.email, user.displayName);
     await this.mail.sendVerifyEmail(user.email, verifyToken);
+    await this.security.record({
+      type: "USER_REGISTERED",
+      userId: user.id,
+      identifier: user.email,
+      userAgent,
+    });
 
-    const promoted = await this.ensureAdminEntitlement(user);
+    const promoted = await this.ensureAdminRole(user);
     return {
       user: toUserDto(promoted),
       tokens: await this.startSession(promoted, userAgent),
@@ -99,6 +108,42 @@ export class AuthService {
     ]);
   }
 
+  /**
+   * Re-sends the email-verification link, replacing any previous token —
+   * the admin "renvoyer l'email de vérification" action. Verification is
+   * informational only (see verifyEmail()), so an already-verified account
+   * has nothing to resend.
+   */
+  async resendVerificationEmail(userId: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    if (user.emailVerified) {
+      throw new BadRequestException("This account is already verified");
+    }
+
+    const verifyToken = randomBytes(32).toString("hex");
+    await this.prisma.$transaction([
+      this.prisma.userToken.deleteMany({
+        where: { userId: user.id, type: "EMAIL_VERIFICATION" },
+      }),
+      this.prisma.userToken.create({
+        data: {
+          userId: user.id,
+          type: "EMAIL_VERIFICATION",
+          tokenHash: hashToken(verifyToken),
+          expiresAt: new Date(
+            Date.now() + VERIFY_TOKEN_TTL_HOURS * 60 * 60_000,
+          ),
+        },
+      }),
+    ]);
+    await this.mail.sendVerifyEmail(user.email, verifyToken);
+  }
+
   /** Accepts either the email or the username as the login identifier. */
   async login(dto: LoginDto, userAgent?: string): Promise<AuthResult> {
     const user = await this.prisma.user.findFirst({
@@ -106,10 +151,16 @@ export class AuthService {
     });
 
     if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
+      await this.security.record({
+        type: "LOGIN_FAILED",
+        userId: user?.id ?? null,
+        identifier: dto.identifier,
+        userAgent,
+      });
       throw new UnauthorizedException("Invalid credentials");
     }
 
-    const promoted = await this.ensureAdminEntitlement(user);
+    const promoted = await this.ensureAdminRole(user);
     return {
       user: toUserDto(promoted),
       tokens: await this.startSession(promoted, userAgent),
@@ -201,6 +252,11 @@ export class AuthService {
     });
   }
 
+  /** Revokes every session for an account, no exception — the admin "forcer la déconnexion" action. */
+  async revokeAllSessions(userId: string): Promise<void> {
+    await this.prisma.refreshToken.deleteMany({ where: { userId } });
+  }
+
   /**
    * Generates a fresh reset token for the account, invalidating any previous
    * one, and emails it as a link. Silently no-ops when the email doesn't
@@ -232,7 +288,11 @@ export class AuthService {
    * Consumes a reset token: sets the new password and revokes every existing
    * session (the password may have been reset because it leaked).
    */
-  async resetPassword(token: string, newPassword: string): Promise<void> {
+  async resetPassword(
+    token: string,
+    newPassword: string,
+    userAgent?: string,
+  ): Promise<void> {
     const stored = await this.prisma.userToken.findUnique({
       where: { tokenHash: hashToken(token) },
       include: { user: true },
@@ -259,33 +319,35 @@ export class AuthService {
       }),
     ]);
     await this.mail.sendPasswordChanged(stored.user.email);
+    await this.security.record({
+      type: "PASSWORD_RESET",
+      userId: stored.userId,
+      identifier: stored.user.email,
+      userAgent,
+    });
   }
 
   /**
-   * Self-host bootstrap: grants the `admin` entitlement to the account whose
-   * email matches `ADMIN_EMAIL`. Idempotent, and run on register *and* every
-   * login so it also promotes an account created before the env var was set.
+   * Self-host bootstrap: grants the `ADMIN` role to the account whose email
+   * matches `ADMIN_EMAIL`. Idempotent, and run on register *and* every login
+   * so it also promotes an account created before the env var was set.
    * Hosted mode leaves `ADMIN_EMAIL` unset — there admin is granted per-account
-   * through the entitlements seam instead.
+   * from the admin panel instead.
    */
-  private async ensureAdminEntitlement(user: User): Promise<User> {
+  private async ensureAdminRole(user: User): Promise<User> {
     const adminEmail = this.configService.get<string>("ADMIN_EMAIL");
 
     if (!adminEmail || user.email.toLowerCase() !== adminEmail.toLowerCase()) {
       return user;
     }
 
-    const entitlements = Array.isArray(user.entitlements)
-      ? (user.entitlements as string[])
-      : [];
-
-    if (entitlements.includes(ADMIN_ENTITLEMENT)) {
+    if (user.role === "ADMIN") {
       return user;
     }
 
     return this.prisma.user.update({
       where: { id: user.id },
-      data: { entitlements: [...entitlements, ADMIN_ENTITLEMENT] },
+      data: { role: "ADMIN" },
     });
   }
 
@@ -385,9 +447,7 @@ export function toUserDto(user: User): UserDto {
     notifyEmail: user.notifyEmail,
     notifyPush: user.notifyPush,
     emailVerified: user.emailVerified,
-    entitlements: Array.isArray(user.entitlements)
-      ? (user.entitlements as string[])
-      : [],
+    role: user.role,
     enabledDomains: user.enabledDomains,
     createdAt: user.createdAt.toISOString(),
   };

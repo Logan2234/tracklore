@@ -1,0 +1,176 @@
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+} from "@nestjs/common";
+import type {
+  AdminUserDto,
+  AdminUserRoleDto,
+  SessionDto,
+  UserDataExportDto,
+} from "@tracklore/shared";
+import { AuthService } from "../auth/auth.service";
+import type { JwtPayload } from "../auth/decorators/current-user.decorator";
+import { CurrentUser } from "../auth/decorators/current-user.decorator";
+import { PrismaService } from "../prisma/prisma.service";
+import { SecurityEventService } from "../security/security-event.service";
+import { DataExportService } from "../users/data-export.service";
+import { AdminOnly } from "./admin-only.decorator";
+import { UpdateAdminUserRoleDto } from "./dto/update-admin-user-role.dto";
+
+/** Account administration: listing, role, data export and sessions. */
+@AdminOnly()
+@Controller("admin")
+export class AdminUsersController {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly authService: AuthService,
+    private readonly dataExport: DataExportService,
+    private readonly securityEvents: SecurityEventService,
+  ) {}
+
+  /** Every registered account, most recently created first. */
+  @Get("users")
+  async listUsers(): Promise<AdminUserDto[]> {
+    const [users, lastActive] = await Promise.all([
+      this.prisma.user.findMany({ orderBy: { createdAt: "desc" } }),
+      this.prisma.refreshToken.groupBy({
+        by: ["userId"],
+        _max: { lastUsedAt: true },
+      }),
+    ]);
+    const lastActiveByUserId = new Map(
+      lastActive.map((r) => [r.userId, r._max.lastUsedAt]),
+    );
+
+    return users.map((u) => ({
+      id: u.id,
+      email: u.email,
+      username: u.username,
+      displayName: u.displayName,
+      emailVerified: u.emailVerified,
+      role: u.role,
+      createdAt: u.createdAt.toISOString(),
+      lastActiveAt: lastActiveByUserId.get(u.id)?.toISOString() ?? null,
+    }));
+  }
+
+  /**
+   * Sets the target account's role. Guarded against the one lockout risk
+   * that matters here: an admin demoting themselves, which would strand them
+   * outside the panel (the ADMIN_EMAIL bootstrap would eventually re-promote
+   * them on next login, but not before).
+   */
+  @Patch("users/:userId/role")
+  async updateUserRole(
+    @Param("userId") userId: string,
+    @Body() dto: UpdateAdminUserRoleDto,
+    @CurrentUser() admin: JwtPayload,
+  ): Promise<AdminUserRoleDto> {
+    if (userId === admin.sub && dto.role !== "ADMIN") {
+      throw new BadRequestException(
+        "Impossible de retirer ton propre accès admin",
+      );
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { role: dto.role },
+    });
+    return { role: user.role };
+  }
+
+  /** Full portable dump of one account's data (GDPR "download my data"), admin-triggered. */
+  @Get("users/:userId/export")
+  getUserExport(@Param("userId") userId: string): Promise<UserDataExportDto> {
+    return this.dataExport.buildExport(userId);
+  }
+
+  /** Signed-in devices for one account, most recently active first. */
+  @Get("users/:userId/sessions")
+  listUserSessions(@Param("userId") userId: string): Promise<SessionDto[]> {
+    return this.authService.listSessions(userId);
+  }
+
+  /** Revokes one device for an account (forced logout). */
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Delete("users/:userId/sessions/:sessionId")
+  async revokeUserSession(
+    @Param("userId") userId: string,
+    @Param("sessionId") sessionId: string,
+  ): Promise<void> {
+    await this.authService.revokeSession(userId, sessionId);
+  }
+
+  /** Revokes every device for an account in one go (forced logout everywhere). */
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Delete("users/:userId/sessions")
+  async revokeAllUserSessions(@Param("userId") userId: string): Promise<void> {
+    await this.authService.revokeAllSessions(userId);
+  }
+
+  /** Re-sends the account's email-verification link. No-op target: already-verified accounts 400. */
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Post("users/:userId/resend-verification")
+  async resendVerification(@Param("userId") userId: string): Promise<void> {
+    await this.authService.resendVerificationEmail(userId);
+  }
+
+  /** Sends the account a password-reset link, same flow as "forgot password". */
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Post("users/:userId/reset-password-link")
+  async sendPasswordResetLink(@Param("userId") userId: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    await this.authService.requestPasswordReset(user.email);
+  }
+
+  /**
+   * Permanently deletes an account and all its data. An admin can't delete
+   * their own account this way (no lockout escape hatch) — self-deletion
+   * stays on the password-confirmed /account flow.
+   */
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Delete("users/:userId")
+  async deleteUser(
+    @Param("userId") userId: string,
+    @CurrentUser() admin: JwtPayload,
+  ): Promise<void> {
+    if (userId === admin.sub) {
+      throw new BadRequestException(
+        "Utilise la suppression de compte depuis /account pour ton propre compte",
+      );
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    // Recorded before the delete so the FK (onDelete: SetNull) still resolves;
+    // the row itself survives the account's removal — see SecurityEvent.
+    await this.securityEvents.record({
+      type: "USER_DELETED",
+      userId: user.id,
+      identifier: user.email,
+      detail: "Supprimé depuis le panel admin",
+    });
+    await this.prisma.user.delete({ where: { id: userId } });
+  }
+}

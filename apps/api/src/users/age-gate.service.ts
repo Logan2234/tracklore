@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { ForbiddenException, Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { isAdult } from "./age.util";
 
@@ -13,5 +13,18 @@ export class AgeGateService {
       select: { birthDate: true, allowAdultContent: true },
     });
     return !!user?.allowAdultContent && isAdult(user.birthDate);
+  }
+
+  /**
+   * Blocks 18+ titles for accounts that haven't opted in (or aren't 18+).
+   * Takes the already-resolved `allowsAdult` flag so callers that also need it
+   * for other filtering don't pay a second `allowsAdultContent` query.
+   */
+  assertAdultAllowed(isAdultTitle: boolean, allowsAdult: boolean): void {
+    if (isAdultTitle && !allowsAdult) {
+      throw new ForbiddenException(
+        "This title is restricted to accounts with adult content enabled",
+      );
+    }
   }
 }

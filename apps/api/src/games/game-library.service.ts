@@ -19,6 +19,7 @@ import type {
   GameStatsDto,
   GameStatus,
 } from "@tracklore/shared";
+import { canonicalExternalId } from "../common/external-id.util";
 import { PrismaService } from "../prisma/prisma.service";
 import { AgeGateService } from "../users/age-gate.service";
 import { filterAdultContent } from "../users/age.util";
@@ -202,12 +203,7 @@ export class GameLibraryService {
   ): Promise<GameDetailDto> {
     const details = await this.gameItemService.getLiveDetails(source, sourceId);
     const allowAdult = await this.ageGate.allowsAdultContent(userId);
-
-    if (details.isAdult && !allowAdult) {
-      throw new ForbiddenException(
-        "This title is restricted to accounts with adult content enabled",
-      );
-    }
+    this.ageGate.assertAdultAllowed(details.isAdult, allowAdult);
 
     details.similarGames = filterAdultContent(details.similarGames, allowAdult);
     details.franchiseGames = filterAdultContent(
@@ -258,9 +254,7 @@ function toGameItemDto(
     title: game.title,
     coverUrl: game.coverUrl,
     canonicalSource: game.canonicalSource,
-    sourceId:
-      game.externalIds.find((ext) => ext.source === game.canonicalSource)
-        ?.externalId ?? "",
+    sourceId: canonicalExternalId(game, game.externalIds),
   };
 }
 

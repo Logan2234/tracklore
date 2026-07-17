@@ -10,6 +10,7 @@ import {
   MediaType,
 } from "@tracklore/shared";
 import type { MediaExtrasDto } from "@tracklore/shared";
+import { fetchJson } from "../../common/http.util";
 import type {
   CatalogProvider,
   ProviderEpisode,
@@ -216,29 +217,21 @@ export class AnilistProvider implements CatalogProvider {
     query: string,
     variables: Record<string, unknown>,
   ): Promise<T> {
-    const response = await fetch(GRAPHQL_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({ query, variables }),
-    });
-
-    if (response.status === 404) {
-      throw new NotFoundException("Media not found on AniList");
-    }
-
-    if (!response.ok) {
-      throw new BadGatewayException(
-        `AniList request failed with status ${response.status}`,
-      );
-    }
-
-    const body = (await response.json()) as {
+    const body = await fetchJson<{
       data?: T;
       errors?: { message: string }[];
-    };
+    }>(
+      GRAPHQL_URL,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ query, variables }),
+      },
+      { sourceLabel: "AniList", notFoundMessage: "Media not found on AniList" },
+    );
 
     if (body.errors?.length || !body.data) {
       // AniList returns 200 with an errors array for "not found" on some queries.

@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   Controller,
-  ForbiddenException,
   Get,
   Param,
   Query,
@@ -10,19 +9,19 @@ import {
   CastDetailDto,
   CatalogSource,
   Domain,
-  MediaDetailsDto,
   MediaExtrasDto,
   MediaType,
   SearchResponseDto,
 } from "@tracklore/shared";
-import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { JwtPayload } from "../auth/decorators/current-user.decorator";
+import { CurrentUser } from "../auth/decorators/current-user.decorator";
+import { parseEnumParam } from "../common/parse-enum-param.util";
 import { AgeGateService } from "../users/age-gate.service";
-import { DomainGateService } from "../users/domain-gate.service";
 import { filterAdultContent } from "../users/age.util";
+import { DomainGateService } from "../users/domain-gate.service";
+import { SearchQueryDto } from "./dto/search-query.dto";
 import { MediaItemService } from "./media-item.service";
 import { rankBySearchRelevance } from "./search-ranking";
-import { SearchQueryDto } from "./dto/search-query.dto";
 
 @Controller("catalog")
 export class CatalogController {
@@ -96,31 +95,6 @@ export class CatalogController {
     };
   }
 
-  /** Live details (seasons/episodes included) — nothing is persisted. */
-  @Get(":source/:id")
-  async getDetails(
-    @CurrentUser() user: JwtPayload,
-    @Param("source") sourceParam: string,
-    @Param("id") id: string,
-    @Query("type") type?: MediaType,
-  ): Promise<MediaDetailsDto> {
-    const source = parseSource(sourceParam);
-    const resolvedType = resolveType(source, type);
-    const details = await this.mediaItemService.getLiveDetails(
-      source,
-      id,
-      resolvedType,
-    );
-
-    if (details.isAdult && !(await this.ageGate.allowsAdultContent(user.sub))) {
-      throw new ForbiddenException(
-        "This title is restricted to accounts with adult content enabled",
-      );
-    }
-
-    return details;
-  }
-
   /** Live extras (where to watch, cast, similar) — nothing is persisted. */
   @Get(":source/:id/extras")
   async getExtras(
@@ -143,20 +117,15 @@ export class CatalogController {
 }
 
 function parseSource(value: string): CatalogSource {
-  const upper = value.toUpperCase();
-
-  if (upper !== CatalogSource.TMDB && upper !== CatalogSource.ANILIST) {
-    throw new BadRequestException(`Unknown catalog source '${value}'`);
-  }
-
-  return upper;
+  return parseEnumParam(
+    value,
+    [CatalogSource.TMDB, CatalogSource.ANILIST],
+    "catalog source",
+  );
 }
 
 /** AniList only serves anime; TMDB needs the caller to disambiguate movie vs series. */
-export function resolveType(
-  source: CatalogSource,
-  type?: MediaType,
-): MediaType {
+function resolveType(source: CatalogSource, type?: MediaType): MediaType {
   if (source === CatalogSource.ANILIST) {
     return MediaType.ANIME;
   }

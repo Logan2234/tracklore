@@ -6,6 +6,7 @@ import {
   GoodreadsImportCommitRequestDto,
   GoodreadsImportPreviewRequestDto,
 } from "@tracklore/shared";
+import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
   ArrayMaxSize,
@@ -52,9 +53,14 @@ class GoodreadsCommitBookDto implements GoodreadsImportCommitBookDto {
   @MaxLength(5000)
   notes!: string | null;
 
+  // Explicit @ApiProperty: the field's type is the literal `null` (Goodreads'
+  // export has no "date started" column), which the @nestjs/swagger plugin's
+  // type reflection can't resolve on its own — it mistakes it for a
+  // self-reference and throws "circular dependency detected" at boot.
+  @ApiProperty({ type: "string", nullable: true, required: false })
   @IsOptional()
   @IsISO8601()
-  startedAt!: string | null;
+  startedAt!: null;
 
   @IsOptional()
   @IsISO8601()

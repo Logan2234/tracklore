@@ -19,6 +19,7 @@ import type {
   BookStatsDto,
   BookStatus,
 } from "@tracklore/shared";
+import { canonicalExternalId } from "../common/external-id.util";
 import { PrismaService } from "../prisma/prisma.service";
 import { AgeGateService } from "../users/age-gate.service";
 import { filterAdultContent } from "../users/age.util";
@@ -202,12 +203,7 @@ export class BookLibraryService {
   ): Promise<BookDetailDto> {
     const details = await this.bookItemService.getLiveDetails(source, sourceId);
     const allowAdult = await this.ageGate.allowsAdultContent(userId);
-
-    if (details.isAdult && !allowAdult) {
-      throw new ForbiddenException(
-        "This title is restricted to accounts with adult content enabled",
-      );
-    }
+    this.ageGate.assertAdultAllowed(details.isAdult, allowAdult);
 
     details.sameAuthorBooks = filterAdultContent(
       details.sameAuthorBooks,
@@ -259,9 +255,7 @@ function toBookItemDto(
     coverUrl: book.coverUrl,
     pageCount: book.pageCount,
     canonicalSource: book.canonicalSource,
-    sourceId:
-      book.externalIds.find((ext) => ext.source === book.canonicalSource)
-        ?.externalId ?? "",
+    sourceId: canonicalExternalId(book, book.externalIds),
   };
 }
 

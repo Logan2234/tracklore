@@ -23,6 +23,7 @@ import {
 } from "@tracklore/shared";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { JwtPayload } from "../auth/decorators/current-user.decorator";
+import { parseEnumParam } from "../common/parse-enum-param.util";
 import { AgeGateService } from "../users/age-gate.service";
 import { filterAdultContent } from "../users/age.util";
 import { DomainGateService } from "../users/domain-gate.service";
@@ -145,11 +146,5 @@ export class BooksController {
 }
 
 function parseBookSource(value: string): BookSource {
-  const upper = value.toUpperCase();
-
-  if (upper !== BookSource.GOOGLE_BOOKS) {
-    throw new BadRequestException(`Unknown book source '${value}'`);
-  }
-
-  return upper;
+  return parseEnumParam(value, [BookSource.GOOGLE_BOOKS], "book source");
 }

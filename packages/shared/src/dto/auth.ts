@@ -1,4 +1,4 @@
-import type { Domain } from "../enums";
+import type { Domain, Role } from "../enums";
 
 export interface RegisterRequestDto {
   email: string;
@@ -36,8 +36,8 @@ export interface UserDto {
   notifyPush: boolean;
   /** Whether the account's email has been confirmed via the verification link (informational only). */
   emailVerified: boolean;
-  /** Open-core seam: feature flags granted to this user (empty in self-host MVP). */
-  entitlements: string[];
+  /** Operational permission level (gates /admin). See `Role`. */
+  role: Role;
   /**
    * Content domains the user keeps visible (defaults to all). Drives the nav
    * today; edited from the settings "Domaines" section. See `Domain`.

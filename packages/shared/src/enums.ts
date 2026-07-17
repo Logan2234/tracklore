@@ -15,6 +15,17 @@ export const Domain = {
 } as const;
 export type Domain = (typeof Domain)[keyof typeof Domain];
 
+/**
+ * Operational permission level, orthogonal to `User.entitlements` (the future
+ * paid-tier seam). A single self-host admin today; `ADMIN` is granted via the
+ * `ADMIN_EMAIL` bootstrap or the admin panel, never by entitlement value.
+ */
+export const Role = {
+  USER: "USER",
+  ADMIN: "ADMIN",
+} as const;
+export type Role = (typeof Role)[keyof typeof Role];
+
 /** Kind of media. MOVIE/SERIES come from TMDB, ANIME from AniList. */
 export const MediaType = {
   MOVIE: "MOVIE",
@@ -38,18 +49,14 @@ export type MediaSource = (typeof MediaSource)[keyof typeof MediaSource];
 
 /** Sources the catalogue can be queried from (canonical only). */
 export const CatalogSource = {
-  TMDB: "TMDB",
-  ANILIST: "ANILIST",
+  TMDB: MediaSource.TMDB,
+  ANILIST: MediaSource.ANILIST,
 } as const;
 export type CatalogSource = (typeof CatalogSource)[keyof typeof CatalogSource];
 
-/**
- * Source a game's catalogue data comes from. IGDB is the only one we fetch from
- * today; RAWG is reserved so the multi-source seam exists before it lands.
- */
+/** Source a game's catalogue data comes from. IGDB is the only one today. */
 export const GameSource = {
   IGDB: "IGDB",
-  RAWG: "RAWG",
 } as const;
 export type GameSource = (typeof GameSource)[keyof typeof GameSource];
 
@@ -150,3 +157,20 @@ export const MediaOwnershipStatus = {
 } as const;
 export type MediaOwnershipStatus =
   (typeof MediaOwnershipStatus)[keyof typeof MediaOwnershipStatus];
+
+/**
+ * Kind of sensitive account action tracked on the admin "Sécurité" page.
+ * LOGIN_FAILED is included alongside the account-lifecycle/credential events
+ * because the instance can be exposed to the internet (ngrok) — a spike of
+ * failed logins is the one signal that actually matters there.
+ */
+export const SecurityEventType = {
+  USER_REGISTERED: "USER_REGISTERED",
+  USER_DELETED: "USER_DELETED",
+  EMAIL_CHANGED: "EMAIL_CHANGED",
+  PASSWORD_CHANGED: "PASSWORD_CHANGED",
+  PASSWORD_RESET: "PASSWORD_RESET",
+  LOGIN_FAILED: "LOGIN_FAILED",
+} as const;
+export type SecurityEventType =
+  (typeof SecurityEventType)[keyof typeof SecurityEventType];

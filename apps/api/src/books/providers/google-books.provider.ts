@@ -6,6 +6,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import type { RatingDto } from "@tracklore/shared";
 import { BookSource, BookSummaryDto } from "@tracklore/shared";
+import { chunk } from "../../common/array.util";
 import type {
   BookCatalogProvider,
   ProviderBookDetails,
@@ -247,17 +248,6 @@ function retryDelayMs(
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/** Split an array into consecutive slices of at most `size` items. */
-function chunk<T>(items: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-
-  for (let i = 0; i < items.length; i += size) {
-    chunks.push(items.slice(i, i + size));
-  }
-
-  return chunks;
 }
 
 /** Google Books' own average rating (1–5), when known. */

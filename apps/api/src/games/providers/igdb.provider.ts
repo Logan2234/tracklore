@@ -1,11 +1,9 @@
-import {
-  BadGatewayException,
-  Injectable,
-  NotFoundException,
-} from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { RatingDto } from "@tracklore/shared";
 import { GameSource, GameSummaryDto } from "@tracklore/shared";
+import { chunk } from "../../common/array.util";
+import { fetchJson } from "../../common/http.util";
 import type {
   GameCatalogProvider,
   ProviderGameDetails,
@@ -143,8 +141,8 @@ export class IgdbProvider implements GameCatalogProvider {
   async getDetailsByIds(ids: string[]): Promise<ProviderGameDetails[]> {
     const details: ProviderGameDetails[] = [];
 
-    for (const chunk of chunkArray(ids, 500)) {
-      const idList = chunk.map((id) => Number(id)).join(",");
+    for (const batch of chunk(ids, 500)) {
+      const idList = batch.map((id) => Number(id)).join(",");
       const games = await this.query<IgdbGame[]>(
         "/games",
         `fields ${IgdbProvider.DETAIL_FIELDS}; where id = (${idList}); limit 500;`,
@@ -163,8 +161,8 @@ export class IgdbProvider implements GameCatalogProvider {
   async matchSteamAppIds(appIds: string[]): Promise<Map<string, string>> {
     const byAppId = new Map<string, string>();
 
-    for (const chunk of chunkArray(appIds, 500)) {
-      const uidList = chunk.map((id) => `"${id}"`).join(",");
+    for (const batch of chunk(appIds, 500)) {
+      const uidList = batch.map((id) => `"${id}"`).join(",");
       const rows = await this.query<{ game: number; uid: string }[]>(
         "/external_games",
         `fields game, uid; where external_game_source = 1 & uid = (${uidList}); limit 500;`,
@@ -248,23 +246,20 @@ export class IgdbProvider implements GameCatalogProvider {
 
   /** POST an Apicalypse query to an IGDB endpoint with a valid access token. */
   private async query<T>(path: string, body: string): Promise<T> {
-    const response = await fetch(`${API_URL}${path}`, {
-      method: "POST",
-      headers: {
-        "Client-ID": this.configService.getOrThrow<string>("TWITCH_CLIENT_ID"),
-        Authorization: `Bearer ${await this.accessToken()}`,
-        Accept: "application/json",
+    return fetchJson<T>(
+      `${API_URL}${path}`,
+      {
+        method: "POST",
+        headers: {
+          "Client-ID":
+            this.configService.getOrThrow<string>("TWITCH_CLIENT_ID"),
+          Authorization: `Bearer ${await this.accessToken()}`,
+          Accept: "application/json",
+        },
+        body,
       },
-      body,
-    });
-
-    if (!response.ok) {
-      throw new BadGatewayException(
-        `IGDB request failed with status ${response.status}`,
-      );
-    }
-
-    return (await response.json()) as T;
+      { sourceLabel: "IGDB" },
+    );
   }
 
   /** Cached Twitch app-access token, fetched (or refreshed) on demand. */
@@ -284,15 +279,11 @@ export class IgdbProvider implements GameCatalogProvider {
     );
     url.searchParams.set("grant_type", "client_credentials");
 
-    const response = await fetch(url, { method: "POST" });
-
-    if (!response.ok) {
-      throw new BadGatewayException(
-        `Twitch token request failed with status ${response.status}`,
-      );
-    }
-
-    const token = (await response.json()) as TwitchToken;
+    const token = await fetchJson<TwitchToken>(
+      url,
+      { method: "POST" },
+      { sourceLabel: "Twitch token" },
+    );
     this.token = {
       value: token.access_token,
       expiresAt: Date.now() + token.expires_in * 1000,
@@ -328,15 +319,4 @@ function uniqueCompanyNames(
     .filter((c) => c[role] && c.company?.name)
     .map((c) => c.company!.name);
   return [...new Set(names)];
-}
-
-/** Split an array into consecutive slices of at most `size` items. */
-function chunkArray<T>(items: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-
-  for (let i = 0; i < items.length; i += size) {
-    chunks.push(items.slice(i, i + size));
-  }
-
-  return chunks;
 }
