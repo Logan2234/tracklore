@@ -14,8 +14,16 @@
     ApiError,
   } from "$lib/api/client";
   import { auth } from "$lib/auth.svelte";
-  import Icon from "$lib/components/Icon.svelte";
+  import Banner from "$lib/components/Banner.svelte";
+  import EmptyState from "$lib/components/EmptyState.svelte";
+  import PageHeader from "$lib/components/PageHeader.svelte";
   import { isDomainEnabled } from "$lib/domains";
+  import {
+    BOOK_STATUS_LABELS,
+    BOOK_STATUS_ORDER,
+    GAME_STATUS_LABELS,
+    GAME_STATUS_ORDER,
+  } from "$lib/status-labels";
   import { Domain } from "@tracklore/shared";
 
   let stats = $state<StatsDto | null>(null);
@@ -68,31 +76,19 @@
 
   // Game status funnel: dim pile → amber in-progress → green done → red dropped.
   const GAME_STATUS: Record<GameStatus, { label: string; color: string }> = {
-    BACKLOG: { label: "À jouer", color: "var(--dim)" },
-    PLAYING: { label: "En cours", color: "var(--accent)" },
-    COMPLETED: { label: "Terminé", color: "var(--success)" },
-    DROPPED: { label: "Abandonné", color: "var(--danger)" },
+    BACKLOG: { label: GAME_STATUS_LABELS.BACKLOG, color: "var(--dim)" },
+    PLAYING: { label: GAME_STATUS_LABELS.PLAYING, color: "var(--accent)" },
+    COMPLETED: { label: GAME_STATUS_LABELS.COMPLETED, color: "var(--success)" },
+    DROPPED: { label: GAME_STATUS_LABELS.DROPPED, color: "var(--danger)" },
   };
-  const GAME_STATUS_ORDER: GameStatus[] = [
-    "BACKLOG",
-    "PLAYING",
-    "COMPLETED",
-    "DROPPED",
-  ];
 
   // Book status funnel: dim to-read → amber reading → green read → red dropped.
   const BOOK_STATUS: Record<BookStatus, { label: string; color: string }> = {
-    TO_READ: { label: "À lire", color: "var(--dim)" },
-    READING: { label: "En lecture", color: "var(--accent)" },
-    READ: { label: "Lu", color: "var(--success)" },
-    DROPPED: { label: "Abandonné", color: "var(--danger)" },
+    TO_READ: { label: BOOK_STATUS_LABELS.TO_READ, color: "var(--dim)" },
+    READING: { label: BOOK_STATUS_LABELS.READING, color: "var(--accent)" },
+    READ: { label: BOOK_STATUS_LABELS.READ, color: "var(--success)" },
+    DROPPED: { label: BOOK_STATUS_LABELS.DROPPED, color: "var(--danger)" },
   };
-  const BOOK_STATUS_ORDER: BookStatus[] = [
-    "TO_READ",
-    "READING",
-    "READ",
-    "DROPPED",
-  ];
   // BookStatsDto keys, in the same order as BOOK_STATUS_ORDER.
   const BOOK_STATUS_KEY: Record<
     BookStatus,
@@ -190,35 +186,27 @@
 </script>
 
 <div class="mx-auto max-w-4xl px-4 py-6 md:px-8 md:py-10">
-  <header class="mb-8">
-    <h1
-      class="flex items-center gap-2 font-display text-3xl font-extrabold tracking-tight md:text-4xl">
-      <Icon name="stats" class="h-7 w-7 text-accent" />
-      Statistiques
-    </h1>
-    <p class="mt-1 text-dim">Ton activité en un coup d’œil.</p>
-  </header>
+  <PageHeader
+    icon="stats"
+    title="Statistiques"
+    subtitle="Ton activité en un coup d’œil." />
 
   {#if error}
-    <p
-      class="rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-      {error}
-    </p>
+    <Banner variant="error">{error}</Banner>
   {:else if loading}
     <div class="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
       {#each { length: 4 } as _, i (i)}
         <div class="card p-4">
-          <div class="h-8 w-2/3 animate-pulse rounded bg-surface-2"></div>
-          <div class="mt-2 h-3 w-4/5 animate-pulse rounded bg-surface-2"></div>
+          <div class="h-8 w-2/3 skeleton rounded"></div>
+          <div class="mt-2 h-3 w-4/5 skeleton rounded"></div>
         </div>
       {/each}
     </div>
   {:else if allEmpty}
-    <div
-      class="rounded-xl border border-dashed border-border px-6 py-16 text-center text-dim">
+    <EmptyState>
       Rien à afficher pour l’instant. Marque des épisodes, des films, des jeux
       ou des livres pour voir tes statistiques.
-    </div>
+    </EmptyState>
   {:else}
     {#if stats && !mediaEmpty}
       <!-- Écrans -->

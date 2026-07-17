@@ -5,6 +5,7 @@
     previewStoryGraphImport,
     searchBooks,
   } from "$lib/api/client";
+  import Banner from "$lib/components/Banner.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import Poster from "$lib/components/Poster.svelte";
   import type {
@@ -15,14 +16,10 @@
     StoryGraphUnmatchedBookDto,
   } from "@tracklore/shared";
   import { SvelteMap, SvelteSet } from "svelte/reactivity";
-
-  const STATUS_LABELS: Record<BookStatus, string> = {
-    TO_READ: "À lire",
-    READING: "En lecture",
-    READ: "Lu",
-    DROPPED: "Abandonné",
-  };
-  const STATUS_ORDER: BookStatus[] = ["TO_READ", "READING", "READ", "DROPPED"];
+  import {
+    BOOK_STATUS_LABELS as STATUS_LABELS,
+    BOOK_STATUS_ORDER as STATUS_ORDER,
+  } from "$lib/status-labels";
 
   type Step = "input" | "review" | "done";
   let step = $state<Step>("input");
@@ -228,10 +225,7 @@
   </div>
 
   {#if error}
-    <p
-      class="mb-4 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-      {error}
-    </p>
+    <Banner variant="error" class="mb-4">{error}</Banner>
   {/if}
 
   {#if step === "input"}
@@ -240,8 +234,7 @@
         href="https://app.thestorygraph.com/user-export"
         target="_blank"
         rel="noopener noreferrer"
-        class="font-semibold text-accent hover:underline"
-        >Exporte ta bibliothèque depuis StoryGraph ↗</a>
+        class="link-accent">Exporte ta bibliothèque depuis StoryGraph ↗</a>
       (Manage Account → Export StoryGraph Library) puis dépose le fichier
       <code class="text-fg">.csv</code> ici. On associe chaque livre au catalogue
       Google Books ; tu choisis ensuite quoi importer.
@@ -281,15 +274,14 @@
     </p>
 
     {#if preview.apiErrorCount > 0}
-      <p
-        class="mb-4 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+      <Banner variant="warning" class="mb-4">
         {preview.apiErrorCount} livre{preview.apiErrorCount > 1 ? "s" : ""} n'{preview.apiErrorCount >
         1
           ? "ont"
           : "a"} pas pu être vérifié{preview.apiErrorCount > 1 ? "s" : ""} à cause
         d'une erreur de l'API Google Books (quota, panne…), pas d'une vraie absence
         de résultat. Relance l'import plus tard pour les récupérer.
-      </p>
+      </Banner>
     {/if}
 
     {#if rows.length === 0}

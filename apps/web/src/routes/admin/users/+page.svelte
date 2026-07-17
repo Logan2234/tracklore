@@ -1,21 +1,75 @@
 <script lang="ts">
   import {
+    deleteAdminUser,
     getAdminUsers,
+    getAdminUserExport,
     getAdminUserSessions,
+    resendAdminUserVerification,
     revokeAdminUserSession,
+    revokeAllAdminUserSessions,
+    sendAdminUserPasswordReset,
+    updateAdminUserRole,
     ApiError,
   } from "$lib/api/client";
+  import { auth } from "$lib/auth.svelte";
+  import Banner from "$lib/components/Banner.svelte";
+  import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
   import Icon from "$lib/components/Icon.svelte";
+  import PageHeader from "$lib/components/PageHeader.svelte";
   import type { AdminUserDto, SessionDto } from "@tracklore/shared";
+
+  type Filter = "all" | "admin" | "unverified" | "never";
 
   let users = $state<AdminUserDto[] | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
 
+  let query = $state("");
+  let filter = $state<Filter>("all");
+
+  const filteredUsers = $derived.by(() => {
+    if (!users) return [];
+    let list = users;
+    if (filter === "admin")
+      list = list.filter((u) => u.role === "ADMIN");
+    else if (filter === "unverified")
+      list = list.filter((u) => !u.emailVerified);
+    else if (filter === "never") list = list.filter((u) => !u.lastActiveAt);
+
+    const q = query.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter(
+      (u) =>
+        u.email.toLowerCase().includes(q) ||
+        u.username.toLowerCase().includes(q) ||
+        u.displayName.toLowerCase().includes(q),
+    );
+  });
+
+  // --- drawer / detail state ---
   let selected = $state<AdminUserDto | null>(null);
   let sessions = $state<SessionDto[] | null>(null);
   let sessionsLoading = $state(false);
   let revoking = $state<string | null>(null);
+
+  let showRevokeAllConfirm = $state(false);
+  let revokingAll = $state(false);
+
+  let roleSaving = $state(false);
+  let roleError = $state("");
+
+  let exporting = $state(false);
+  let exportError = $state("");
+
+  let verifySending = $state(false);
+  let verifyMessage = $state("");
+  let resetSending = $state(false);
+  let resetMessage = $state("");
+
+  let showDeleteModal = $state(false);
+  let deleteConfirmText = $state("");
+  let deleting = $state(false);
+  let deleteError = $state("");
 
   async function load() {
     loading = true;
@@ -30,10 +84,14 @@
     }
   }
 
-  async function selectUser(user: AdminUserDto) {
+  async function openUser(user: AdminUserDto) {
     selected = user;
     sessions = null;
     sessionsLoading = true;
+    verifyMessage = "";
+    resetMessage = "";
+    roleError = "";
+    exportError = "";
     try {
       sessions = await getAdminUserSessions(user.id);
     } catch {
@@ -41,6 +99,10 @@
     } finally {
       sessionsLoading = false;
     }
+  }
+
+  function closeDrawer() {
+    selected = null;
   }
 
   async function revoke(sessionId: string) {
@@ -51,6 +113,117 @@
       sessions = (sessions ?? []).filter((s) => s.id !== sessionId);
     } finally {
       revoking = null;
+    }
+  }
+
+  async function confirmRevokeAll() {
+    if (!selected) return;
+    revokingAll = true;
+    try {
+      await revokeAllAdminUserSessions(selected.id);
+      sessions = [];
+      showRevokeAllConfirm = false;
+    } finally {
+      revokingAll = false;
+    }
+  }
+
+  async function toggleAdmin(checked: boolean) {
+    if (!selected) return;
+    const next = checked ? "ADMIN" : "USER";
+
+    roleSaving = true;
+    roleError = "";
+    try {
+      const res = await updateAdminUserRole(selected.id, next);
+      selected = { ...selected, role: res.role };
+      users = (users ?? []).map((u) =>
+        u.id === selected!.id ? { ...u, role: res.role } : u,
+      );
+    } catch (err) {
+      roleError =
+        err instanceof ApiError ? err.message : "Mise à jour impossible";
+    } finally {
+      roleSaving = false;
+    }
+  }
+
+  async function downloadExport() {
+    if (!selected) return;
+    exporting = true;
+    exportError = "";
+    try {
+      const data = await getAdminUserExport(selected.id);
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `tracklore-export-${selected.username}-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      exportError = err instanceof ApiError ? err.message : "Export impossible";
+    } finally {
+      exporting = false;
+    }
+  }
+
+  async function resendVerification() {
+    if (!selected) return;
+    verifySending = true;
+    verifyMessage = "";
+    try {
+      await resendAdminUserVerification(selected.id);
+      verifyMessage = "Email de vérification renvoyé.";
+    } catch (err) {
+      verifyMessage =
+        err instanceof ApiError ? err.message : "Échec de l'envoi";
+    } finally {
+      verifySending = false;
+    }
+  }
+
+  async function sendPasswordReset() {
+    if (!selected) return;
+    resetSending = true;
+    resetMessage = "";
+    try {
+      await sendAdminUserPasswordReset(selected.id);
+      resetMessage = "Lien de réinitialisation envoyé.";
+    } catch (err) {
+      resetMessage = err instanceof ApiError ? err.message : "Échec de l'envoi";
+    } finally {
+      resetSending = false;
+    }
+  }
+
+  function openDeleteModal() {
+    deleteConfirmText = "";
+    deleteError = "";
+    showDeleteModal = true;
+  }
+
+  function closeDeleteModal() {
+    if (deleting) return;
+    showDeleteModal = false;
+  }
+
+  async function confirmDelete() {
+    if (!selected || deleteConfirmText !== selected.username) return;
+    deleting = true;
+    deleteError = "";
+    try {
+      await deleteAdminUser(selected.id);
+      users = (users ?? []).filter((u) => u.id !== selected!.id);
+      showDeleteModal = false;
+      selected = null;
+    } catch (err) {
+      deleteError =
+        err instanceof ApiError ? err.message : "Suppression impossible";
+    } finally {
+      deleting = false;
     }
   }
 
@@ -69,123 +242,374 @@
     hour: "2-digit",
     minute: "2-digit",
   });
+
+  function activityLabel(u: AdminUserDto): string {
+    return u.lastActiveAt
+      ? dateTimeFmt.format(new Date(u.lastActiveAt))
+      : "Jamais connecté";
+  }
+
+  function activityDotClass(u: AdminUserDto): string {
+    if (!u.lastActiveAt) return "border border-dim";
+    const hoursAgo =
+      (Date.now() - new Date(u.lastActiveAt).getTime()) / 3_600_000;
+    return hoursAgo < 1 ? "bg-success" : "bg-dim";
+  }
+
+  const FILTERS: { value: Filter; label: string }[] = [
+    { value: "all", label: "Tous" },
+    { value: "admin", label: "Admin" },
+    { value: "unverified", label: "Non vérifié" },
+    { value: "never", label: "Jamais connecté" },
+  ];
 </script>
 
+<svelte:window
+  onkeydown={(e) => {
+    if (e.key === "Escape" && selected && !showDeleteModal) closeDrawer();
+  }} />
+
 <div class="mx-auto max-w-5xl px-4 py-6 md:px-8 md:py-10">
-  <header class="mb-8">
-    <h1
-      class="flex items-center gap-2 font-display text-3xl font-extrabold tracking-tight md:text-4xl">
-      <Icon name="user" class="h-7 w-7 text-accent" />
-      Utilisateurs
-    </h1>
-    <p class="mt-1 text-dim">Comptes enregistrés et sessions actives.</p>
-  </header>
+  <PageHeader
+    icon="user"
+    title="Utilisateurs"
+    subtitle="Comptes enregistrés, sessions et accès." />
 
   {#if error}
-    <p
-      class="rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-      {error}
-    </p>
+    <Banner variant="error">{error}</Banner>
   {:else if loading}
     <div class="card h-64 animate-pulse"></div>
   {:else if users}
-    <div class="grid gap-6 md:grid-cols-[1fr_320px]">
-      <div class="overflow-hidden rounded-xl border border-border">
-        {#each users as u, i (u.id)}
+    <div class="mb-4 flex flex-wrap items-center gap-2">
+      <input
+        type="text"
+        bind:value={query}
+        placeholder="Filtrer par email, identifiant ou nom…"
+        class="w-full max-w-xs rounded-lg border border-border bg-surface px-3 py-2 text-sm" />
+      <div class="flex flex-wrap gap-1.5">
+        {#each FILTERS as f (f.value)}
           <button
-            onclick={() => selectUser(u)}
-            class="flex w-full items-center gap-3 bg-surface px-4 py-3 text-left transition-colors hover:bg-surface-2 {i >
-            0
-              ? 'border-t border-border'
-              : ''} {selected?.id === u.id ? 'bg-surface-2' : ''}">
-            <span
-              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-surface-2 font-display text-sm font-bold text-fg">
-              {u.displayName.charAt(0).toUpperCase()}
-            </span>
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-2">
-                <span class="truncate font-semibold text-fg">
-                  {u.displayName}
-                </span>
-                {#if u.entitlements.includes("admin")}
-                  <span
-                    class="rounded-full border border-accent/40 bg-accent/10 px-1.5 py-0.5 text-[0.55rem] font-bold text-accent uppercase">
-                    Admin
-                  </span>
-                {/if}
-                {#if !u.emailVerified}
-                  <span
-                    class="rounded-full border border-border px-1.5 py-0.5 text-[0.55rem] font-bold text-dim uppercase">
-                    Non vérifié
-                  </span>
-                {/if}
-              </div>
-              <p class="truncate text-xs text-dim">{u.email}</p>
-            </div>
-            <span class="shrink-0 text-xs text-dim">
-              {dateFmt.format(new Date(u.createdAt))}
-            </span>
+            class="chip"
+            class:chip-on={filter === f.value}
+            onclick={() => (filter = f.value)}>
+            {f.label}
           </button>
         {/each}
-        {#if users.length === 0}
-          <p class="px-4 py-6 text-center text-sm text-dim">
-            Aucun compte enregistré.
-          </p>
-        {/if}
       </div>
+    </div>
 
-      <div class="card p-4">
-        {#if !selected}
-          <p class="text-sm text-dim">
-            Sélectionne un compte pour voir ses sessions.
-          </p>
-        {:else}
-          <div class="mb-3 flex items-center justify-between gap-2">
-            <h2 class="font-semibold text-fg">
-              Sessions — {selected.displayName}
-            </h2>
-            <a
-              href="/admin/push?email={encodeURIComponent(selected.email)}"
-              title="Envoyer un push de test"
-              aria-label="Envoyer un push de test"
-              class="shrink-0 rounded-lg p-1.5 text-dim transition-colors hover:bg-surface-2 hover:text-accent">
-              <Icon name="bell" class="h-4 w-4" />
-            </a>
-          </div>
-          {#if sessionsLoading}
-            <div class="space-y-2">
-              {#each { length: 2 } as _, i (i)}
-                <div class="h-12 animate-pulse rounded-lg bg-surface-2"></div>
-              {/each}
-            </div>
-          {:else if sessions && sessions.length > 0}
-            <ul class="space-y-2">
-              {#each sessions as s (s.id)}
-                <li
-                  class="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
-                  <div class="min-w-0 flex-1">
-                    <p class="truncate text-xs font-semibold text-fg">
-                      {s.userAgent ?? "Appareil inconnu"}
-                    </p>
-                    <p class="text-[0.65rem] text-dim">
-                      Actif {dateTimeFmt.format(new Date(s.lastUsedAt))}
-                    </p>
+    <div class="card overflow-x-auto">
+      <table class="w-full border-collapse text-sm">
+        <thead>
+          <tr
+            class="border-b border-border text-left text-xs font-semibold text-dim uppercase">
+            <th class="px-4 py-2.5">Compte</th>
+            <th class="hidden px-4 py-2.5 sm:table-cell">Actif</th>
+            <th class="hidden px-4 py-2.5 md:table-cell">Créé</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each filteredUsers as u (u.id)}
+            <tr
+              onclick={() => openUser(u)}
+              class="cursor-pointer border-b border-border last:border-b-0 transition-colors hover:bg-surface-2 {selected?.id ===
+              u.id
+                ? 'bg-accent/10'
+                : ''}">
+              <td class="px-4 py-3">
+                <div class="flex items-center gap-3">
+                  <span
+                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-surface-2 font-display text-sm font-bold text-fg">
+                    {u.displayName.charAt(0).toUpperCase()}
+                  </span>
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                      <span class="truncate font-semibold text-fg"
+                        >{u.displayName}</span>
+                      {#if u.role === "ADMIN"}
+                        <span
+                          class="rounded-full border border-accent/40 bg-accent/10 px-1.5 py-0.5 text-[0.55rem] font-bold text-accent uppercase">
+                          Admin
+                        </span>
+                      {/if}
+                      {#if !u.emailVerified}
+                        <span
+                          class="rounded-full border border-border px-1.5 py-0.5 text-[0.55rem] font-bold text-dim uppercase">
+                          Non vérifié
+                        </span>
+                      {/if}
+                    </div>
+                    <p class="truncate text-xs text-dim">{u.email}</p>
                   </div>
-                  <button
-                    onclick={() => revoke(s.id)}
-                    disabled={revoking === s.id}
-                    aria-label="Révoquer cette session"
-                    class="shrink-0 rounded-lg p-1.5 text-dim transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-50">
-                    <Icon name="trash" class="h-4 w-4" />
-                  </button>
-                </li>
-              {/each}
-            </ul>
-          {:else}
-            <p class="text-sm text-dim">Aucune session active.</p>
-          {/if}
-        {/if}
-      </div>
+                </div>
+              </td>
+              <td class="hidden px-4 py-3 sm:table-cell">
+                <div class="flex items-center gap-2 text-xs text-dim">
+                  <span
+                    class="h-1.5 w-1.5 shrink-0 rounded-full {activityDotClass(
+                      u,
+                    )}"></span>
+                  {activityLabel(u)}
+                </div>
+              </td>
+              <td class="hidden px-4 py-3 text-xs text-dim md:table-cell">
+                {dateFmt.format(new Date(u.createdAt))}
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+      {#if users.length === 0}
+        <p class="px-4 py-6 text-center text-sm text-dim">
+          Aucun compte enregistré.
+        </p>
+      {:else if filteredUsers.length === 0}
+        <p class="px-4 py-6 text-center text-sm text-dim">
+          Aucun compte ne correspond à ce filtre.
+        </p>
+      {/if}
     </div>
   {/if}
 </div>
+
+{#if selected}
+  <div class="fixed inset-0 z-50 flex justify-end">
+    <button
+      class="absolute inset-0 cursor-default bg-black/60"
+      aria-label="Fermer"
+      onclick={closeDrawer}></button>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="drawer-title"
+      class="card relative z-10 flex h-full w-full max-w-sm flex-col overflow-y-auto rounded-none border-y-0 border-r-0 p-5">
+      <div class="mb-4 flex items-start justify-between gap-2">
+        <div class="min-w-0">
+          <h2 id="drawer-title" class="truncate font-display text-lg font-bold">
+            {selected.displayName}
+          </h2>
+          <p class="truncate text-xs text-dim">{selected.email}</p>
+        </div>
+        <button
+          class="shrink-0 rounded-full p-1.5 text-dim hover:bg-surface-2 hover:text-fg"
+          aria-label="Fermer"
+          onclick={closeDrawer}>
+          <Icon name="x" class="h-5 w-5" />
+        </button>
+      </div>
+
+      <!-- Identité -->
+      <section class="mb-5">
+        <h3
+          class="mb-2 flex items-center gap-2 text-[0.65rem] font-bold tracking-wider text-dim uppercase">
+          Identité
+          <span class="h-px flex-1 bg-border"></span>
+        </h3>
+        <label
+          class="flex items-center justify-between gap-2 rounded-lg border border-border p-3 text-sm"
+          for="role-admin">
+          <span class="font-semibold text-fg">Administrateur</span>
+          <input
+            id="role-admin"
+            type="checkbox"
+            class="h-4 w-4 shrink-0 accent-accent"
+            checked={selected.role === "ADMIN"}
+            disabled={roleSaving ||
+              (selected.id === auth.user?.id && selected.role === "ADMIN")}
+            onchange={(e) => toggleAdmin(e.currentTarget.checked)} />
+        </label>
+        {#if selected.id === auth.user?.id && selected.role === "ADMIN"}
+          <p class="mt-1.5 text-xs text-dim">
+            Tu ne peux pas retirer ton propre accès admin.
+          </p>
+        {/if}
+        {#if roleError}
+          <p class="mt-1.5 text-xs text-danger">{roleError}</p>
+        {/if}
+      </section>
+
+      <!-- Accès -->
+      <section class="mb-5">
+        <h3
+          class="mb-2 flex items-center gap-2 text-[0.65rem] font-bold tracking-wider text-dim uppercase">
+          Accès
+          <span class="h-px flex-1 bg-border"></span>
+        </h3>
+        {#if sessionsLoading}
+          <div class="space-y-2">
+            {#each { length: 2 } as _, i (i)}
+              <div class="h-12 skeleton rounded-lg"></div>
+            {/each}
+          </div>
+        {:else if sessions && sessions.length > 0}
+          <ul class="mb-2 space-y-2">
+            {#each sessions as s (s.id)}
+              <li
+                class="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-xs font-semibold text-fg">
+                    {s.userAgent ?? "Appareil inconnu"}
+                  </p>
+                  <p class="text-[0.65rem] text-dim">
+                    Actif {dateTimeFmt.format(new Date(s.lastUsedAt))}
+                  </p>
+                </div>
+                <button
+                  onclick={() => revoke(s.id)}
+                  disabled={revoking === s.id}
+                  aria-label="Révoquer cette session"
+                  class="shrink-0 rounded-lg p-1.5 text-dim transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-50">
+                  <Icon name="trash" class="h-4 w-4" />
+                </button>
+              </li>
+            {/each}
+          </ul>
+          {#if sessions.length > 1}
+            <button
+              class="btn btn-danger btn-sm w-full"
+              onclick={() => (showRevokeAllConfirm = true)}>
+              Révoquer toutes les sessions
+            </button>
+          {/if}
+        {:else}
+          <p class="text-sm text-dim">Aucune session active.</p>
+        {/if}
+      </section>
+
+      <!-- Données -->
+      <section class="mb-5">
+        <h3
+          class="mb-2 flex items-center gap-2 text-[0.65rem] font-bold tracking-wider text-dim uppercase">
+          Données
+          <span class="h-px flex-1 bg-border"></span>
+        </h3>
+        <div class="flex gap-2">
+          <button
+            onclick={downloadExport}
+            disabled={exporting}
+            class="btn btn-ghost btn-sm flex-1 disabled:opacity-50">
+            <Icon name="download" class="mr-1 inline h-3.5 w-3.5" />
+            Exporter
+          </button>
+          <a
+            href="/admin/push?email={encodeURIComponent(selected.email)}"
+            class="btn btn-ghost btn-sm flex-1 text-center">
+            <Icon name="bell" class="mr-1 inline h-3.5 w-3.5" />
+            Push test
+          </a>
+        </div>
+        {#if exportError}
+          <p class="mt-1.5 text-xs text-danger">{exportError}</p>
+        {/if}
+      </section>
+
+      <!-- Zone sensible -->
+      <section
+        class="mt-auto rounded-xl border border-danger/40 bg-danger/5 p-3">
+        <h3
+          class="mb-2 flex items-center gap-2 text-[0.65rem] font-bold tracking-wider text-danger uppercase">
+          Zone sensible
+          <span class="h-px flex-1 bg-danger/40"></span>
+        </h3>
+        <div class="flex flex-col gap-2">
+          <button
+            onclick={resendVerification}
+            disabled={verifySending || selected.emailVerified}
+            class="btn btn-ghost btn-sm w-full disabled:opacity-50">
+            {verifySending ? "Envoi…" : "Renvoyer l'email de vérification"}
+          </button>
+          <button
+            onclick={sendPasswordReset}
+            disabled={resetSending}
+            class="btn btn-ghost btn-sm w-full disabled:opacity-50">
+            {resetSending ? "Envoi…" : "Envoyer un lien de réinitialisation"}
+          </button>
+          {#if verifyMessage}
+            <p class="text-xs text-dim">{verifyMessage}</p>
+          {/if}
+          {#if resetMessage}
+            <p class="text-xs text-dim">{resetMessage}</p>
+          {/if}
+          {#if selected.id === auth.user?.id}
+            <p class="text-xs text-dim">
+              Utilise la suppression de compte depuis /account pour ton propre
+              compte.
+            </p>
+          {:else}
+            <button
+              onclick={openDeleteModal}
+              class="btn btn-danger btn-sm w-full">
+              Supprimer le compte
+            </button>
+          {/if}
+        </div>
+      </section>
+    </div>
+  </div>
+{/if}
+
+{#if showRevokeAllConfirm && selected}
+  <ConfirmationModal
+    title="Révoquer toutes les sessions ?"
+    message={`Tous les appareils connectés de ${selected.displayName} seront déconnectés. Le compte devra se reconnecter partout.`}
+    confirmLabel="Révoquer tout"
+    danger
+    busy={revokingAll}
+    onConfirm={confirmRevokeAll}
+    onCancel={() => (showRevokeAllConfirm = false)} />
+{/if}
+
+{#if showDeleteModal && selected}
+  <div
+    class="fixed inset-0 z-[60] flex items-end justify-center sm:items-center">
+    <button
+      class="absolute inset-0 cursor-default bg-black/60"
+      aria-label="Fermer"
+      onclick={closeDeleteModal}></button>
+    <div
+      role="dialog"
+      aria-modal="true"
+      class="card relative z-10 w-full max-w-md rounded-t-2xl p-5 sm:rounded-2xl">
+      <h3 class="mb-3 font-display text-lg font-bold text-danger">
+        Supprimer le compte
+      </h3>
+      <p class="text-sm text-dim">
+        Le compte de <strong class="text-fg">{selected.displayName}</strong> et toutes
+        ses données (bibliothèques, historique, notifications) seront définitivement
+        supprimés. Cette action est irréversible.
+      </p>
+      <p class="mt-3 text-sm text-dim">
+        Pour confirmer, tape
+        <code
+          class="rounded bg-surface-2 px-1.5 py-0.5 text-xs font-bold text-fg"
+          >{selected.username}</code>
+        ci-dessous.
+      </p>
+      <input
+        type="text"
+        bind:value={deleteConfirmText}
+        disabled={deleting}
+        placeholder={selected.username}
+        class="mt-3 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm" />
+      {#if deleteError}
+        <Banner variant="error" class="mt-3">{deleteError}</Banner>
+      {/if}
+      <div class="mt-5 flex justify-end gap-2">
+        <button
+          type="button"
+          class="btn btn-ghost"
+          disabled={deleting}
+          onclick={closeDeleteModal}>
+          Annuler
+        </button>
+        <button
+          type="button"
+          class="btn btn-danger"
+          disabled={deleting || deleteConfirmText !== selected.username}
+          onclick={confirmDelete}>
+          {deleting ? "Suppression…" : "Supprimer définitivement"}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}

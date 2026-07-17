@@ -9,6 +9,7 @@
     updateBookEntry,
     upsertBookEntry,
   } from "$lib/api/client";
+  import Banner from "$lib/components/Banner.svelte";
   import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import Lightbox from "$lib/components/Lightbox.svelte";
@@ -16,33 +17,23 @@
   import OwnershipField from "$lib/components/OwnershipField.svelte";
   import Poster from "$lib/components/Poster.svelte";
   import RatingPips from "$lib/components/RatingPips.svelte";
+  import RelatedCarousel from "$lib/components/RelatedCarousel.svelte";
+  import SegmentedStatusControl from "$lib/components/SegmentedStatusControl.svelte";
+  import TrackingPanel from "$lib/components/TrackingPanel.svelte";
+  import { toCarouselItems } from "$lib/carousel";
+  import { formatDate } from "$lib/format";
+  import { createLibraryEntryActions } from "$lib/library-entry";
   import {
     BOOK_OWNERSHIP_SOURCES,
     BOOK_OWNERSHIP_STATUS_OPTIONS,
   } from "$lib/ownership-sources";
-  import type { BookDetailDto, BookStatus } from "@tracklore/shared";
-
-  const STATUS_META: Record<BookStatus, { label: string; cls: string }> = {
-    TO_READ: { label: "À lire", cls: "bg-surface-2 text-dim" },
-    READING: { label: "En lecture", cls: "bg-accent text-accent-fg" },
-    READ: { label: "Lu", cls: "bg-success/15 text-success" },
-    DROPPED: { label: "Abandonné", cls: "border border-danger text-danger" },
-  };
-  // Surfaced as a tooltip on the status badge / segments.
-  const STATUS_DESC: Record<BookStatus, string> = {
-    TO_READ: "Dans ta pile, pas encore commencé.",
-    READING: "Tu lis ce livre en ce moment.",
-    READ: "Tu as terminé ce livre.",
-    DROPPED: "Tu as arrêté et ne comptes pas le reprendre.",
-  };
-  const STATUS_ORDER: BookStatus[] = ["TO_READ", "READING", "READ", "DROPPED"];
-  // Active-segment styling for the segmented status control.
-  const SEG_ACTIVE: Record<BookStatus, string> = {
-    TO_READ: "bg-surface text-fg shadow-sm",
-    READING: "bg-accent text-accent-fg",
-    READ: "bg-success/20 text-success",
-    DROPPED: "text-danger shadow-[inset_0_0_0_1px_var(--color-danger)]",
-  };
+  import {
+    BOOK_STATUS_DESC as STATUS_DESC,
+    BOOK_STATUS_META as STATUS_META,
+    BOOK_STATUS_ORDER as STATUS_ORDER,
+    BOOK_STATUS_SEG_ACTIVE as SEG_ACTIVE,
+  } from "$lib/status-labels";
+  import type { BookDetailDto } from "@tracklore/shared";
 
   // Google Books is the only book source today; the web route carries just the id.
   const SOURCE = "google_books";
@@ -58,11 +49,6 @@
   let confirmRemove = $state(false);
   let removing = $state(false);
   let lightboxOpen = $state(false);
-  const dateFmt = new Intl.DateTimeFormat("fr-FR", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 
   const id = $derived(page.params.id ?? "");
   const entry = $derived(detail?.entry ?? null);
@@ -88,93 +74,60 @@
       });
   });
 
-  async function reload() {
-    detail = await getBookDetail(SOURCE, id);
-  }
-
-  async function add() {
-    if (!detail) return;
-    saving = true;
-    error = null;
-    try {
-      await upsertBookEntry({
-        source: detail.source,
-        sourceId: detail.sourceId,
-        status: "TO_READ",
-      });
-      await reload();
-    } catch (err) {
-      error =
-        err instanceof ApiError ? err.message : "Impossible d'ajouter ce livre";
-    } finally {
-      saving = false;
-    }
-  }
-
-  async function patch(changes: Parameters<typeof updateBookEntry>[1]) {
-    if (!entry) return;
-    saving = true;
-    error = null;
-    try {
-      await updateBookEntry(entry.id, changes);
-      await reload();
-    } catch (err) {
-      error = err instanceof ApiError ? err.message : "Mise à jour impossible";
-    } finally {
-      saving = false;
-    }
-  }
-
-  async function doRemove() {
-    if (!entry) return;
-    removing = true;
-    error = null;
-    try {
-      await deleteBookEntry(entry.id);
-      confirmRemove = false;
-      await reload(); // Entry becomes null → the page returns to the "add" state.
-    } catch (err) {
-      error = err instanceof ApiError ? err.message : "Suppression impossible";
-    } finally {
-      removing = false;
-    }
-  }
-
-  async function addReplay() {
-    if (!entry) return;
-    saving = true;
-    error = null;
-    try {
-      await addBookReplay(entry.id);
-      await reload();
-    } catch (err) {
-      error =
-        err instanceof ApiError ? err.message : "Impossible d'enregistrer";
-    } finally {
-      saving = false;
-    }
-  }
-
-  async function removeReplay(replayId: string) {
-    saving = true;
-    error = null;
-    try {
-      await deleteBookReplay(replayId);
-      await reload();
-    } catch (err) {
-      error = err instanceof ApiError ? err.message : "Impossible de supprimer";
-    } finally {
-      saving = false;
-    }
-  }
+  const { reload, add, patch, doRemove, addReplay, removeReplay } =
+    createLibraryEntryActions(
+      {
+        get detail() {
+          return detail;
+        },
+        set detail(v) {
+          detail = v;
+        },
+        get error() {
+          return error;
+        },
+        set error(v) {
+          error = v;
+        },
+        get saving() {
+          return saving;
+        },
+        set saving(v) {
+          saving = v;
+        },
+        get confirmRemove() {
+          return confirmRemove;
+        },
+        set confirmRemove(v) {
+          confirmRemove = v;
+        },
+        get removing() {
+          return removing;
+        },
+        set removing(v) {
+          removing = v;
+        },
+      },
+      {
+        load: () => getBookDetail(SOURCE, id),
+        add: (d) =>
+          upsertBookEntry({
+            source: d.source,
+            sourceId: d.sourceId,
+            status: "TO_READ",
+          }),
+        update: updateBookEntry,
+        remove: deleteBookEntry,
+        addReplay: addBookReplay,
+        removeReplay: deleteBookReplay,
+        addErrorMessage: "Impossible d'ajouter ce livre",
+      },
+    );
 </script>
 
 {#if error}
   <div class="mx-auto max-w-4xl px-4 py-6 md:px-8">
-    <p
-      class="rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-      {error}
-    </p>
+    <Banner variant="error">{error}</Banner>
     <a href="/books" class="btn btn-ghost mt-4">← Livres</a>
   </div>
 {/if}
@@ -279,7 +232,7 @@
             href={detail.website}
             target="_blank"
             rel="noopener noreferrer"
-            class="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-accent hover:underline">
+            class="mt-4 inline-flex items-center gap-1 text-sm link-accent">
             Voir sur Google Books ↗
           </a>
         {/if}
@@ -292,52 +245,19 @@
             </button>
           </div>
         {:else}
-          <div
-            class="mt-6 flex max-w-xl flex-col gap-4 rounded-xl border border-border bg-surface p-4">
-            <!-- Block header: label + favourite pinned top-right. -->
-            <div class="flex items-center justify-between gap-2">
-              <span class="timecode text-[0.62rem] tracking-[0.18em] uppercase"
-                >Mon suivi</span>
-              <button
-                type="button"
-                aria-pressed={entry.favorite}
-                disabled={saving}
-                title={entry.favorite
-                  ? "Retirer des coups de cœur"
-                  : "Coup de cœur"}
-                aria-label={entry.favorite
-                  ? "Retirer des coups de cœur"
-                  : "Coup de cœur"}
-                onclick={() => patch({ favorite: !entry.favorite })}
-                class="rounded-full p-1.5 transition-colors disabled:opacity-50 {entry.favorite
-                  ? 'text-accent'
-                  : 'text-dim hover:bg-surface-2 hover:text-fg'}">
-                <Icon
-                  name="star"
-                  class="h-5 w-5 {entry.favorite ? 'fill-accent' : ''}" />
-              </button>
-            </div>
-
-            <!-- Statut (user-owned) — segmented so every state reads at a glance. -->
-            <div
-              class="grid grid-cols-4 gap-1 rounded-xl border border-border bg-surface-2 p-1"
-              role="group"
-              aria-label="Statut">
-              {#each STATUS_ORDER as status (status)}
-                <button
-                  type="button"
-                  aria-pressed={entry.status === status}
-                  disabled={saving}
-                  title={STATUS_DESC[status]}
-                  class="rounded-lg py-2 text-xs font-bold transition-colors disabled:opacity-50 {entry.status ===
-                  status
-                    ? SEG_ACTIVE[status]
-                    : 'text-dim hover:text-fg'}"
-                  onclick={() => patch({ status })}>
-                  {STATUS_META[status].label}
-                </button>
-              {/each}
-            </div>
+          <TrackingPanel
+            favorite={entry.favorite}
+            {saving}
+            onToggleFavorite={() => patch({ favorite: !entry.favorite })}
+            onRemove={() => (confirmRemove = true)}>
+            <SegmentedStatusControl
+              statuses={STATUS_ORDER}
+              current={entry.status}
+              disabled={saving}
+              meta={STATUS_META}
+              desc={STATUS_DESC}
+              activeClass={SEG_ACTIVE}
+              onSelect={(status) => patch({ status })} />
 
             <!-- Reading progress: page position, with a bar when the total is known. -->
             <div class="flex flex-col gap-2">
@@ -409,7 +329,7 @@
                   {#if entry.status === "READ"}
                     <button
                       type="button"
-                      class="text-xs font-semibold text-accent hover:underline disabled:opacity-50"
+                      class="text-xs link-accent disabled:opacity-50"
                       disabled={saving}
                       onclick={addReplay}>
                       + J'ai relu ce livre
@@ -421,7 +341,7 @@
                     {#each entry.replays as replay (replay.id)}
                       <li class="flex items-center gap-2 text-xs text-dim">
                         <span class="flex-1">
-                          {dateFmt.format(new Date(replay.finishedAt))}
+                          {formatDate(replay.finishedAt)}
                         </span>
                         <button
                           type="button"
@@ -437,39 +357,12 @@
                 {/if}
               </div>
             {/if}
-
-            <div class="flex justify-end">
-              <button
-                type="button"
-                class="text-sm font-medium text-dim underline-offset-4 transition-colors hover:text-danger hover:underline disabled:opacity-50"
-                disabled={saving}
-                onclick={() => (confirmRemove = true)}>
-                Retirer de ma bibliothèque
-              </button>
-            </div>
-          </div>
+          </TrackingPanel>
         {/if}
 
-        {#if detail.sameAuthorBooks.length > 0}
-          <section class="mt-10">
-            <h2 class="mb-3 font-display text-xl font-bold">Du même auteur</h2>
-            <div
-              class="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pt-2 pb-2 md:mx-0 md:px-0">
-              {#each detail.sameAuthorBooks as book (book.sourceId)}
-                <a
-                  href={`/books/${book.sourceId}`}
-                  class="w-28 shrink-0 snap-start sm:w-32">
-                  <div class="card transition-colors hover:border-accent">
-                    <Poster src={book.coverUrl} title={book.title} />
-                  </div>
-                  <p class="mt-1.5 truncate text-xs font-semibold">
-                    {book.title}
-                  </p>
-                </a>
-              {/each}
-            </div>
-          </section>
-        {/if}
+        <RelatedCarousel
+          title="Du même auteur"
+          items={toCarouselItems(detail.sameAuthorBooks, "/books")} />
 
         <!-- Details panel, mobile position: after "Mon suivi". -->
         {#if hasMeta}

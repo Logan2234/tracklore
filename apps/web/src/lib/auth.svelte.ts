@@ -13,9 +13,9 @@ class AuthState {
     return this.user !== null;
   }
 
-  /** Whether the current user holds the `admin` entitlement (gates /admin). */
+  /** Whether the current user has the ADMIN role (gates /admin). */
   get isAdmin(): boolean {
-    return this.user?.entitlements.includes("admin") ?? false;
+    return this.user?.role === "ADMIN";
   }
 
   /**

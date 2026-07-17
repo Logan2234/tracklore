@@ -5,24 +5,18 @@
     searchBooks,
     upsertBookEntry,
   } from "$lib/api/client";
+  import Banner from "$lib/components/Banner.svelte";
+  import EmptyState from "$lib/components/EmptyState.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import Poster from "$lib/components/Poster.svelte";
-  import type {
-    BookEntryDto,
-    BookStatus,
-    BookSummaryDto,
-  } from "@tracklore/shared";
+  import PosterGrid from "$lib/components/PosterGrid.svelte";
+  import { debounce } from "$lib/debounce";
+  import { BOOK_STATUS_LABELS as STATUS_LABELS } from "$lib/status-labels";
+  import type { BookEntryDto, BookSummaryDto } from "@tracklore/shared";
   import { SvelteMap } from "svelte/reactivity";
 
   // The search query is owned by the page and shared across domain panels.
   let { query }: { query: string } = $props();
-
-  const STATUS_LABELS: Record<BookStatus, string> = {
-    TO_READ: "À lire",
-    READING: "En lecture",
-    READ: "Lu",
-    DROPPED: "Abandonné",
-  };
 
   const DEBOUNCE_MS = 300;
 
@@ -31,7 +25,10 @@
   let searched = $state(false);
   let searchError = $state<string | null>(null);
   let searchId = 0;
-  let debounceTimer: ReturnType<typeof setTimeout>;
+  const debouncedSearch = debounce(
+    (q: string) => void runSearch(q),
+    DEBOUNCE_MS,
+  );
 
   // Books already in the library, keyed by source id → their entry, so a search
   // result can be flagged (and jumped to) instead of re-added.
@@ -55,8 +52,8 @@
   // Debounced catalogue search.
   $effect(() => {
     const q = query.trim();
-    clearTimeout(debounceTimer);
     if (!q) {
+      debouncedSearch.cancel();
       searchId++;
       results = [];
       searched = false;
@@ -64,8 +61,8 @@
       searching = false;
       return;
     }
-    debounceTimer = setTimeout(() => void runSearch(q), DEBOUNCE_MS);
-    return () => clearTimeout(debounceTimer);
+    debouncedSearch.call(q);
+    return () => debouncedSearch.cancel();
   });
 
   async function runSearch(q: string) {
@@ -101,28 +98,23 @@
 </script>
 
 {#if searchError}
-  <p
-    class="mb-4 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-    {searchError}
-  </p>
+  <Banner variant="error" class="mb-4">{searchError}</Banner>
 {/if}
 
 {#if searching && results.length === 0}
-  <div
-    class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+  <PosterGrid>
     {#each { length: 10 } as _, i (i)}
       <div class="card flex flex-col">
-        <div class="aspect-2/3 w-full animate-pulse bg-surface-2"></div>
+        <div class="aspect-2/3 w-full skeleton"></div>
         <div class="flex flex-col gap-2 p-3">
-          <div class="h-3.5 w-4/5 animate-pulse rounded bg-surface-2"></div>
-          <div class="h-3 w-1/2 animate-pulse rounded bg-surface-2"></div>
+          <div class="h-3.5 w-4/5 skeleton rounded"></div>
+          <div class="h-3 w-1/2 skeleton rounded"></div>
         </div>
       </div>
     {/each}
-  </div>
+  </PosterGrid>
 {:else if results.length > 0}
-  <div
-    class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+  <PosterGrid>
     {#each results as book (book.sourceId)}
       {@const entry = tracked.get(book.sourceId)}
       <div class="card group flex flex-col">
@@ -161,12 +153,9 @@
         </div>
       </div>
     {/each}
-  </div>
+  </PosterGrid>
 {:else if searched}
   <p class="timecode text-sm">Aucun livre trouvé.</p>
 {:else}
-  <div
-    class="rounded-xl border border-dashed border-border px-6 py-16 text-center text-dim">
-    Lance une recherche pour trouver un livre à ajouter.
-  </div>
+  <EmptyState>Lance une recherche pour trouver un livre à ajouter.</EmptyState>
 {/if}

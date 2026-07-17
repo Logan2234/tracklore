@@ -1,7 +1,11 @@
 <script lang="ts">
   import { ApiError, listLibrary, searchCatalog } from "$lib/api/client";
+  import Banner from "$lib/components/Banner.svelte";
+  import EmptyState from "$lib/components/EmptyState.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import Poster from "$lib/components/Poster.svelte";
+  import PosterGrid from "$lib/components/PosterGrid.svelte";
+  import { debounce } from "$lib/debounce";
   import type {
     EntryStatus,
     MediaSummaryDto,
@@ -52,7 +56,7 @@
   let lastPage = 0; // last page number fetched for the current search
   let searchId = 0; // bumped on every reset; stale responses are discarded
   let seen = new SvelteSet<string>(); // catalogue keys already shown (cross-page dedup)
-  let debounceTimer: ReturnType<typeof setTimeout>;
+  const debouncedSearch = debounce(() => void runSearch(true), DEBOUNCE_MS);
 
   const keyOf = (m: MediaSummaryDto) => `${m.source}:${m.sourceId}`;
 
@@ -143,13 +147,13 @@
   // Debounced live search: refetch page 1 whenever the query changes.
   $effect(() => {
     const q = query; // track the query only (type is handled eagerly below)
-    clearTimeout(debounceTimer);
     if (!q.trim()) {
+      debouncedSearch.cancel();
       clearResults();
       return;
     }
-    debounceTimer = setTimeout(() => void runSearch(true), DEBOUNCE_MS);
-    return () => clearTimeout(debounceTimer);
+    debouncedSearch.call();
+    return () => debouncedSearch.cancel();
   });
 
   // Infinite scroll: load the next page when the sentinel nears the viewport.
@@ -169,7 +173,7 @@
   function selectType(value: MediaType | undefined) {
     if (value === type) return;
     type = value;
-    clearTimeout(debounceTimer);
+    debouncedSearch.cancel();
     if (query.trim())
       void runSearch(true); // eager, no debounce
     else clearResults();
@@ -188,28 +192,23 @@
 </div>
 
 {#if error}
-  <p
-    class="mb-4 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-    {error}
-  </p>
+  <Banner variant="error" class="mb-4">{error}</Banner>
 {/if}
 
 {#if loading && results.length === 0}
-  <div
-    class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+  <PosterGrid>
     {#each { length: 10 } as _, i (i)}
       <div class="card flex flex-col">
-        <div class="aspect-2/3 w-full animate-pulse bg-surface-2"></div>
+        <div class="aspect-2/3 w-full skeleton"></div>
         <div class="flex flex-col gap-2 p-3">
-          <div class="h-3.5 w-4/5 animate-pulse rounded bg-surface-2"></div>
-          <div class="h-3 w-1/2 animate-pulse rounded bg-surface-2"></div>
+          <div class="h-3.5 w-4/5 skeleton rounded"></div>
+          <div class="h-3 w-1/2 skeleton rounded"></div>
         </div>
       </div>
     {/each}
-  </div>
+  </PosterGrid>
 {:else if results.length > 0}
-  <div
-    class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+  <PosterGrid>
     {#each results as media (keyOf(media))}
       <a
         in:fly={{ y: 8, duration: reduced ? 0 : 220 }}
@@ -238,7 +237,7 @@
         </div>
       </a>
     {/each}
-  </div>
+  </PosterGrid>
 
   {#if !done}
     <!-- Sentinel: entering the viewport triggers the next page. -->
@@ -250,8 +249,7 @@
 {:else if searched}
   <p class="timecode text-sm">Aucun résultat.</p>
 {:else}
-  <div
-    class="rounded-xl border border-dashed border-border px-6 py-16 text-center text-dim">
+  <EmptyState>
     Lance une recherche pour trouver un film, une série ou un animé.
-  </div>
+  </EmptyState>
 {/if}

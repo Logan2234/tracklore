@@ -5,6 +5,7 @@
     previewSteamImport,
     searchGames,
   } from "$lib/api/client";
+  import Banner from "$lib/components/Banner.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import Poster from "$lib/components/Poster.svelte";
   import type {
@@ -15,19 +16,10 @@
     SteamUnmatchedGameDto,
   } from "@tracklore/shared";
   import { SvelteMap, SvelteSet } from "svelte/reactivity";
-
-  const STATUS_LABELS: Record<GameStatus, string> = {
-    BACKLOG: "À jouer",
-    PLAYING: "En cours",
-    COMPLETED: "Terminé",
-    DROPPED: "Abandonné",
-  };
-  const STATUS_ORDER: GameStatus[] = [
-    "BACKLOG",
-    "PLAYING",
-    "COMPLETED",
-    "DROPPED",
-  ];
+  import {
+    GAME_STATUS_LABELS as STATUS_LABELS,
+    GAME_STATUS_ORDER as STATUS_ORDER,
+  } from "$lib/status-labels";
 
   type Step = "input" | "review" | "done";
   let step = $state<Step>("input");
@@ -225,10 +217,7 @@
   </div>
 
   {#if error}
-    <p
-      class="mb-4 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-      {error}
-    </p>
+    <Banner variant="error" class="mb-4">{error}</Banner>
   {/if}
 
   {#if step === "input"}
@@ -239,8 +228,7 @@
         href="https://steamcommunity.com/my/edit/settings"
         target="_blank"
         rel="noopener noreferrer"
-        class="font-semibold text-accent hover:underline"
-        >réglages de confidentialité ↗</a
+        class="link-accent">réglages de confidentialité ↗</a
       >).
     </p>
 
@@ -267,8 +255,7 @@
         href="https://steamid.io"
         target="_blank"
         rel="noopener noreferrer"
-        class="font-semibold text-accent hover:underline">steamid.io ↗</a> si ton
-      profil n'a pas d'URL personnalisée.
+        class="link-accent">steamid.io ↗</a> si ton profil n'a pas d'URL personnalisée.
     </p>
   {:else if step === "review" && preview}
     <p class="mb-1 text-sm text-dim">
