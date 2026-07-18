@@ -1,11 +1,13 @@
 import { ConfigService } from "@nestjs/config";
 import { GameSource } from "@tracklore/shared";
-import type { ProviderGameDetails } from "../providers/game-provider.types";
-import { GameItemService } from "../game-item.service";
-import { IgdbProvider } from "../providers/igdb.provider";
-import { PrismaService } from "../../prisma/prisma.service";
-import { AgeGateService } from "../../users/age-gate.service";
-import { SteamImportService } from "./steam-import.service";
+import type { ImportPlan, ImportPlanItem } from "@tracklore/shared";
+import type { ProviderGameDetails } from "../../../games/providers/game-provider.types";
+import { GameItemService } from "../../../games/game-item.service";
+import { IgdbProvider } from "../../../games/providers/igdb.provider";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { AgeGateService } from "../../../users/age-gate.service";
+import { ImportJobService } from "../../import-job.service";
+import { SteamImportSource } from "./steam.source";
 
 const originalFetch = global.fetch;
 
@@ -50,12 +52,12 @@ interface Mocks {
   ageGate: { allowsAdultContent: jest.Mock };
   prisma: {
     gameExternalId: { findMany: jest.Mock };
-    gameEntry: { findMany: jest.Mock; upsert: jest.Mock };
+    gameEntry: { findMany: jest.Mock; upsert: jest.Mock; deleteMany: jest.Mock };
   };
 }
 
 function build(over: Partial<Mocks> = {}): {
-  service: SteamImportService;
+  service: ImportJobService;
   mocks: Mocks;
 } {
   const mocks: Mocks = {
@@ -64,10 +66,7 @@ function build(over: Partial<Mocks> = {}): {
       getDetailsByIds: jest.fn().mockResolvedValue([]),
       ...over.igdb,
     },
-    gameItemService: {
-      persistDetails: jest.fn(),
-      ...over.gameItemService,
-    },
+    gameItemService: { persistDetails: jest.fn(), ...over.gameItemService },
     ageGate: {
       allowsAdultContent: jest.fn().mockResolvedValue(false),
       ...over.ageGate,
@@ -77,27 +76,47 @@ function build(over: Partial<Mocks> = {}): {
       gameEntry: {
         findMany: jest.fn().mockResolvedValue([]),
         upsert: jest.fn(),
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
       ...over.prisma,
     },
   };
   const config = { getOrThrow: jest.fn().mockReturnValue("steam-key") };
-  const service = new SteamImportService(
+  const source = new SteamImportSource(
     config as unknown as ConfigService,
     mocks.prisma as unknown as PrismaService,
     mocks.igdb as unknown as IgdbProvider,
     mocks.gameItemService as unknown as GameItemService,
     mocks.ageGate as unknown as AgeGateService,
   );
-  return { service, mocks };
+  return { service: new ImportJobService([source]), mocks };
 }
 
-describe("SteamImportService", () => {
+async function runToEnd(
+  service: ImportJobService,
+  userId: string,
+  jobId: string,
+) {
+  for (let i = 0; i < 100; i++) {
+    if (service.getJob(userId, jobId).status !== "running") break;
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  return service.getJob(userId, jobId);
+}
+
+function items(plan: ImportPlan): ImportPlanItem[] {
+  return plan.groups.flatMap((g) => g.items);
+}
+function byKey(plan: ImportPlan, key: string): ImportPlanItem | undefined {
+  return items(plan).find((it) => it.key === key);
+}
+
+describe("SteamImportSource (via ImportJobService)", () => {
   afterEach(() => {
     global.fetch = originalFetch;
   });
 
-  it("matches owned games to IGDB, filtering adult titles and sorting by playtime", async () => {
+  it("matches owned games to IGDB, filtering adult titles and grouping by status", async () => {
     const { service, mocks } = build({
       igdb: {
         matchSteamAppIds: jest.fn().mockResolvedValue(
@@ -109,11 +128,7 @@ describe("SteamImportService", () => {
         ),
         getDetailsByIds: jest
           .fn()
-          .mockResolvedValue([
-            detail("100"),
-            detail("200"),
-            detail("300", true),
-          ]),
+          .mockResolvedValue([detail("100"), detail("200"), detail("300", true)]),
       },
       prisma: {
         gameExternalId: {
@@ -124,6 +139,7 @@ describe("SteamImportService", () => {
         gameEntry: {
           findMany: jest.fn().mockResolvedValue([{ gameItemId: "gi200" }]),
           upsert: jest.fn(),
+          deleteMany: jest.fn(),
         },
       },
     });
@@ -142,37 +158,36 @@ describe("SteamImportService", () => {
       },
     });
 
-    const preview = await service.preview(
-      "user1",
-      "76561197960287930", // SteamID64 → used as-is
-    );
+    const started = service.startAnalyze("user1", "steam", {
+      input: "76561197960287930",
+    });
+    const job = await runToEnd(service, "user1", started.id);
 
-    expect(preview.steamId).toBe("76561197960287930");
-    expect(preview.totalOwned).toBe(4);
-    // Adult (300) and unmatched (40) excluded; sorted by playtime desc.
-    expect(preview.matched).toEqual([
-      {
-        sourceId: "100",
-        title: "Game 100",
-        coverUrl: "cover-100",
-        playtimeMinutes: 600,
-        recentlyPlayed: false,
-        alreadyInLibrary: false,
-      },
-      {
-        sourceId: "200",
-        title: "Game 200",
-        coverUrl: "cover-200",
-        playtimeMinutes: 100,
-        recentlyPlayed: true,
-        alreadyInLibrary: true,
-      },
-    ]);
-    // The adult title (300) matched IGDB fine but is age-filtered, not
-    // "unmatched" — only the truly unresolved appid (40) shows up here.
-    expect(preview.unmatched).toEqual([
-      { appid: "40", name: null, playtimeMinutes: 5 },
-    ]);
+    expect(job.status).toBe("completed");
+    // Adult (300) excluded entirely; 100 + 200 matched, 40 unmatched.
+    expect(job.plan!.counts).toEqual({
+      total: 3,
+      matched: 2,
+      unresolved: 1,
+      apiErrors: 0,
+    });
+    expect(byKey(job.plan!, "g100")).toMatchObject({
+      sourceTitle: "Game 100",
+      subtitle: "10 h",
+      defaultStatus: "BACKLOG",
+      include: true,
+      match: { source: "IGDB", sourceId: "100" },
+    });
+    expect(byKey(job.plan!, "g200")).toMatchObject({
+      subtitle: "2 h · joué récemment",
+      defaultStatus: "PLAYING",
+      alreadyInLibrary: true,
+      include: false, // already tracked
+    });
+    expect(byKey(job.plan!, "u40")).toMatchObject({
+      match: null,
+      subtitle: "< 1 h",
+    });
     expect(mocks.igdb.matchSteamAppIds).toHaveBeenCalledWith([
       "10",
       "20",
@@ -190,30 +205,40 @@ describe("SteamImportService", () => {
       GetOwnedGames: { response: { game_count: 0, games: [] } },
     });
 
-    const preview = await service.preview(
-      "user1",
-      "https://steamcommunity.com/id/gaben",
-    );
+    const started = service.startAnalyze("user1", "steam", {
+      input: "https://steamcommunity.com/id/gaben",
+    });
+    const job = await runToEnd(service, "user1", started.id);
 
-    expect(preview.steamId).toBe("76561190000000000");
+    expect(job.status).toBe("completed");
     const vanityCall = fetchMock.mock.calls.find(([u]) =>
       String(u).includes("ResolveVanityURL"),
     );
     expect(String(vanityCall?.[0])).toContain("vanityurl=gaben");
   });
 
-  it("throws a clear error when the profile is private", async () => {
+  it("fails the job with a clear error when the profile is private", async () => {
     const { service } = build();
     mockFetchByUrl({ GetOwnedGames: { response: {} } });
-    await expect(service.preview("user1", "76561197960287930")).rejects.toThrow(
-      /public/i,
-    );
+
+    const started = service.startAnalyze("user1", "steam", {
+      input: "76561197960287930",
+    });
+    const job = await runToEnd(service, "user1", started.id);
+
+    expect(job.status).toBe("failed");
+    expect(job.error).toMatch(/public/i);
   });
 
-  it("commit persists chosen games and skips adult titles for non-opted-in users", async () => {
+  it("commit persists chosen games and skips adult titles disabled at commit time", async () => {
     const { service, mocks } = build({
       igdb: {
-        matchSteamAppIds: jest.fn(),
+        matchSteamAppIds: jest.fn().mockResolvedValue(
+          new Map([
+            ["10", "100"],
+            ["30", "300"],
+          ]),
+        ),
         getDetailsByIds: jest
           .fn()
           .mockResolvedValue([detail("100"), detail("300", true)]),
@@ -225,16 +250,41 @@ describe("SteamImportService", () => {
             Promise.resolve({ id: `gi-${d.summary.sourceId}` }),
           ),
       },
+      ageGate: {
+        // Opted-in during analyze (300 lands in the plan), opted-out at commit.
+        allowsAdultContent: jest
+          .fn()
+          .mockResolvedValueOnce(true)
+          .mockResolvedValue(false),
+      },
     });
 
-    const result = await service.commit("user1", [
-      { sourceId: "100", status: "PLAYING", playtimeMinutes: 600 },
-      { sourceId: "300", status: "BACKLOG", playtimeMinutes: 50 },
-    ]);
+    mockFetchByUrl({
+      GetOwnedGames: {
+        response: {
+          game_count: 2,
+          games: [
+            { appid: 10, playtime_forever: 600 },
+            { appid: 30, playtime_forever: 50 },
+          ],
+        },
+      },
+    });
 
-    expect(result.imported).toBe(1);
+    const analyzed = service.startAnalyze("user1", "steam", {
+      input: "76561197960287930",
+    });
+    await runToEnd(service, "user1", analyzed.id);
+
+    const committed = service.commit("user1", "steam", analyzed.id, {
+      include: ["g100", "g300"],
+      statuses: { g100: "PLAYING" },
+    });
+    const job = await runToEnd(service, "user1", committed.id);
+
+    expect(job.status).toBe("completed");
+    // Only the non-adult game is written; 300 is skipped by the commit guard.
     expect(mocks.gameItemService.persistDetails).toHaveBeenCalledTimes(1);
-    expect(mocks.prisma.gameEntry.upsert).toHaveBeenCalledTimes(1);
     expect(mocks.prisma.gameEntry.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         create: expect.objectContaining({

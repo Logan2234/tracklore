@@ -4,10 +4,6 @@ import type {
   GameSearchResponseDto,
   GameStatsDto,
   PagedResult,
-  SteamImportCommitRequestDto,
-  SteamImportPreviewDto,
-  SteamImportPreviewRequestDto,
-  SteamImportResultDto,
   UpdateGameEntryDto,
   UpsertGameEntryDto,
 } from "@tracklore/shared";
@@ -43,20 +39,6 @@ export function listGames(
 
 export function getGameStats(): Promise<GameStatsDto> {
   return request("/games/stats");
-}
-
-/** Resolve + match a Steam library against IGDB (writes nothing). */
-export function previewSteamImport(
-  body: SteamImportPreviewRequestDto,
-): Promise<SteamImportPreviewDto> {
-  return request("/games/import/steam/preview", { method: "POST", body });
-}
-
-/** Persist the chosen Steam games as library entries. */
-export function commitSteamImport(
-  body: SteamImportCommitRequestDto,
-): Promise<SteamImportResultDto> {
-  return request("/games/import/steam/commit", { method: "POST", body });
 }
 
 /** Game detail (catalogue metadata + the user's library state). */

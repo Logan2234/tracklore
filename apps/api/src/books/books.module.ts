@@ -3,25 +3,14 @@ import { UsersModule } from "../users/users.module";
 import { BookItemService } from "./book-item.service";
 import { BookLibraryService } from "./book-library.service";
 import { BooksController } from "./books.controller";
-import { GoodreadsImportController } from "./import/goodreads-import.controller";
-import { GoodreadsImportService } from "./import/goodreads-import.service";
-import { StoryGraphImportController } from "./import/storygraph-import.controller";
-import { StoryGraphImportService } from "./import/storygraph-import.service";
 import { GoogleBooksProvider } from "./providers/google-books.provider";
 
+// Import flows live in the generic ImportModule (its book sources reuse
+// BookItemService, hence the export).
 @Module({
   imports: [UsersModule],
-  controllers: [
-    BooksController,
-    StoryGraphImportController,
-    GoodreadsImportController,
-  ],
-  providers: [
-    BookItemService,
-    BookLibraryService,
-    GoogleBooksProvider,
-    StoryGraphImportService,
-    GoodreadsImportService,
-  ],
+  controllers: [BooksController],
+  providers: [BookItemService, BookLibraryService, GoogleBooksProvider],
+  exports: [BookItemService],
 })
 export class BooksModule {}

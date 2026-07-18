@@ -1,5 +1,5 @@
 import type { BookOwnershipStatus, BookStatus } from "@tracklore/shared";
-import { parseCsv } from "../../import/csv";
+import { parseCsv } from "../../csv";
 import { parseReadCount, parseStarRatingToTen } from "./csv-field.util";
 
 /** One StoryGraph CSV row reduced to the fields the import needs. */

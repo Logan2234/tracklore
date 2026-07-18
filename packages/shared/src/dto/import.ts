@@ -205,16 +205,6 @@ export interface TvTimeImportFilesDto {
   showsCsv?: string;
 }
 
-/**
- * Outcome of the legacy synchronous book/game import flows (how many rows were
- * written). Kept until StoryGraph/Goodreads/Steam move onto the async job model.
- *
- * @deprecated superseded by {@link ImportReport} on the generic import framework.
- */
-export interface ImportResultDto {
-  imported: number;
-}
-
 /** Map a series' watched/total regular episodes to a library entry status. */
 export function entryStatusFromProgress(
   watched: number,

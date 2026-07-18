@@ -3,18 +3,14 @@ import { UsersModule } from "../users/users.module";
 import { GameItemService } from "./game-item.service";
 import { GameLibraryService } from "./game-library.service";
 import { GamesController } from "./games.controller";
-import { SteamImportController } from "./import/steam-import.controller";
-import { SteamImportService } from "./import/steam-import.service";
 import { IgdbProvider } from "./providers/igdb.provider";
 
+// Import flows live in the generic ImportModule (its Steam source reuses
+// GameItemService + IgdbProvider, hence the exports).
 @Module({
   imports: [UsersModule],
-  controllers: [GamesController, SteamImportController],
-  providers: [
-    GameItemService,
-    GameLibraryService,
-    IgdbProvider,
-    SteamImportService,
-  ],
+  controllers: [GamesController],
+  providers: [GameItemService, GameLibraryService, IgdbProvider],
+  exports: [GameItemService, IgdbProvider],
 })
 export class GamesModule {}

@@ -1,6 +1,5 @@
 import type { GameOwnershipStatus, GameSource, GameStatus } from "../enums";
 import type { RatingDto } from "./catalog";
-import type { ImportResultDto } from "./import";
 import type { GenreCountDto } from "./library";
 
 /** A game as returned by a live catalogue search (not persisted). */
@@ -129,60 +128,6 @@ export interface GamePlatformCountDto {
   platform: string;
   count: number;
 }
-
-// --- Steam import ---
-
-/** One owned Steam game matched to an IGDB entry (preview step). */
-export interface SteamMatchedGameDto {
-  /** IGDB id — the catalogue identity used to persist the game. */
-  sourceId: string;
-  title: string;
-  coverUrl: string | null;
-  /** Total time played on Steam, in minutes. */
-  playtimeMinutes: number;
-  /** Played in the last two weeks (Steam `playtime_2weeks`). */
-  recentlyPlayed: boolean;
-  /** Already in the user's Tracklore library (so the UI can flag/skip it). */
-  alreadyInLibrary: boolean;
-}
-
-/** One owned Steam game IGDB has no entry for — may be associated manually. */
-export interface SteamUnmatchedGameDto {
-  appid: string;
-  /** Steam's own library name; null if Steam didn't report one. */
-  name: string | null;
-  playtimeMinutes: number;
-}
-
-/** Preview of a Steam import: what we could match, before writing anything. */
-export interface SteamImportPreviewDto {
-  /** Resolved 64-bit SteamID we fetched the library for. */
-  steamId: string;
-  /** Total games owned on Steam. */
-  totalOwned: number;
-  /** Owned games matched to an IGDB entry (sorted by playtime, desc). */
-  matched: SteamMatchedGameDto[];
-  /** Owned games IGDB has no entry for — may be associated manually. */
-  unmatched: SteamUnmatchedGameDto[];
-}
-
-/** One game the user chose to import, with the status to assign it. */
-export interface SteamImportCommitGameDto {
-  sourceId: string;
-  status: GameStatus;
-  playtimeMinutes: number;
-}
-
-export interface SteamImportPreviewRequestDto {
-  /** SteamID64, a vanity name, or a full steamcommunity.com profile URL. */
-  steamId: string;
-}
-
-export interface SteamImportCommitRequestDto {
-  games: SteamImportCommitGameDto[];
-}
-
-export type SteamImportResultDto = ImportResultDto;
 
 /**
  * Aggregated stats for the user's game library. No playtime yet (games have no
