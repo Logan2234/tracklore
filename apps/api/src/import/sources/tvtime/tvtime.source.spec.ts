@@ -1,5 +1,10 @@
-import type { StartTvTimeImportDto } from "@tracklore/shared";
-import { ImportService } from "./import.service";
+import type {
+  ImportAnalyzeRequest,
+  ImportCommitRequest,
+  ImportPlan,
+  ImportPlanItem,
+} from "@tracklore/shared";
+import { ImportJobService } from "../../import-job.service";
 import { TvTimeImportSource } from "./tvtime.source";
 import { makeZip } from "./make-zip";
 
@@ -18,7 +23,7 @@ const EMPTY_SHOWS = "tv_show_name,tv_show_id,nb_episodes_seen";
 const EMPTY_EPISODES =
   "series_name,episode_id,season_number,episode_number,s_id,bulk_type,created_at";
 
-/** Pack the given CSVs into a base64 TV Time archive for `zipBase64`. */
+/** Pack the given CSVs into a base64 TV Time archive for the `input` field. */
 function zipBase64(files: {
   episodesCsv?: string;
   showsCsv?: string;
@@ -37,7 +42,14 @@ function zipBase64(files: {
   return makeZip(entries).toString("base64");
 }
 
-function makeMocks() {
+function analyzeDto(
+  files: Parameters<typeof zipBase64>[0],
+  importMovies = true,
+): ImportAnalyzeRequest {
+  return { input: zipBase64(files), options: { importMovies } };
+}
+
+function makeService() {
   const prisma = {
     season: { findMany: jest.fn() },
     episode: { count: jest.fn() },
@@ -60,27 +72,35 @@ function makeMocks() {
     findSeriesSummaryByTvdbId: jest.fn().mockResolvedValue(null),
     search: jest.fn().mockResolvedValue([]),
   };
-  const service = new ImportService(
+  const source = new TvTimeImportSource(
     prisma as never,
     mediaItemService as never,
     tmdb as never,
-    new TvTimeImportSource(),
   );
+  const service = new ImportJobService([source]);
   return { prisma, mediaItemService, tmdb, service };
 }
 
-async function runToEnd(service: ImportService, userId: string, jobId: string) {
+async function runToEnd(
+  service: ImportJobService,
+  userId: string,
+  jobId: string,
+) {
   for (let i = 0; i < 100; i++) {
     if (service.getJob(userId, jobId).status !== "running") break;
     await new Promise((resolve) => setImmediate(resolve));
   }
-
   return service.getJob(userId, jobId);
 }
 
-describe("ImportService", () => {
+/** All plan items flattened, plus a group lookup by id. */
+function group(plan: ImportPlan, id: string): ImportPlanItem[] {
+  return plan.groups.find((g) => g.id === id)?.items ?? [];
+}
+
+describe("TvTimeImportSource (via ImportJobService)", () => {
   it("analyze builds a reconciliation plan without writing anything", async () => {
-    const { prisma, tmdb, service } = makeMocks();
+    const { prisma, tmdb, service } = makeService();
     // Only TVDB 100 resolves; the watchlist show (200) stays unresolved.
     tmdb.findSeriesSummaryByTvdbId.mockImplementation((tvdbId: string) =>
       Promise.resolve(
@@ -97,36 +117,43 @@ describe("ImportService", () => {
       ),
     );
 
-    const dto: StartTvTimeImportDto = {
-      zipBase64: zipBase64({ episodesCsv: EPISODES_CSV, showsCsv: SHOWS_CSV }),
-      importMovies: false,
-    };
-    const { id } = service.startAnalyze("u1", dto);
+    const { id } = service.startAnalyze(
+      "u1",
+      "tvtime",
+      analyzeDto({ episodesCsv: EPISODES_CSV, showsCsv: SHOWS_CSV }, false),
+    );
     const job = await runToEnd(service, "u1", id);
 
     expect(job.status).toBe("completed");
     expect(job.plan).not.toBeNull();
-    expect(job.plan!.seriesTracked).toHaveLength(1);
-    expect(job.plan!.seriesTracked[0]).toMatchObject({
+    const tracked = group(job.plan!, "seriesTracked");
+    expect(tracked).toHaveLength(1);
+    expect(tracked[0]).toMatchObject({
       key: "tvdb:100",
       title: "My Show",
-      episodesWatched: 2,
+      subtitle: "2 épisodes vus",
       include: true,
       match: { sourceId: "500", source: "TMDB" },
     });
-    expect(job.plan!.seriesWatchlist).toHaveLength(1);
-    expect(job.plan!.seriesWatchlist[0]).toMatchObject({
+    const watchlist = group(job.plan!, "seriesWatchlist");
+    expect(watchlist).toHaveLength(1);
+    expect(watchlist[0]).toMatchObject({
       key: "tvdb:200",
       match: null,
       include: false,
     });
-    expect(job.plan!.counts).toEqual({ shows: 2, movies: 0, unresolved: 1 });
+    expect(job.plan!.counts).toEqual({
+      total: 2,
+      matched: 1,
+      unresolved: 1,
+      apiErrors: 0,
+    });
     expect(prisma.libraryEntry.upsert).not.toHaveBeenCalled();
     expect(prisma.episodeWatch.createMany).not.toHaveBeenCalled();
   });
 
   it("analyze resolves movies and flags the unmatched ones", async () => {
-    const { tmdb, service } = makeMocks();
+    const { tmdb, service } = makeService();
     tmdb.search.mockImplementation((title: string) =>
       Promise.resolve(
         title === "Seen Film"
@@ -138,6 +165,7 @@ describe("ImportService", () => {
                 title: "Seen Film",
                 year: 2020,
                 posterUrl: null,
+                originalTitle: null,
               },
             ]
           : [],
@@ -150,32 +178,35 @@ describe("ImportService", () => {
       "towatch,movie,Later Film,2021-01-01 00:00:00",
     ].join("\n");
 
-    const dto: StartTvTimeImportDto = {
-      zipBase64: zipBase64({
+    const { id } = service.startAnalyze(
+      "u1",
+      "tvtime",
+      analyzeDto({
         episodesCsv: EMPTY_EPISODES,
         showsCsv: EMPTY_SHOWS,
         recordsCsv,
       }),
-    };
-    const { id } = service.startAnalyze("u1", dto);
+    );
     const job = await runToEnd(service, "u1", id);
 
-    expect(job.plan!.moviesWatched).toHaveLength(1);
-    expect(job.plan!.moviesWatched[0]).toMatchObject({
+    const watched = group(job.plan!, "moviesWatched");
+    expect(watched).toHaveLength(1);
+    expect(watched[0]).toMatchObject({
       title: "Seen Film",
       include: true,
       match: { sourceId: "m1" },
     });
-    expect(job.plan!.moviesWatchlist[0]).toMatchObject({
+    const watchlist = group(job.plan!, "moviesWatchlist");
+    expect(watchlist[0]).toMatchObject({
       title: "Later Film",
       match: null,
       include: false,
     });
-    expect(job.plan!.counts).toMatchObject({ movies: 2, unresolved: 1 });
+    expect(job.plan!.counts).toMatchObject({ total: 2, unresolved: 1 });
   });
 
   it("commit writes only the included items", async () => {
-    const { prisma, mediaItemService, tmdb, service } = makeMocks();
+    const { prisma, mediaItemService, tmdb, service } = makeService();
     tmdb.findSeriesSummaryByTvdbId.mockImplementation((tvdbId: string) =>
       Promise.resolve(
         tvdbId === "100"
@@ -203,16 +234,17 @@ describe("ImportService", () => {
       mediaItemId: "media-100",
     });
 
-    const dto: StartTvTimeImportDto = {
-      zipBase64: zipBase64({ episodesCsv: EPISODES_CSV, showsCsv: SHOWS_CSV }),
-      importMovies: false,
-    };
-    const analyze = service.startAnalyze("u1", dto);
+    const analyze = service.startAnalyze(
+      "u1",
+      "tvtime",
+      analyzeDto({ episodesCsv: EPISODES_CSV, showsCsv: SHOWS_CSV }, false),
+    );
     await runToEnd(service, "u1", analyze.id);
 
     // Keep only the resolved tracked show; the unresolved watchlist one (200)
     // is left out, so nothing is written for it.
-    const commit = service.commit("u1", analyze.id, { include: ["tvdb:100"] });
+    const commitDto: ImportCommitRequest = { include: ["tvdb:100"] };
+    const commit = service.commit("u1", "tvtime", analyze.id, commitDto);
     const job = await runToEnd(service, "u1", commit.id);
 
     expect(job.status).toBe("completed");
@@ -222,29 +254,32 @@ describe("ImportService", () => {
       "SERIES",
     );
     expect(prisma.episodeWatch.createMany).toHaveBeenCalledTimes(2);
-    expect(job.report!.shows).toMatchObject({ total: 1, imported: 1 });
-    expect(job.report!.episodes.watchesCreated).toBe(2);
+    const tile = (label: string) =>
+      job.report!.tiles.find((t) => t.label === label);
+    expect(tile("Séries")!.value).toBe(1);
+    expect(tile("Épisodes")!.value).toBe(2);
   });
 
   it("commit applies a manual override for an unresolved movie", async () => {
-    const { mediaItemService, service } = makeMocks(); // tmdb.search → [] (all unresolved)
+    const { mediaItemService, service } = makeService(); // tmdb.search → [] (all unresolved)
 
     const recordsCsv = [
       "type,entity_type,movie_name,release_date",
       "towatch,movie,Later Film,2021-01-01 00:00:00",
     ].join("\n");
-    const dto: StartTvTimeImportDto = {
-      zipBase64: zipBase64({
+    const analyze = service.startAnalyze(
+      "u1",
+      "tvtime",
+      analyzeDto({
         episodesCsv: EMPTY_EPISODES,
         showsCsv: EMPTY_SHOWS,
         recordsCsv,
       }),
-    };
-    const analyze = service.startAnalyze("u1", dto);
+    );
     await runToEnd(service, "u1", analyze.id);
 
     const key = "movie:later film:2021";
-    const commit = service.commit("u1", analyze.id, {
+    const commit = service.commit("u1", "tvtime", analyze.id, {
       include: [key],
       overrides: { [key]: { source: "TMDB", sourceId: "m2", type: "MOVIE" } },
     });
@@ -256,11 +291,13 @@ describe("ImportService", () => {
       "m2",
       "MOVIE",
     );
-    expect(job.report!.movies).toMatchObject({ total: 1, watchlist: 1 });
+    const films = job.report!.tiles.find((t) => t.label === "Films");
+    expect(films!.value).toBe(0);
+    expect(films!.sub).toBe("1 en watchlist");
   });
 
   it("commit with overwrite wipes history and library first", async () => {
-    const { prisma, tmdb, service } = makeMocks();
+    const { prisma, tmdb, service } = makeService();
     tmdb.findSeriesSummaryByTvdbId.mockResolvedValue({
       source: "TMDB",
       sourceId: "500",
@@ -276,14 +313,14 @@ describe("ImportService", () => {
       mediaItemId: "media-100",
     });
 
-    const dto: StartTvTimeImportDto = {
-      zipBase64: zipBase64({ episodesCsv: EPISODES_CSV, showsCsv: SHOWS_CSV }),
-      importMovies: false,
-    };
-    const analyze = service.startAnalyze("u1", dto);
+    const analyze = service.startAnalyze(
+      "u1",
+      "tvtime",
+      analyzeDto({ episodesCsv: EPISODES_CSV, showsCsv: SHOWS_CSV }, false),
+    );
     await runToEnd(service, "u1", analyze.id);
 
-    const commit = service.commit("u1", analyze.id, {
+    const commit = service.commit("u1", "tvtime", analyze.id, {
       include: ["tvdb:100"],
       overwrite: true,
     });
@@ -300,14 +337,14 @@ describe("ImportService", () => {
   });
 
   it("rejects an archive missing a required file", () => {
-    const { service } = makeMocks();
+    const { service } = makeService();
     // No user_tv_show_data.csv → required file absent.
-    const dto: StartTvTimeImportDto = {
-      zipBase64: zipBase64({ episodesCsv: EPISODES_CSV }),
-      importMovies: false,
-    };
-    expect(() => service.startAnalyze("u1", dto)).toThrow(
-      /user_tv_show_data\.csv/,
-    );
+    expect(() =>
+      service.startAnalyze(
+        "u1",
+        "tvtime",
+        analyzeDto({ episodesCsv: EPISODES_CSV }, false),
+      ),
+    ).toThrow(/user_tv_show_data\.csv/);
   });
 });

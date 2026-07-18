@@ -1,4 +1,191 @@
-import type { CatalogSource, EntryStatus, MediaType } from "../enums";
+import type { EntryStatus, MediaType } from "../enums";
+
+// ============================================================================
+// Generic, source-agnostic import model.
+//
+// Every import source (TV Time, StoryGraph, Goodreads, Steam, …) runs through
+// one async job framework: `analyze` parses the export and resolves it against
+// the catalogue into a reviewable {@link ImportPlan} (writing nothing);
+// `commit` writes the user's decisions and returns an {@link ImportReport}.
+// Both phases run in the background as an {@link ImportJobDto} the client polls.
+//
+// The wizard UI and the job controller are fully generic over these shapes: a
+// new source only supplies its own parse/resolve/write, never its own DTOs.
+// ============================================================================
+
+/** Which catalogue a source resolves against (also drives the manual search). */
+export type ImportSearchDomain = "media" | "books" | "games";
+
+/** How the raw export payload is carried in {@link ImportAnalyzeRequest.input}. */
+export type ImportInputType =
+  /** Raw CSV text (StoryGraph, Goodreads). */
+  | "csv"
+  /** A base64-encoded ZIP archive (TV Time). */
+  | "zip"
+  /** A Steam identifier / vanity name / profile URL. */
+  | "steamId";
+
+/** A catalogue title a source item resolved to (auto or via manual search). */
+export interface ImportMatch {
+  /** Catalogue source enum value (TMDB / ANILIST / GOOGLE_BOOKS / IGDB). */
+  source: string;
+  sourceId: string;
+  /** Media only (MOVIE/SERIES/ANIME): TMDB namespaces ids by type. */
+  type?: MediaType;
+  title: string;
+  year: number | null;
+  coverUrl: string | null;
+}
+
+/** One reviewable item in the plan (a show, movie, book or game). */
+export interface ImportPlanItem {
+  /** Stable id carrying the user's decision from analyze → commit. */
+  key: string;
+  /** Catalogue title once matched; falls back to the source title. */
+  title: string;
+  /** Raw title from the export, shown when the match looks uncertain. */
+  sourceTitle: string;
+  /** Extra context under the title (rating, playtime, episodes…); null hides it. */
+  subtitle: string | null;
+  coverUrl: string | null;
+  /** Auto-resolved match, or null when it needs a manual search. */
+  match: ImportMatch | null;
+  /** Default inclusion — true when confidently resolved and not already tracked. */
+  include: boolean;
+  /** Already in the user's library (the UI flags/skips it). */
+  alreadyInLibrary: boolean;
+  /**
+   * Status pre-selected for the per-item control (the domain's own enum value,
+   * e.g. "READ", "BACKLOG"). null when the source has no per-item status choice
+   * (TV Time derives status from watch progress at commit).
+   */
+  defaultStatus: string | null;
+  /** Resolution failed on an API error (rate limit/outage), not a real miss. */
+  apiError?: boolean;
+}
+
+/** A named group the review renders as one (optionally collapsible) section. */
+export interface ImportPlanGroup {
+  /** Stable id (e.g. "READ", "seriesTracked"). */
+  id: string;
+  /** Section heading ("Lus", "Séries suivies"). */
+  label: string;
+  items: ImportPlanItem[];
+}
+
+/** The analysis result: everything the user reviews before writing. */
+export interface ImportPlan {
+  groups: ImportPlanGroup[];
+  counts: {
+    total: number;
+    matched: number;
+    /** Items with no automatic match (need a manual search). */
+    unresolved: number;
+    /** Items whose resolution failed on an API error (retry later). */
+    apiErrors: number;
+  };
+  /** Which catalogue the manual-match search hits. */
+  searchDomain: ImportSearchDomain;
+}
+
+/** One headline number in the completion report (rendered as a stat tile). */
+export interface ImportReportTile {
+  label: string;
+  value: number;
+  /** Secondary line under the number ("3 en watchlist"); null omits it. */
+  sub: string | null;
+}
+
+/** Outcome of a committed import. */
+export interface ImportReport {
+  /** True when the run first wiped the user's library (destructive replace). */
+  overwrite: boolean;
+  tiles: ImportReportTile[];
+}
+
+/** An async import job (analyze or commit), polled by the client. */
+export interface ImportJobDto {
+  id: string;
+  status: "running" | "completed" | "failed";
+  /** Items processed so far / total to process. */
+  progress: { done: number; total: number };
+  /** Populated once an analysis job completes (the plan to review). */
+  plan: ImportPlan | null;
+  /** Populated once a commit job completes. */
+  report: ImportReport | null;
+  error: string | null;
+}
+
+/** Body of `POST /import/:source/analyze`. */
+export interface ImportAnalyzeRequest {
+  /**
+   * The source payload, as a string interpreted per the source's declared
+   * {@link ImportInputType}: CSV text, a Steam identifier, or a base64-encoded
+   * ZIP. base64 keeps the JSON transport (no multipart, no new dependency).
+   */
+  input: string;
+  /** Source-specific toggles (e.g. TV Time's `importMovies`). */
+  options?: Record<string, boolean>;
+}
+
+/** A catalogue target chosen manually for an unresolved item, at commit time. */
+export interface ImportCommitOverride {
+  source: string;
+  sourceId: string;
+  type?: MediaType;
+}
+
+/** Body of `POST /import/:source/:jobId/commit` — the user's decisions. */
+export interface ImportCommitRequest {
+  /** Plan keys the user chose to import. */
+  include: string[];
+  /** Per-key status choice (domain enum value); for sources with a status control. */
+  statuses?: Record<string, string>;
+  /** Manual matches for items the analysis left unresolved, keyed by plan key. */
+  overrides?: Record<string, ImportCommitOverride>;
+  /** Wipe the domain's library before writing (destructive replace). */
+  overwrite?: boolean;
+}
+
+/**
+ * A source's UI-facing configuration — the single dictionary that parameterises
+ * the generic wizard per source, so a new source is (mostly) a new entry here.
+ * Backend resolution/write logic is the only per-source code that stays as an
+ * `ImportSource` implementation.
+ */
+export interface ImportSourceDescriptor {
+  /** Matches the backend source id and the `/import/:id` route segment. */
+  id: string;
+  /** Display name ("StoryGraph", "TV Time"). */
+  label: string;
+  domain: ImportSearchDomain;
+  input: {
+    type: ImportInputType;
+    /** File `accept` attribute, for csv/zip inputs. */
+    accept?: string;
+  };
+  /** Offer the destructive "écraser mes données" toggle (default true). */
+  canOverrideData: boolean;
+  /** Offer the per-item manual catalogue search to fix/associate matches. */
+  hasManualMatch: boolean;
+  /** Render groups as collapsible `<details>` (true) or one flat list (false). */
+  collapsibleGroups: boolean;
+  /** Singular/plural noun for counts ("livre"/"livres", "jeu"/"jeux"). */
+  noun: { one: string; many: string };
+  /** Where the "voir ma bibliothèque" CTA links after a successful import. */
+  libraryHref: string;
+  /**
+   * Source-specific boolean toggles offered on the input step, surfaced as
+   * checkboxes and sent as {@link ImportAnalyzeRequest.options} (e.g. TV Time's
+   * "Inclure les films").
+   */
+  options?: { key: string; label: string; default: boolean }[];
+}
+
+// ---------------------------------------------------------------------------
+// TV Time export parse structure (source-specific; consumed only by the TV Time
+// source's parser). Kept here so the parser and its tests share one shape.
+// ---------------------------------------------------------------------------
 
 /**
  * Raw CSV text extracted from a TV Time GDPR export, one field per relevant
@@ -18,143 +205,17 @@ export interface TvTimeImportFilesDto {
   showsCsv?: string;
 }
 
-export interface StartTvTimeImportDto {
-  /**
-   * The TV Time GDPR export `.zip`, base64-encoded. The server unzips it and
-   * extracts the CSVs it needs (see {@link TvTimeImportFilesDto}); base64 keeps
-   * the existing JSON transport (no multipart, no new server dependency).
-   */
-  zipBase64: string;
-  /** Import the ~hundreds of tracked movies (default true). */
-  importMovies?: boolean;
-}
-
-export interface UnmatchedEpisodeDto {
-  show: string;
-  season: number;
-  episode: number;
-}
-
 /**
- * Outcome of a run. Counts are exact; the sample arrays are capped so a large
- * export cannot bloat the response — the counts tell the full story.
+ * Outcome of the legacy synchronous book/game import flows (how many rows were
+ * written). Kept until StoryGraph/Goodreads/Steam move onto the async job model.
+ *
+ * @deprecated superseded by {@link ImportReport} on the generic import framework.
  */
-export interface TvTimeImportReport {
-  /** True when the run first wiped the user's library/history (see ImportCommitRequest). */
-  overwrite: boolean;
-  shows: {
-    total: number;
-    imported: number;
-    watchlist: number;
-  };
-  episodes: {
-    watched: number;
-    watchesCreated: number;
-    /** Watched episodes with no matching catalogue episode, e.g. numbering gaps (sample). */
-    unmatched: UnmatchedEpisodeDto[];
-  };
-  movies: {
-    total: number;
-    imported: number;
-    watchlist: number;
-  };
-}
-
-export interface TvTimeImportJobDto {
-  id: string;
-  status: "running" | "completed" | "failed";
-  progress: {
-    shows: number;
-    totalShows: number;
-    movies: number;
-    totalMovies: number;
-  };
-  /** Populated once an analysis job completes (reconciliation plan to review). */
-  plan: ImportPlan | null;
-  /** Populated once a commit job completes. */
-  report: TvTimeImportReport | null;
-  error: string | null;
-}
-
-// --- Interactive reconciliation (analyze → review → commit) ---
-
-/** A catalogue title a source item resolved to during analysis. */
-export interface ImportMatch {
-  source: CatalogSource;
-  sourceId: string;
-  type: MediaType;
-  title: string;
-  year: number | null;
-  posterUrl: string | null;
-}
-
-/** A show in the reconciliation plan, with its resolution outcome. */
-export interface ImportPlanShow {
-  /** Stable id used to carry the user's decision back to `commit`. */
-  key: string;
-  title: string;
-  /** Distinct watched episodes from the export; 0 ⇒ watchlist. */
-  episodesWatched: number;
-  /** Resolved catalogue match, or null when it needs a manual search. */
-  match: ImportMatch | null;
-  /** Default inclusion — true when confidently resolved, false otherwise. */
-  include: boolean;
-}
-
-/** A movie in the reconciliation plan. */
-export interface ImportPlanMovie {
-  key: string;
-  title: string;
-  year: number | null;
-  /** true ⇒ would import as COMPLETED; false ⇒ watchlist (PLANNED). */
-  watched: boolean;
-  match: ImportMatch | null;
-  include: boolean;
-}
-
-/**
- * The full analysis result, grouped into the collections the UI reconciles
- * one by one. Items with `match === null` are the "needs review" set (filtered
- * across collections client-side), where the user searches for the right title.
- */
-export interface ImportPlan {
-  seriesTracked: ImportPlanShow[];
-  seriesWatchlist: ImportPlanShow[];
-  moviesWatched: ImportPlanMovie[];
-  moviesWatchlist: ImportPlanMovie[];
-  counts: {
-    shows: number;
-    movies: number;
-    /** Shows + movies with no automatic match. */
-    unresolved: number;
-  };
-}
-
-/** A catalogue target chosen manually for an unresolved item, at commit time. */
-export interface ImportCommitOverride {
-  source: CatalogSource;
-  sourceId: string;
-  type: MediaType;
-}
-
-/** The user's reconciliation decisions, sent to commit an analysed import. */
-export interface ImportCommitRequest {
-  /** Keys (from the plan) the user chose to import. */
-  include: string[];
-  /** Manual matches for items the analysis left unresolved, keyed by plan key. */
-  overrides?: Record<string, ImportCommitOverride>;
-  /** Wipe the library/history before writing (destructive replace). */
-  overwrite?: boolean;
-}
-
-/** Cap on how many sample items each report array holds. */
-export const IMPORT_REPORT_SAMPLE_CAP = 100;
-
-/** Outcome of a simple (non-interactive) import: how many rows were written. */
 export interface ImportResultDto {
   imported: number;
 }
 
+/** Map a series' watched/total regular episodes to a library entry status. */
 export function entryStatusFromProgress(
   watched: number,
   total: number,

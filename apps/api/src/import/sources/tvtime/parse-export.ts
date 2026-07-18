@@ -1,5 +1,5 @@
 import type { TvTimeImportFilesDto } from "@tracklore/shared";
-import { parseCsv } from "./csv";
+import { parseCsv } from "../../csv";
 
 /** One distinct watched episode of a show, with its rewatch count folded in. */
 interface ParsedWatchedEpisode {
