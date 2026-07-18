@@ -133,3 +133,11 @@ export interface UserDataExportDto {
   music: DataExportMusicEntry[];
   notifications: DataExportNotification[];
 }
+
+/**
+ * Flat, per-domain CSV export meant for migrating to another tool (as opposed
+ * to `UserDataExportDto`, the nested GDPR dump) — one row per library entry.
+ */
+export interface CsvExportDto {
+  csv: string;
+}

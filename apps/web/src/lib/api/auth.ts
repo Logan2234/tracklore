@@ -3,7 +3,9 @@ import type {
   ChangeEmailRequestDto,
   ChangePasswordRequestDto,
   ConfirmEmailChangeRequestDto,
+  CsvExportDto,
   DeleteAccountRequestDto,
+  Domain,
   LoginRequestDto,
   RegisterRequestDto,
   SessionDto,
@@ -127,6 +129,13 @@ export async function updateUsername(
 /** Full portable dump of the account's data (GDPR "download my data"). */
 export function exportMyData(): Promise<UserDataExportDto> {
   return request("/users/me/export");
+}
+
+/** Flat per-domain CSV, meant for migrating to another tool — not gated by
+ * `enabledDomains` (a hidden domain is still exportable). */
+export function exportMyDataCsv(domain: Domain): Promise<CsvExportDto> {
+  const params = new URLSearchParams({ domain });
+  return request(`/users/me/export.csv?${params}`);
 }
 
 /** Permanently deletes the account and clears local auth state. */
