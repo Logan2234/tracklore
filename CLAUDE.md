@@ -114,3 +114,5 @@ self-contained adapter-node `build/` output.
   (shared) and any route-local `components/` folder for one that already
   covers the need — extend or reuse it rather than writing a new one from
   scratch.
+- Visual identity ("Séance" — fonts, palette, nav pattern): see
+  `apps/web/DESIGN.md`.
