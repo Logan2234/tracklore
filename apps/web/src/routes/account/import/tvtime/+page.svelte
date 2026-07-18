@@ -18,6 +18,7 @@
   import Banner from "$lib/components/Banner.svelte";
   import Poster from "$lib/components/Poster.svelte";
   import Icon from "$lib/components/Icon.svelte";
+  import { toast } from "$lib/toast.svelte";
 
   type Phase = "upload" | "analyzing" | "review" | "committing" | "done";
   type Kind = "show" | "movie";
@@ -175,6 +176,7 @@
           phase = "review";
         } else {
           phase = "done";
+          toast.success("Import terminé.");
         }
       })
       .catch((err) => {

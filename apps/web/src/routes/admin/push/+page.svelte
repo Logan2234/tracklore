@@ -12,6 +12,7 @@
   import Combobox from "$lib/components/Combobox.svelte";
   import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
   import PageHeader from "$lib/components/PageHeader.svelte";
+  import { toast } from "$lib/toast.svelte";
   import type {
     AdminPushDeviceDto,
     AdminPushSendResponseDto,
@@ -68,6 +69,7 @@
       });
       await loadDevices();
       await refreshCounts();
+      toast.success("Notification de test envoyée.");
     } catch (err) {
       sendError = err instanceof ApiError ? err.message : "Échec de l'envoi";
     } finally {
@@ -130,6 +132,7 @@
         body: broadcastBody.trim() || undefined,
       });
       showBroadcastConfirm = false;
+      toast.success("Diffusion envoyée.");
     } catch (err) {
       broadcastError =
         err instanceof ApiError ? err.message : "Échec de la diffusion";

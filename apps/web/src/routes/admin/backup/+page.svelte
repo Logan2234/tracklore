@@ -8,6 +8,7 @@
   import Icon from "$lib/components/Icon.svelte";
   import Modal from "$lib/components/Modal.svelte";
   import PageHeader from "$lib/components/PageHeader.svelte";
+  import { toast } from "$lib/toast.svelte";
 
   const CONFIRM_PHRASE = "RESTAURER";
 
@@ -51,6 +52,7 @@
       a.click();
       URL.revokeObjectURL(url);
       lastDownloadedAt = generatedAt;
+      toast.success("Sauvegarde téléchargée.");
     } catch (err) {
       downloadError =
         err instanceof ApiError ? err.message : "Sauvegarde impossible";
@@ -88,6 +90,7 @@
       const sql = await pendingFile.text();
       await restoreAdminBackup({ sql });
       restoreDone = true;
+      toast.success("Base de données restaurée.");
     } catch (err) {
       restoreError =
         err instanceof ApiError ? err.message : "Restauration impossible";

@@ -20,6 +20,7 @@
     GAME_STATUS_LABELS as STATUS_LABELS,
     GAME_STATUS_ORDER as STATUS_ORDER,
   } from "$lib/status-labels";
+  import { toast } from "$lib/toast.svelte";
 
   type Step = "input" | "review" | "done";
   let step = $state<Step>("input");
@@ -185,6 +186,7 @@
       const result = await commitSteamImport({ games });
       importedCount = result.imported;
       step = "done";
+      toast.success("Import terminé.");
     } catch (err) {
       error = err instanceof ApiError ? err.message : "Import impossible";
     } finally {
