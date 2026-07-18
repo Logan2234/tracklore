@@ -1,0 +1,1 @@
+pnpm build:package && pnpm lint && pnpm --filter @tracklore/web check && pnpm test
