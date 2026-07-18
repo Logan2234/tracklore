@@ -264,21 +264,6 @@
         </a>
       {/if}
 
-      <button
-        onclick={() => theme.toggle()}
-        class="flex w-full items-center overflow-hidden rounded-xl text-dim transition-colors hover:bg-surface-2 hover:text-fg"
-        aria-label="Changer de thème">
-        <span class="grid h-10 w-10 shrink-0 place-items-center">
-          <Icon name={theme.mode === "dark" ? "sun" : "moon"} class="h-5 w-5" />
-        </span>
-        <span
-          class="whitespace-nowrap text-sm font-semibold transition-opacity duration-150 {expanded
-            ? 'opacity-100'
-            : 'opacity-0'}">
-          {theme.mode === "dark" ? "Thème clair" : "Thème sombre"}
-        </span>
-      </button>
-
       {#if !inAdmin}
         <a
           href="/account"

@@ -14,7 +14,7 @@
     { label: "Livres", value: Domain.BOOKS },
   ];
 
-  // Search-box placeholder fragments, so it names only the enabled domains.
+  // Search-box placeholder fragment, named after the active domain tab.
   const DOMAIN_HINT: Record<Domain, string> = {
     [Domain.MEDIA]: "un film, une série",
     [Domain.GAMES]: "un jeu",
@@ -27,12 +27,10 @@
     DOMAIN_TABS.filter((t) => isDomainEnabled(t.value)),
   );
 
-  const placeholder = $derived(
-    `Chercher ${enabledTabs.map((t) => DOMAIN_HINT[t.value]).join(", ")}…`,
-  );
-
   let query = $state(page.url.searchParams.get("query") ?? "");
   let domain = $state<Domain>(Domain.MEDIA);
+
+  const placeholder = $derived(`Chercher ${DOMAIN_HINT[domain]}…`);
 
   // If the active domain gets disabled (or was never enabled), fall back to the
   // first enabled one so the panel below always matches a visible tab.
