@@ -19,7 +19,13 @@
     "format:check": "prettier --check .",
     "spelunk": "pnpm --filter \"./apps/api\" spelunk",
     "clean": "pnpm --recursive --no-bail run clean",
-    "clean:dev": "pnpm --recursive --no-bail clean:dev && rm -rf node_modules docs/*"
+    "clean:dev": "pnpm --recursive --no-bail clean:dev && rm -rf node_modules docs/*",
+    "knip": "knip",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{js,ts,mjs,cjs,svelte}": "eslint --fix",
+    "*.{json,md,css,yaml,yml}": "prettier --write"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",
@@ -29,6 +35,9 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.6",
     "globals": "^17.7.0",
+    "husky": "^9.1.7",
+    "knip": "^6.27.0",
+    "lint-staged": "^17.0.8",
     "prettier": "^3.9.4",
     "prettier-plugin-svelte": "^4.1.1",
     "prettier-plugin-tailwindcss": "^0.8.0",
