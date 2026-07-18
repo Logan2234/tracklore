@@ -146,7 +146,7 @@
               Domain.GAMES,
             )} / {domainCount(Domain.BOOKS)} / {domainCount(Domain.MUSIC)}"
             label="Domaines actifs"
-            hint="Écrans / Jeux / Livres / Musique" />
+            hint="Vidéo / Jeux / Livres / Musique" />
         </div>
       </section>
 

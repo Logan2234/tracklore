@@ -62,7 +62,7 @@ export const NAVIGATION: NavSection[] = [
     items: [
       {
         href: "/media",
-        label: "Écrans",
+        label: "Vidéo",
         icon: "tv",
         mobile: true,
         domain: Domain.MEDIA,

@@ -65,7 +65,7 @@
 
 <LibraryBrowser
   icon="tv"
-  title="Écrans"
+  title="Vidéo"
   subtitle={(n) => `${n} titre${n > 1 ? "s" : ""}`}
   noun="titre"
   {load}

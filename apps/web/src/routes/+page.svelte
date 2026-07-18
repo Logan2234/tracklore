@@ -192,11 +192,11 @@
     </EmptyState>
   {/if}
 
-  <!-- Écrans -->
+  <!-- Vidéo -->
   {#if showScreens}
     <section class="mb-10">
       <div class="mb-4 flex items-baseline justify-between">
-        <p class="timecode text-xs uppercase">Écrans</p>
+        <p class="timecode text-xs uppercase">Vidéo</p>
         <a href="/media" class="text-sm font-semibold text-dim hover:text-fg"
           >Voir plus →</a>
       </div>
@@ -366,7 +366,7 @@
         <div>
           <p class="font-display font-bold">Tes statistiques</p>
           <p class="text-sm text-dim">
-            Écrans, jeux et livres en un coup d’œil.
+            Vidéo, jeux et livres en un coup d’œil.
           </p>
         </div>
       </div>
