@@ -62,7 +62,6 @@
   const statuses = new SvelteMap<string, string>();
   const picked = new SvelteMap<string, ImportMatch>();
   let overwrite = $state(false);
-  let hideOwned = $state(false);
 
   // --- Per-item manual search ---
   let searchKey = $state<string | null>(null);
@@ -98,10 +97,6 @@
 
   function matchOf(item: ImportPlanItem): ImportMatch | null {
     return picked.get(item.key) ?? item.match;
-  }
-
-  function visibleItems(items: ImportPlanItem[]): ImportPlanItem[] {
-    return hideOwned ? items.filter((i) => !i.alreadyInLibrary) : items;
   }
 
   // --- Input handling ---
@@ -204,7 +199,10 @@
     picked.clear();
     for (const g of p.groups) {
       for (const it of g.items) {
-        if (it.include) included.add(it.key);
+        // Pre-check everything that can be imported (has an auto match); the
+        // user unchecks what they don't want. Unmatched items stay off — their
+        // checkbox is disabled until a manual match is picked.
+        if (it.match) included.add(it.key);
         if (it.defaultStatus) statuses.set(it.key, it.defaultStatus);
       }
     }
@@ -339,7 +337,6 @@
     statuses.clear();
     picked.clear();
     overwrite = false;
-    hideOwned = false;
     searchKey = null;
     searchQuery = "";
     searchResults = [];
@@ -442,23 +439,19 @@
     </section>
   {:else if phase === "review" && plan}
     <div
-      class="sticky top-2 z-10 mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface p-4 shadow-sm">
-      <div class="text-sm">
-        <span class="font-semibold">{selectedCount}</span>
-        {plural(selectedCount)} à importer
-        {#if plan.counts.unresolved > 0}
-          <span class="text-dim"> · {plan.counts.unresolved} à associer</span>
-        {/if}
-      </div>
-      <div class="flex flex-wrap items-center gap-3">
-        <button
-          class="chip inline-flex items-center gap-1"
-          class:chip-on={hideOwned}
-          onclick={() => (hideOwned = !hideOwned)}>
-          Masquer ceux déjà suivis
-        </button>
+      class="sticky top-2 z-10 mb-5 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-xl border border-border bg-surface px-4 py-3 shadow-sm">
+      <p class="flex items-baseline gap-2">
+        <span class="font-display text-xl font-extrabold tabular-nums"
+          >{selectedCount}</span>
+        <span class="text-sm text-dim">
+          {plural(selectedCount)} à importer{#if plan.counts.unresolved > 0}
+            · {plan.counts.unresolved} à associer{/if}
+        </span>
+      </p>
+      <div class="flex items-center gap-3">
         {#if descriptor.canOverrideData}
-          <label class="flex items-center gap-2 text-sm text-danger">
+          <label
+            class="flex items-center gap-2 rounded-lg border border-danger/30 bg-danger/5 px-3 py-1.5 text-sm font-medium text-danger">
             <input
               type="checkbox"
               bind:checked={overwrite}
@@ -470,7 +463,7 @@
           class="btn btn-primary"
           disabled={selectedCount === 0}
           onclick={commit}>
-          Importer ({selectedCount})
+          Importer
         </button>
       </div>
     </div>
@@ -555,7 +548,7 @@
 
 {#snippet groupBody(g: ImportPlanGroup)}
   <ul class="mt-3 flex flex-col divide-y divide-border">
-    {#each visibleItems(g.items) as item (item.key)}
+    {#each g.items as item (item.key)}
       {@const match = matchOf(item)}
       {@const on = included.has(item.key)}
       <li class="flex flex-col gap-2 py-2.5">

@@ -249,9 +249,9 @@
     </EmptyState>
   {:else}
     {#if stats && !mediaEmpty}
-      <!-- Écrans -->
+      <!-- Vidéo -->
       <section class="mb-10">
-        <p class="timecode mb-3 text-xs uppercase">Écrans</p>
+        <p class="timecode mb-3 text-xs uppercase">Vidéo</p>
         <div class="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {#each tiles as t (t.label)}
             <div class="card p-4">

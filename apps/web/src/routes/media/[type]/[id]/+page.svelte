@@ -273,7 +273,7 @@
     <a
       href="/media"
       class="absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full border border-border bg-bg/60 px-3 py-1.5 text-sm font-semibold backdrop-blur hover:bg-bg">
-      ← Écrans
+      ← Vidéo
     </a>
   </div>
 
