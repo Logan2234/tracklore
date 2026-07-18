@@ -169,15 +169,16 @@
     subtitle="Reprends là où tu t’es arrêté." />
 
   {#if loading}
-    <div class="mb-10 flex flex-col gap-8">
+    <div class="mb-10 flex flex-col gap-10">
       {#each { length: 2 } as _, i (i)}
         <div>
           <div class="mb-4 h-3 w-20 skeleton rounded"></div>
+          <div class="mb-3 h-6 w-32 skeleton rounded"></div>
           <div class="flex gap-4 overflow-hidden">
             {#each { length: 4 } as _, j (j)}
               <div class="w-32 shrink-0 sm:w-36">
                 <div class="aspect-2/3 w-full skeleton rounded-xl"></div>
-                <div class="mt-1.5 h-3 w-4/5 skeleton rounded"></div>
+                <div class="mt-2 h-3 w-4/5 skeleton rounded"></div>
               </div>
             {/each}
           </div>
