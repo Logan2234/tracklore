@@ -144,9 +144,9 @@
           <StatCard
             value="{domainCount(Domain.MEDIA)} / {domainCount(
               Domain.GAMES,
-            )} / {domainCount(Domain.BOOKS)}"
+            )} / {domainCount(Domain.BOOKS)} / {domainCount(Domain.MUSIC)}"
             label="Domaines actifs"
-            hint="Écrans / Jeux / Livres" />
+            hint="Écrans / Jeux / Livres / Musique" />
         </div>
       </section>
 
@@ -167,6 +167,7 @@
             label={MEDIA_TYPE_LABEL.ANIME} />
           <StatCard value={nf.format(stats.cache.totalGames)} label="Jeux" />
           <StatCard value={nf.format(stats.cache.totalBooks)} label="Livres" />
+          <StatCard value={nf.format(stats.cache.totalMusic)} label="Albums" />
           <StatCard
             value="{nf.format(stats.cache.totalSeasons)} / {nf.format(
               stats.cache.totalEpisodes,

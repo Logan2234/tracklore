@@ -24,47 +24,58 @@ export class DataExportService {
       throw new NotFoundException("User not found");
     }
 
-    const [entries, watches, gameEntries, bookEntries, notifications] =
-      await Promise.all([
-        this.prisma.libraryEntry.findMany({
-          where: { userId },
-          include: { mediaItem: { include: { externalIds: true } } },
-          orderBy: { createdAt: "asc" },
-        }),
-        this.prisma.episodeWatch.findMany({
-          where: { userId },
-          include: {
-            episode: {
-              include: {
-                season: {
-                  include: { mediaItem: { include: { externalIds: true } } },
-                },
+    const [
+      entries,
+      watches,
+      gameEntries,
+      bookEntries,
+      musicEntries,
+      notifications,
+    ] = await Promise.all([
+      this.prisma.libraryEntry.findMany({
+        where: { userId },
+        include: { mediaItem: { include: { externalIds: true } } },
+        orderBy: { createdAt: "asc" },
+      }),
+      this.prisma.episodeWatch.findMany({
+        where: { userId },
+        include: {
+          episode: {
+            include: {
+              season: {
+                include: { mediaItem: { include: { externalIds: true } } },
               },
             },
           },
-          orderBy: { watchedAt: "asc" },
-        }),
-        this.prisma.gameEntry.findMany({
-          where: { userId },
-          include: {
-            gameItem: { include: { externalIds: true } },
-            replays: { orderBy: { finishedAt: "asc" } },
-          },
-          orderBy: { createdAt: "asc" },
-        }),
-        this.prisma.bookEntry.findMany({
-          where: { userId },
-          include: {
-            bookItem: { include: { externalIds: true } },
-            replays: { orderBy: { finishedAt: "asc" } },
-          },
-          orderBy: { createdAt: "asc" },
-        }),
-        this.prisma.notification.findMany({
-          where: { userId },
-          orderBy: { createdAt: "asc" },
-        }),
-      ]);
+        },
+        orderBy: { watchedAt: "asc" },
+      }),
+      this.prisma.gameEntry.findMany({
+        where: { userId },
+        include: {
+          gameItem: { include: { externalIds: true } },
+          replays: { orderBy: { finishedAt: "asc" } },
+        },
+        orderBy: { createdAt: "asc" },
+      }),
+      this.prisma.bookEntry.findMany({
+        where: { userId },
+        include: {
+          bookItem: { include: { externalIds: true } },
+          replays: { orderBy: { finishedAt: "asc" } },
+        },
+        orderBy: { createdAt: "asc" },
+      }),
+      this.prisma.musicEntry.findMany({
+        where: { userId },
+        include: { musicItem: { include: { externalIds: true } } },
+        orderBy: { createdAt: "asc" },
+      }),
+      this.prisma.notification.findMany({
+        where: { userId },
+        orderBy: { createdAt: "asc" },
+      }),
+    ]);
 
     return {
       exportedAt: new Date().toISOString(),
@@ -146,6 +157,27 @@ export class DataExportService {
         finishedAt: entry.finishedAt?.toISOString() ?? null,
         createdAt: entry.createdAt.toISOString(),
         replays: entry.replays.map((r) => r.finishedAt.toISOString()),
+      })),
+      music: musicEntries.map((entry) => ({
+        album: {
+          title: entry.musicItem.title,
+          artists: entry.musicItem.artists,
+          canonicalSource: entry.musicItem.canonicalSource,
+          sourceId: canonicalExternalId(
+            entry.musicItem,
+            entry.musicItem.externalIds,
+          ),
+          externalIds: toExternalIdDtos(entry.musicItem.externalIds),
+        },
+        status: entry.status,
+        rating: entry.rating,
+        notes: entry.notes,
+        favorite: entry.favorite,
+        ownershipStatus: entry.ownershipStatus,
+        ownershipSource: entry.ownershipSource,
+        startedAt: entry.startedAt?.toISOString() ?? null,
+        finishedAt: entry.finishedAt?.toISOString() ?? null,
+        createdAt: entry.createdAt.toISOString(),
       })),
       notifications: notifications.map((n) => ({
         type: n.type,

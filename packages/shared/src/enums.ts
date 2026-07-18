@@ -3,8 +3,8 @@
 
 /**
  * Top-level content domain a user can compose their app from. MEDIA groups
- * MOVIE/SERIES/ANIME; BOOKS and GAMES have their own screens (search, library,
- * stats, imports) as of P3. `User.enabledDomains` records which ones the user
+ * MOVIE/SERIES/ANIME; BOOKS, GAMES and MUSIC have their own screens (search,
+ * library, stats, imports). `User.enabledDomains` records which ones the user
  * keeps visible — the nav filters on it today (see web `isDomainEnabled`);
  * search and notification filtering still follow.
  */
@@ -12,6 +12,7 @@ export const Domain = {
   MEDIA: "MEDIA",
   BOOKS: "BOOKS",
   GAMES: "GAMES",
+  MUSIC: "MUSIC",
 } as const;
 export type Domain = (typeof Domain)[keyof typeof Domain];
 
@@ -157,6 +158,39 @@ export const MediaOwnershipStatus = {
 } as const;
 export type MediaOwnershipStatus =
   (typeof MediaOwnershipStatus)[keyof typeof MediaOwnershipStatus];
+
+/** Source a music item's catalogue data comes from. MusicBrainz only. */
+export const MusicSource = {
+  MUSICBRAINZ: "MUSICBRAINZ",
+} as const;
+export type MusicSource = (typeof MusicSource)[keyof typeof MusicSource];
+
+/**
+ * Status of an album in a user's library. Deliberately binary (unlike
+ * GameStatus/BookStatus): an album listen is a short, single-session event,
+ * so there is no "in progress" or "dropped" state — just whether it's been
+ * heard. TO_LISTEN doubles as the wishlist.
+ */
+export const MusicStatus = {
+  TO_LISTEN: "TO_LISTEN",
+  LISTENED: "LISTENED",
+} as const;
+export type MusicStatus = (typeof MusicStatus)[keyof typeof MusicStatus];
+
+/**
+ * How the user holds an album, if at all. NONE (default, unset) is the vast
+ * majority of entries — this is opt-in. DIGITAL/STREAMING pair with a
+ * free-form `ownershipSource` (e.g. "Bandcamp", "Spotify").
+ */
+export const MusicOwnershipStatus = {
+  NONE: "NONE",
+  PHYSICAL: "PHYSICAL",
+  DIGITAL: "DIGITAL",
+  STREAMING: "STREAMING",
+  BORROWED: "BORROWED",
+} as const;
+export type MusicOwnershipStatus =
+  (typeof MusicOwnershipStatus)[keyof typeof MusicOwnershipStatus];
 
 /**
  * Kind of sensitive account action tracked on the admin "Sécurité" page.

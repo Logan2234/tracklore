@@ -1,5 +1,10 @@
 <script lang="ts">
-  import { ApiError, listLibrary, searchCatalog } from "$lib/api/client";
+  import {
+    ApiError,
+    fetchAllPages,
+    listLibrary,
+    searchCatalog,
+  } from "$lib/api/client";
   import Banner from "$lib/components/Banner.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import Icon from "$lib/components/Icon.svelte";
@@ -68,7 +73,7 @@
     tracked.get(trackKey(m.type, m.sourceId));
 
   $effect(() => {
-    listLibrary()
+    fetchAllPages((page) => listLibrary({ page }))
       .then((entries) => {
         tracked = new SvelteMap(
           entries.map((e) => [
@@ -244,7 +249,17 @@
     <div bind:this={sentinel} class="h-10"></div>
   {/if}
   {#if loadingMore}
-    <p class="timecode mt-4 text-center text-sm">Chargement…</p>
+    <PosterGrid>
+      {#each { length: 5 } as _, i (i)}
+        <div class="card flex flex-col">
+          <div class="aspect-2/3 w-full skeleton"></div>
+          <div class="flex flex-col gap-2 p-3">
+            <div class="h-3.5 w-4/5 skeleton rounded"></div>
+            <div class="h-3 w-1/2 skeleton rounded"></div>
+          </div>
+        </div>
+      {/each}
+    </PosterGrid>
   {/if}
 {:else if searched}
   <p class="timecode text-sm">Aucun résultat.</p>

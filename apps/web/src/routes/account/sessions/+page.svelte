@@ -6,6 +6,7 @@
     revokeSession,
   } from "$lib/api/client";
   import { auth } from "$lib/auth.svelte";
+  import CardRowSkeleton from "$lib/components/CardRowSkeleton.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import Modal from "$lib/components/Modal.svelte";
   import type { SessionDto } from "@tracklore/shared";
@@ -122,7 +123,7 @@
   </p>
 
   {#if loading}
-    <p class="text-sm text-dim">Chargement…</p>
+    <CardRowSkeleton count={3} />
   {:else if error}
     <p class="text-sm text-danger">{error}</p>
   {:else}

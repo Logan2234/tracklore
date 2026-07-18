@@ -5,6 +5,7 @@
   import BookSearchPanel from "$lib/components/search/BookSearchPanel.svelte";
   import GameSearchPanel from "$lib/components/search/GameSearchPanel.svelte";
   import MediaSearchPanel from "$lib/components/search/MediaSearchPanel.svelte";
+  import MusicSearchPanel from "$lib/components/search/MusicSearchPanel.svelte";
   import { isDomainEnabled } from "$lib/domains";
   import { Domain } from "@tracklore/shared";
 
@@ -12,6 +13,7 @@
     { label: "Médias", value: Domain.MEDIA },
     { label: "Jeux", value: Domain.GAMES },
     { label: "Livres", value: Domain.BOOKS },
+    { label: "Musique", value: Domain.MUSIC },
   ];
 
   // Search-box placeholder fragment, named after the active domain tab.
@@ -19,6 +21,7 @@
     [Domain.MEDIA]: "un film, une série",
     [Domain.GAMES]: "un jeu",
     [Domain.BOOKS]: "un livre",
+    [Domain.MUSIC]: "un album",
   };
 
   // Only the domains the user keeps enabled are searchable (mirrors the nav;
@@ -75,5 +78,7 @@
     <GameSearchPanel {query} />
   {:else if domain === Domain.BOOKS}
     <BookSearchPanel {query} />
+  {:else if domain === Domain.MUSIC}
+    <MusicSearchPanel {query} />
   {/if}
 </div>

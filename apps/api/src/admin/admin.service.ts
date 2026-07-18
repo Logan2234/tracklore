@@ -144,6 +144,25 @@ export class AdminService {
           ),
       },
       {
+        // Keyless (like AniList), but the sole music source — so it's required
+        // for the Musique area even though there's no key to be missing.
+        key: "musicbrainz",
+        label: "MusicBrainz",
+        area: "Musique",
+        required: true,
+        envKeys: [],
+        probe: (signal) =>
+          this.ping(
+            "https://musicbrainz.org/ws/2/release-group/?query=test&fmt=json&limit=1",
+            {
+              signal,
+              headers: {
+                "User-Agent": `Tracklore/1.0 (${this.env("MUSICBRAINZ_CONTACT") || "self-hosted, no contact provided"})`,
+              },
+            },
+          ),
+      },
+      {
         key: "smtp",
         label: "SMTP (email)",
         area: "Système",

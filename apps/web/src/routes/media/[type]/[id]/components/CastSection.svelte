@@ -1,5 +1,6 @@
 <script lang="ts">
   import { getCastDetail } from "$lib/api/client";
+  import Carousel from "$lib/components/Carousel.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import Poster from "$lib/components/Poster.svelte";
   import type { CastDetailDto, CastMemberDto } from "@tracklore/shared";
@@ -60,9 +61,11 @@
 {#if cast.length > 0}
   <section class="mt-10">
     <h2 class="mb-3 font-display text-xl font-bold">Distribution</h2>
-    <div
-      class="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pt-2 pb-2 md:mx-0 md:px-0">
-      {#each cast as c (c.name + (c.role ?? ""))}
+    <Carousel
+      items={cast}
+      keyOf={(c) => c.name + (c.role ?? "")}
+      gap="gap-3">
+      {#snippet card(c)}
         {#if c.id}
           <button
             type="button"
@@ -75,8 +78,8 @@
             {@render castCard(c, false)}
           </div>
         {/if}
-      {/each}
-    </div>
+      {/snippet}
+    </Carousel>
   </section>
 {/if}
 
@@ -122,7 +125,11 @@
       </div>
 
       {#if castLoading}
-        <p class="timecode mt-4 text-sm">Chargement…</p>
+        <div class="mt-4 flex flex-col gap-2">
+          <div class="h-3 w-full skeleton rounded"></div>
+          <div class="h-3 w-full skeleton rounded"></div>
+          <div class="h-3 w-2/3 skeleton rounded"></div>
+        </div>
       {:else if castDetail}
         {#if castDetail.imdbId || castDetail.wikidataId || castDetail.homepage}
           <div class="mt-4 flex flex-wrap gap-2">
@@ -160,8 +167,13 @@
         {/if}
         {#if castDetail.knownFor.length > 0}
           <h4 class="mt-5 mb-2 font-display text-sm font-bold">Connu pour</h4>
-          <div class="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-1">
-            {#each castDetail.knownFor as k (`${k.source}:${k.sourceId}`)}
+          <Carousel
+            items={castDetail.knownFor}
+            keyOf={(k) => `${k.source}:${k.sourceId}`}
+            gap="gap-3"
+            wrapClass="-mx-1"
+            innerClass="px-1 pb-1">
+            {#snippet card(k)}
               <a
                 href={`/media/${k.type.toLowerCase()}/${k.sourceId}`}
                 onclick={closeCast}
@@ -174,8 +186,8 @@
                   {k.title}
                 </p>
               </a>
-            {/each}
-          </div>
+            {/snippet}
+          </Carousel>
         {/if}
       {/if}
     </div>

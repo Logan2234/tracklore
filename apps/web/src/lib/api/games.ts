@@ -3,7 +3,7 @@ import type {
   GameEntryDto,
   GameSearchResponseDto,
   GameStatsDto,
-  GameStatus,
+  PagedResult,
   SteamImportCommitRequestDto,
   SteamImportPreviewDto,
   SteamImportPreviewRequestDto,
@@ -18,11 +18,25 @@ export function searchGames(query: string): Promise<GameSearchResponseDto> {
   return request(`/games/search?${params}`);
 }
 
+export interface ListGamesFilters {
+  query?: string;
+  favorite?: boolean;
+  statuses?: string[];
+  sort?: string;
+  order?: "asc" | "desc";
+  page?: number;
+}
+
 export function listGames(
-  filters: { status?: GameStatus } = {},
-): Promise<GameEntryDto[]> {
+  filters: ListGamesFilters = {},
+): Promise<PagedResult<GameEntryDto>> {
   const params = new URLSearchParams();
-  if (filters.status) params.set("status", filters.status);
+  if (filters.query) params.set("q", filters.query);
+  if (filters.favorite) params.set("favorite", "true");
+  for (const s of filters.statuses ?? []) params.append("status", s);
+  if (filters.sort) params.set("sort", filters.sort);
+  if (filters.order) params.set("order", filters.order);
+  if (filters.page && filters.page > 1) params.set("page", String(filters.page));
   const suffix = params.size > 0 ? `?${params}` : "";
   return request(`/games${suffix}`);
 }

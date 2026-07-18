@@ -8,6 +8,7 @@ import type {
   GameExternalId,
   GameItem,
   GameReplay,
+  GameStatus as DbGameStatus,
   Prisma,
 } from "@prisma/client";
 import type {
@@ -17,7 +18,7 @@ import type {
   GameReplayDto,
   GameSource,
   GameStatsDto,
-  GameStatus,
+  PagedResult,
 } from "@tracklore/shared";
 import { canonicalExternalId } from "../common/external-id.util";
 import { PrismaService } from "../prisma/prisma.service";
@@ -39,6 +40,72 @@ const ENTRY_INCLUDE = {
 type EntryWithGame = Prisma.GameEntryGetPayload<{
   include: typeof ENTRY_INCLUDE;
 }>;
+
+const PAGE_SIZE = 40;
+
+type GameSortKey =
+  | "added"
+  | "title"
+  | "rating"
+  | "playtime"
+  | "finished"
+  | "started"
+  | "status";
+const GAME_SORT_KEYS: GameSortKey[] = [
+  "added",
+  "title",
+  "rating",
+  "playtime",
+  "finished",
+  "started",
+  "status",
+];
+const GAME_STATUS_SORT_ORDER = [
+  "BACKLOG",
+  "PLAYING",
+  "COMPLETED",
+  "DROPPED",
+] as const;
+
+export interface ListEntriesFilters {
+  q?: string;
+  favorite?: boolean;
+  statuses?: string[];
+  sort?: string;
+  order?: "asc" | "desc";
+  page?: number;
+}
+
+function timeMs(iso: string | null): number {
+  return iso ? new Date(iso).getTime() : 0;
+}
+
+// Base comparator per criterion (its natural order); `order: "asc"` negates it.
+function compareGameEntries(
+  sort: GameSortKey,
+  a: GameEntryDto,
+  b: GameEntryDto,
+): number {
+  switch (sort) {
+    case "title":
+      return a.game.title.localeCompare(b.game.title, "fr");
+    case "rating":
+      return (b.rating ?? -1) - (a.rating ?? -1);
+    case "playtime":
+      return b.playtimeMinutes - a.playtimeMinutes;
+    case "finished":
+      return timeMs(b.finishedAt) - timeMs(a.finishedAt);
+    case "started":
+      return timeMs(b.startedAt) - timeMs(a.startedAt);
+    case "status":
+      return (
+        GAME_STATUS_SORT_ORDER.indexOf(a.status) -
+        GAME_STATUS_SORT_ORDER.indexOf(b.status)
+      );
+    case "added":
+      return b.createdAt.localeCompare(a.createdAt);
+  }
+}
 
 @Injectable()
 export class GameLibraryService {
@@ -76,14 +143,45 @@ export class GameLibraryService {
 
   async listEntries(
     userId: string,
-    filters: { status?: GameStatus },
-  ): Promise<GameEntryDto[]> {
+    filters: ListEntriesFilters,
+  ): Promise<PagedResult<GameEntryDto>> {
     const entries = await this.prisma.gameEntry.findMany({
-      where: { userId, status: filters.status },
+      where: {
+        userId,
+        status:
+          filters.statuses && filters.statuses.length > 0
+            ? { in: filters.statuses as DbGameStatus[] }
+            : undefined,
+      },
       include: ENTRY_INCLUDE,
       orderBy: { updatedAt: "desc" },
     });
-    return entries.map(toEntryDto);
+
+    let dtos = entries.map(toEntryDto);
+
+    const q = filters.q?.trim().toLowerCase();
+    dtos = dtos.filter((dto) => {
+      if (filters.favorite && !dto.favorite) return false;
+      if (q && !dto.game.title.toLowerCase().includes(q)) return false;
+      return true;
+    });
+
+    const sort = GAME_SORT_KEYS.includes(filters.sort as GameSortKey)
+      ? (filters.sort as GameSortKey)
+      : "added";
+    const asc = filters.order === "asc";
+    dtos.sort((a, b) => {
+      const c = compareGameEntries(sort, a, b);
+      return asc ? -c : c;
+    });
+
+    const page = filters.page && filters.page > 0 ? filters.page : 1;
+    const start = (page - 1) * PAGE_SIZE;
+    return {
+      items: dtos.slice(start, start + PAGE_SIZE),
+      total: dtos.length,
+      hasMore: dtos.length > page * PAGE_SIZE,
+    };
   }
 
   async getEntry(userId: string, entryId: string): Promise<GameEntryDto> {

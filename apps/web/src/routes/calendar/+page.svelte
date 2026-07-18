@@ -1,6 +1,7 @@
 <script lang="ts">
   import { ApiError, getCalendar } from "$lib/api/client";
   import Banner from "$lib/components/Banner.svelte";
+  import CardRowSkeleton from "$lib/components/CardRowSkeleton.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import PageHeader from "$lib/components/PageHeader.svelte";
   import Poster from "$lib/components/Poster.svelte";
@@ -78,7 +79,7 @@
   {#if error}
     <Banner variant="error">{error}</Banner>
   {:else if loading}
-    <p class="timecode text-sm">Chargement…</p>
+    <CardRowSkeleton count={5} />
   {:else if days.length === 0}
     <EmptyState>Aucun épisode à venir dans ce que tu suis.</EmptyState>
   {:else}

@@ -22,12 +22,13 @@ enum MediaType {
 }
 
 // Top-level content domain a user can compose their app from. MEDIA groups
-// MOVIE/SERIES/ANIME; BOOKS/GAMES are nav placeholders until their screens
-// land at P3. `User.enabledDomains` drives the nav (see web isDomainEnabled).
+// MOVIE/SERIES/ANIME; BOOKS/GAMES/MUSIC each have their own screens (search,
+// library, stats). `User.enabledDomains` drives the nav (see web isDomainEnabled).
 enum Domain {
   MEDIA
   BOOKS
   GAMES
+  MUSIC
 }
 
 // Operational permission level, orthogonal to User.entitlements (the future
@@ -125,6 +126,30 @@ enum BookOwnershipStatus {
   BORROWED
 }
 
+// Source a music item's catalogue data comes from. MusicBrainz only.
+enum MusicSource {
+  MUSICBRAINZ
+}
+
+// An album's library status. Deliberately binary, unlike GameStatus/
+// BookStatus: an album listen is a short, single-session event, so there is
+// no "in progress" or "dropped" state. TO_LISTEN doubles as the wishlist.
+enum MusicStatus {
+  TO_LISTEN
+  LISTENED
+}
+
+// How the user holds an album, if at all. NONE (default) means unset.
+// DIGITAL/STREAMING carry a free-form `ownershipSource` (e.g. "Bandcamp",
+// "Spotify"); PHYSICAL/BORROWED don't need one.
+enum MusicOwnershipStatus {
+  NONE
+  PHYSICAL
+  DIGITAL
+  STREAMING
+  BORROWED
+}
+
 model User {
   id                String    @id @default(cuid())
   email             String    @unique
@@ -153,7 +178,7 @@ model User {
   role              Role      @default(USER)
   // Composition seam: content domains the user enabled. Drives the nav today;
   // search/notif filtering follow at P3. Default = every domain visible.
-  enabledDomains    Domain[]  @default([MEDIA, BOOKS, GAMES])
+  enabledDomains    Domain[]  @default([MEDIA, BOOKS, GAMES, MUSIC])
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -164,6 +189,7 @@ model User {
   pushSubscriptions   PushSubscription[]
   gameEntries         GameEntry[]
   bookEntries         BookEntry[]
+  musicEntries        MusicEntry[]
   tokens              UserToken[]
   emailChangeRequests EmailChangeRequest[]
   securityEvents      SecurityEvent[]
@@ -582,4 +608,63 @@ model BookReplay {
   bookEntry BookEntry @relation(fields: [bookEntryId], references: [id], onDelete: Cascade)
 
   @@index([bookEntryId])
+}
+
+// On-demand cache for albums, mirroring BookItem: an album exists here only
+// once at least one user references it. Albums have no page/chapter model —
+// the library entry's status is user-set (binary: to-listen/listened).
+model MusicItem {
+  id              String      @id @default(cuid())
+  canonicalSource MusicSource
+  title           String
+  artists         String[]
+  coverUrl        String?
+  releaseDate     DateTime?
+  genres          String[]
+  // Release-group primary type (Album/EP/Single/Compilation…), informational.
+  albumType       String?
+  // Number of tracks, when the source knows it.
+  trackCount      Int?
+  metadata        Json        @default("{}")
+  lastSyncedAt    DateTime    @default(now())
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  externalIds MusicExternalId[]
+  entries     MusicEntry[]
+}
+
+model MusicExternalId {
+  id          String      @id @default(cuid())
+  musicItemId String
+  source      MusicSource
+  externalId  String
+
+  musicItem MusicItem @relation(fields: [musicItemId], references: [id], onDelete: Cascade)
+
+  @@unique([source, externalId])
+  @@index([musicItemId])
+}
+
+model MusicEntry {
+  id              String               @id @default(cuid())
+  userId          String
+  musicItemId     String
+  status          MusicStatus          @default(TO_LISTEN)
+  // 0–10, half-points allowed.
+  rating          Float?
+  notes           String?
+  favorite        Boolean              @default(false)
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  ownershipStatus MusicOwnershipStatus @default(NONE)
+  // Free-form detail for DIGITAL/STREAMING (e.g. "Spotify"); null otherwise.
+  ownershipSource String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  musicItem MusicItem @relation(fields: [musicItemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, musicItemId])
 }

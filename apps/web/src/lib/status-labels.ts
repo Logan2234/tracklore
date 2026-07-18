@@ -2,7 +2,7 @@
 // the same constants aren't retyped across list, detail, import and stats pages.
 // (Media entry statuses are server-derived and handled separately.)
 
-import type { BookStatus, GameStatus } from "@tracklore/shared";
+import type { BookStatus, GameStatus, MusicStatus } from "@tracklore/shared";
 
 // --- Books ---
 
@@ -88,4 +88,36 @@ export const GAME_STATUS_SEG_ACTIVE: Record<GameStatus, string> = {
   PLAYING: "bg-accent text-accent-fg",
   COMPLETED: "bg-success/20 text-success",
   DROPPED: "text-danger shadow-[inset_0_0_0_1px_var(--color-danger)]",
+};
+
+// --- Music ---
+// Deliberately binary (no "in progress"/"dropped") — an album listen is a
+// short, single-session event, unlike a book or a game.
+
+export const MUSIC_STATUS_LABELS: Record<MusicStatus, string> = {
+  TO_LISTEN: "À écouter",
+  LISTENED: "Écouté",
+};
+
+export const MUSIC_STATUS_ORDER: MusicStatus[] = ["TO_LISTEN", "LISTENED"];
+
+// Status badge: label + chip styling (neutral / success).
+export const MUSIC_STATUS_META: Record<
+  MusicStatus,
+  { label: string; cls: string }
+> = {
+  TO_LISTEN: { label: "À écouter", cls: "bg-surface-2 text-dim" },
+  LISTENED: { label: "Écouté", cls: "bg-success/15 text-success" },
+};
+
+// Surfaced as a tooltip on the status badge / segments.
+export const MUSIC_STATUS_DESC: Record<MusicStatus, string> = {
+  TO_LISTEN: "Dans ta liste, pas encore écouté.",
+  LISTENED: "Tu as écouté cet album.",
+};
+
+// Active-segment styling for the segmented status control.
+export const MUSIC_STATUS_SEG_ACTIVE: Record<MusicStatus, string> = {
+  TO_LISTEN: "bg-surface text-fg shadow-sm",
+  LISTENED: "bg-success/20 text-success",
 };

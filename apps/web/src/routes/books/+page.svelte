@@ -1,5 +1,6 @@
 <script lang="ts">
   import { listBooks } from "$lib/api/client";
+  import type { LibraryLoadParams } from "$lib/components/LibraryBrowser.svelte";
   import LibraryBrowser from "$lib/components/LibraryBrowser.svelte";
   import PosterCard from "$lib/components/PosterCard.svelte";
   import { BOOK_STATUS_LABELS, BOOK_STATUS_ORDER } from "$lib/status-labels";
@@ -10,17 +11,7 @@
     value,
   }));
 
-  type SortKey =
-    | "added"
-    | "title"
-    | "author"
-    | "rating"
-    | "pages"
-    | "progress"
-    | "finished"
-    | "started"
-    | "status";
-  const SORTS: { label: string; value: SortKey }[] = [
+  const SORTS = [
     { label: "Ajout récent", value: "added" },
     { label: "Titre", value: "title" },
     { label: "Auteur", value: "author" },
@@ -32,40 +23,15 @@
     { label: "Statut", value: "status" },
   ];
 
-  const time = (iso: string | null) => (iso ? new Date(iso).getTime() : 0);
-  const readPct = (e: BookEntryDto) =>
-    e.book.pageCount ? e.currentPage / e.book.pageCount : 0;
-
-  // Base comparator per criterion (its natural order); the direction toggle
-  // reverses the whole list.
-  function compare(sort: string, a: BookEntryDto, b: BookEntryDto): number {
-    switch (sort as SortKey) {
-      case "title":
-        return a.book.title.localeCompare(b.book.title, "fr");
-      case "author":
-        return (a.book.authors[0] ?? "").localeCompare(
-          b.book.authors[0] ?? "",
-          "fr",
-        );
-      case "rating":
-        return (b.rating ?? -1) - (a.rating ?? -1);
-      case "pages":
-        return (b.book.pageCount ?? 0) - (a.book.pageCount ?? 0);
-      case "progress":
-        return readPct(b) - readPct(a);
-      case "finished":
-        return time(b.finishedAt) - time(a.finishedAt);
-      case "started":
-        return time(b.startedAt) - time(a.startedAt);
-      case "status":
-        return (
-          BOOK_STATUS_ORDER.indexOf(a.status) -
-          BOOK_STATUS_ORDER.indexOf(b.status)
-        );
-      case "added":
-        return b.createdAt.localeCompare(a.createdAt);
-    }
-    return 0;
+  function load(params: LibraryLoadParams) {
+    return listBooks({
+      query: params.query,
+      favorite: params.favoritesOnly,
+      statuses: params.statuses,
+      sort: params.sort,
+      order: params.order,
+      page: params.page,
+    });
   }
 </script>
 
@@ -74,15 +40,11 @@
   title="Livres"
   subtitle={(n) => `${n} livre${n > 1 ? "s" : ""}`}
   noun="livre"
-  load={listBooks}
+  {load}
   keyOf={(e) => e.id}
-  titleOf={(e) => e.book.title}
-  favoriteOf={(e) => e.favorite}
   statusOptions={STATUS_OPTIONS}
-  statusMatch={(e, statuses) => statuses.includes(e.status)}
   sorts={SORTS}
-  defaultSort="added"
-  {compare}>
+  defaultSort="added">
   {#snippet card(entry: BookEntryDto)}
     <PosterCard
       href={`/books/${entry.book.sourceId}`}

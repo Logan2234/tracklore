@@ -8,6 +8,7 @@ import type {
   BookExternalId,
   BookItem,
   BookReplay,
+  BookStatus as DbBookStatus,
   Prisma,
 } from "@prisma/client";
 import type {
@@ -17,7 +18,7 @@ import type {
   BookReplayDto,
   BookSource,
   BookStatsDto,
-  BookStatus,
+  PagedResult,
 } from "@tracklore/shared";
 import { canonicalExternalId } from "../common/external-id.util";
 import { PrismaService } from "../prisma/prisma.service";
@@ -39,6 +40,87 @@ const ENTRY_INCLUDE = {
 type EntryWithBook = Prisma.BookEntryGetPayload<{
   include: typeof ENTRY_INCLUDE;
 }>;
+
+const PAGE_SIZE = 40;
+
+type BookSortKey =
+  | "added"
+  | "title"
+  | "author"
+  | "rating"
+  | "pages"
+  | "progress"
+  | "finished"
+  | "started"
+  | "status";
+const BOOK_SORT_KEYS: BookSortKey[] = [
+  "added",
+  "title",
+  "author",
+  "rating",
+  "pages",
+  "progress",
+  "finished",
+  "started",
+  "status",
+];
+const BOOK_STATUS_SORT_ORDER = [
+  "TO_READ",
+  "READING",
+  "READ",
+  "DROPPED",
+] as const;
+
+export interface ListEntriesFilters {
+  q?: string;
+  favorite?: boolean;
+  statuses?: string[];
+  sort?: string;
+  order?: "asc" | "desc";
+  page?: number;
+}
+
+function timeMs(iso: string | null): number {
+  return iso ? new Date(iso).getTime() : 0;
+}
+
+function readPct(e: BookEntryDto): number {
+  return e.book.pageCount ? e.currentPage / e.book.pageCount : 0;
+}
+
+// Base comparator per criterion (its natural order); `order: "asc"` negates it.
+function compareBookEntries(
+  sort: BookSortKey,
+  a: BookEntryDto,
+  b: BookEntryDto,
+): number {
+  switch (sort) {
+    case "title":
+      return a.book.title.localeCompare(b.book.title, "fr");
+    case "author":
+      return (a.book.authors[0] ?? "").localeCompare(
+        b.book.authors[0] ?? "",
+        "fr",
+      );
+    case "rating":
+      return (b.rating ?? -1) - (a.rating ?? -1);
+    case "pages":
+      return (b.book.pageCount ?? 0) - (a.book.pageCount ?? 0);
+    case "progress":
+      return readPct(b) - readPct(a);
+    case "finished":
+      return timeMs(b.finishedAt) - timeMs(a.finishedAt);
+    case "started":
+      return timeMs(b.startedAt) - timeMs(a.startedAt);
+    case "status":
+      return (
+        BOOK_STATUS_SORT_ORDER.indexOf(a.status) -
+        BOOK_STATUS_SORT_ORDER.indexOf(b.status)
+      );
+    case "added":
+      return b.createdAt.localeCompare(a.createdAt);
+  }
+}
 
 @Injectable()
 export class BookLibraryService {
@@ -76,14 +158,45 @@ export class BookLibraryService {
 
   async listEntries(
     userId: string,
-    filters: { status?: BookStatus },
-  ): Promise<BookEntryDto[]> {
+    filters: ListEntriesFilters,
+  ): Promise<PagedResult<BookEntryDto>> {
     const entries = await this.prisma.bookEntry.findMany({
-      where: { userId, status: filters.status },
+      where: {
+        userId,
+        status:
+          filters.statuses && filters.statuses.length > 0
+            ? { in: filters.statuses as DbBookStatus[] }
+            : undefined,
+      },
       include: ENTRY_INCLUDE,
       orderBy: { updatedAt: "desc" },
     });
-    return entries.map(toEntryDto);
+
+    let dtos = entries.map(toEntryDto);
+
+    const q = filters.q?.trim().toLowerCase();
+    dtos = dtos.filter((dto) => {
+      if (filters.favorite && !dto.favorite) return false;
+      if (q && !dto.book.title.toLowerCase().includes(q)) return false;
+      return true;
+    });
+
+    const sort = BOOK_SORT_KEYS.includes(filters.sort as BookSortKey)
+      ? (filters.sort as BookSortKey)
+      : "added";
+    const asc = filters.order === "asc";
+    dtos.sort((a, b) => {
+      const c = compareBookEntries(sort, a, b);
+      return asc ? -c : c;
+    });
+
+    const page = filters.page && filters.page > 0 ? filters.page : 1;
+    const start = (page - 1) * PAGE_SIZE;
+    return {
+      items: dtos.slice(start, start + PAGE_SIZE),
+      total: dtos.length,
+      hasMore: dtos.length > page * PAGE_SIZE,
+    };
   }
 
   async getEntry(userId: string, entryId: string): Promise<BookEntryDto> {
