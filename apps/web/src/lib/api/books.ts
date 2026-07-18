@@ -3,15 +3,7 @@ import type {
   BookEntryDto,
   BookSearchResponseDto,
   BookStatsDto,
-  GoodreadsImportCommitRequestDto,
-  GoodreadsImportPreviewDto,
-  GoodreadsImportPreviewRequestDto,
-  GoodreadsImportResultDto,
   PagedResult,
-  StoryGraphImportCommitRequestDto,
-  StoryGraphImportPreviewDto,
-  StoryGraphImportPreviewRequestDto,
-  StoryGraphImportResultDto,
   UpdateBookEntryDto,
   UpsertBookEntryDto,
 } from "@tracklore/shared";
@@ -84,32 +76,4 @@ export function addBookReplay(entryId: string): Promise<BookEntryDto> {
 
 export function deleteBookReplay(replayId: string): Promise<void> {
   return request(`/books/replays/${replayId}`, { method: "DELETE" });
-}
-
-/** Parse + resolve a StoryGraph CSV against Google Books (writes nothing). */
-export function previewStoryGraphImport(
-  body: StoryGraphImportPreviewRequestDto,
-): Promise<StoryGraphImportPreviewDto> {
-  return request("/books/import/storygraph/preview", { method: "POST", body });
-}
-
-/** Persist the chosen StoryGraph books as library entries. */
-export function commitStoryGraphImport(
-  body: StoryGraphImportCommitRequestDto,
-): Promise<StoryGraphImportResultDto> {
-  return request("/books/import/storygraph/commit", { method: "POST", body });
-}
-
-/** Parse + resolve a Goodreads CSV against Google Books (writes nothing). */
-export function previewGoodreadsImport(
-  body: GoodreadsImportPreviewRequestDto,
-): Promise<GoodreadsImportPreviewDto> {
-  return request("/books/import/goodreads/preview", { method: "POST", body });
-}
-
-/** Persist the chosen Goodreads books as library entries. */
-export function commitGoodreadsImport(
-  body: GoodreadsImportCommitRequestDto,
-): Promise<GoodreadsImportResultDto> {
-  return request("/books/import/goodreads/commit", { method: "POST", body });
 }

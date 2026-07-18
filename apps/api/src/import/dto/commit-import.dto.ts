@@ -15,6 +15,11 @@ export class CommitImportDto implements ImportCommitRequest {
   @IsString({ each: true })
   include!: string[];
 
+  // Free-form map (key → chosen status); its inner shape is read defensively.
+  @IsOptional()
+  @IsObject()
+  statuses?: Record<string, string>;
+
   // Free-form map (key → chosen match); its inner shape is read defensively.
   @IsOptional()
   @IsObject()

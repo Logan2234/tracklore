@@ -1,25 +1,31 @@
 import type {
+  ImportAnalyzeRequest,
   ImportCommitRequest,
-  StartTvTimeImportDto,
-  TvTimeImportJobDto,
+  ImportJobDto,
 } from "@tracklore/shared";
 import { request } from "./core";
 
 /** Analyse an export → reconciliation plan (writes nothing). Poll the job. */
-export function analyzeTvTimeImport(
-  body: StartTvTimeImportDto,
-): Promise<TvTimeImportJobDto> {
-  return request("/import/tvtime/analyze", { method: "POST", body });
+export function analyzeImport(
+  source: string,
+  body: ImportAnalyzeRequest,
+): Promise<ImportJobDto> {
+  return request(`/import/${source}/analyze`, { method: "POST", body });
 }
 
 /** Commit an analysed import with the user's reconciliation decisions. */
-export function commitTvTimeImport(
+export function commitImport(
+  source: string,
   jobId: string,
   body: ImportCommitRequest,
-): Promise<TvTimeImportJobDto> {
-  return request(`/import/tvtime/${jobId}/commit`, { method: "POST", body });
+): Promise<ImportJobDto> {
+  return request(`/import/${source}/${jobId}/commit`, { method: "POST", body });
 }
 
-export function getTvTimeImportJob(jobId: string): Promise<TvTimeImportJobDto> {
-  return request(`/import/tvtime/${jobId}`);
+/** Poll an import job's progress and, once finished, its plan or report. */
+export function getImportJob(
+  source: string,
+  jobId: string,
+): Promise<ImportJobDto> {
+  return request(`/import/${source}/${jobId}`);
 }

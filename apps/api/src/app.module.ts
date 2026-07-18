@@ -10,7 +10,7 @@ import { BooksModule } from "./books/books.module";
 import { CatalogModule } from "./catalog/catalog.module";
 import { GamesModule } from "./games/games.module";
 import { HealthModule } from "./health/health.module";
-import { ImportModule } from "./import/tvtime/import.module";
+import { ImportModule } from "./import/import.module";
 import { LibraryModule } from "./library/library.module";
 import { MailModule } from "./mail/mail.module";
 import { MusicModule } from "./music/music.module";

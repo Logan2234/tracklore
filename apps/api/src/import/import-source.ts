@@ -1,59 +1,79 @@
+import type {
+  ImportCommitOverride,
+  ImportPlan,
+  ImportReport,
+  ImportSearchDomain,
+} from "@tracklore/shared";
+
 /**
- * Canonical, source-agnostic import model. Every import source (TV Time today,
- * Trakt/Letterboxd/MAL tomorrow) parses its own export format down to this
- * shape; everything downstream — catalogue resolution, the reconciliation plan
- * and the write phase — is generic and consumes only what is defined here.
- * Adding a source therefore means writing one more {@link ImportSource.parse}.
+ * DI token collecting every {@link ImportSource} provider into an array, so the
+ * generic {@link ImportJobService} can dispatch by id without importing each
+ * source concretely. Register sources with `{ provide: IMPORT_SOURCES, ... }`.
  */
+export const IMPORT_SOURCES = Symbol("IMPORT_SOURCES");
 
-/** External identifiers a source may expose for a title (any subset). */
-type ExternalIdMap = {
-  tvdb?: string;
-  tmdb?: string;
-  imdb?: string;
-  anilist?: string;
-};
-
-/** One distinct watched episode of a show, rewatches folded into the count. */
-interface ImportWatchedEpisode {
-  season: number;
-  episode: number;
-  /** The source's own episode id (e.g. TVDB) — used to fold in rewatch counts. */
-  sourceEpisodeId: string;
-  /** Approximate: sources store record-creation time, not real watch time. */
-  watchedAt: Date | null;
-  /** Base watch + rewatches. Always >= 1. */
-  totalWatches: number;
+/** Lets a long-running analyze/commit push progress onto the polled job. */
+export interface ProgressReporter {
+  /** Set the denominator once the total to process is known. */
+  setTotal(total: number): void;
+  /** Advance the numerator by one processed item. */
+  tick(): void;
 }
 
-export interface ImportShow {
-  title: string;
-  externalIds: ExternalIdMap;
-  /** Distinct watched episodes; empty means the show is only on the watchlist. */
-  episodes: ImportWatchedEpisode[];
-}
-
-export interface ImportMovie {
-  title: string;
-  year: number | null;
-  /** true → watched (COMPLETED); false → watchlist (PLANNED). */
-  watched: boolean;
-  externalIds: ExternalIdMap;
-}
-
-export interface ParsedImport {
-  /** Which source produced this (matches {@link ImportSource.key}). */
-  source: string;
-  shows: ImportShow[];
-  movies: ImportMovie[];
+/** The user's reconciliation decisions, resolved for a source's `commit`. */
+export interface CommitDecisions {
+  /** Plan keys the user chose to import. */
+  include: Set<string>;
+  /** Per-key status choice (domain enum value), for sources with a status control. */
+  statuses: Map<string, string>;
+  /** Manual matches for items the analysis left unresolved. */
+  overrides: Map<string, ImportCommitOverride>;
+  /** Wipe the domain's library before writing (already gated on `supportsOverwrite`). */
+  overwrite: boolean;
 }
 
 /**
- * A user-data source that can be imported into the library. Only the parsing
- * (and which identifiers a source carries) is source-specific.
+ * A user-data source pluggable into the generic import framework. A source owns
+ * only its parse/resolve/write; the job lifecycle, polling, progress and the
+ * wire DTOs are handled once by {@link ImportJobService}.
+ *
+ * Generic over `TParsed` — the source's own parse model, kept on the job
+ * between `analyze` and a later `commit`.
  */
-export interface ImportSource {
-  readonly key: string;
-  /** Raw uploaded bytes → canonical model. Throws on a malformed export. */
-  parse(input: Buffer): ParsedImport;
+export interface ImportSource<TParsed = unknown> {
+  /** Stable id, matching the `/import/:id` route segment and the UI descriptor. */
+  readonly id: string;
+  /** Which catalogue the manual-match search hits (surfaced in the plan). */
+  readonly searchDomain: ImportSearchDomain;
+  /** Whether `commit` honours the destructive overwrite flag. */
+  readonly supportsOverwrite: boolean;
+
+  /**
+   * Parse the raw string input (CSV text, a Steam id, or a base64 ZIP — per the
+   * source's input type) into its parse model. Throws on a malformed export so
+   * the caller gets an immediate 400.
+   */
+  parseInput(input: string, options: Record<string, boolean>): TParsed;
+
+  /**
+   * Resolve the parsed export against the catalogue and build the review plan.
+   * Writes nothing; reports progress so the client's poll shows movement.
+   */
+  buildPlan(
+    userId: string,
+    parsed: TParsed,
+    progress: ProgressReporter,
+  ): Promise<ImportPlan>;
+
+  /**
+   * Write the user's kept items (applying manual matches/overrides) and return
+   * the completion report. Reports progress the same way.
+   */
+  commit(
+    userId: string,
+    parsed: TParsed,
+    plan: ImportPlan,
+    decisions: CommitDecisions,
+    progress: ProgressReporter,
+  ): Promise<ImportReport>;
 }
