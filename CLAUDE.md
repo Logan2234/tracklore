@@ -98,6 +98,14 @@ self-contained adapter-node `build/` output.
   (Web Push ✓, self-host mobile access via PWA + ngrok ✓, native Capacitor
   TODO) → **P3 games & books (current)** → P4 social → P5 hosted/entitlements.
   Don't implement ahead of the current phase.
+- Versioning: no tagged releases, so the `version` field (root + every
+  `apps/*`/`packages/*` package.json, kept in lockstep) is the only record of
+  where the app stands. Bump the minor version whenever a roadmap phase above
+  advances or a domain/module ships (e.g. 0.1.0 → P1, 0.2.0 → P1.5, 0.3.0 →
+  P2, 0.4.0 → P3 under way with media/games/books/music built); patch for
+  smaller fixes/polish once past 1.0. Reserve 1.0.0 for when the roadmap
+  reaches P4+ and the app is stable enough to call finished, not a specific
+  commit.
 - Mobile: the app installs as a PWA. `docker-compose.ngrok.yml` + `Caddyfile`
   put web+api behind one origin and expose it via ngrok for phone access (set
   `NGROK_DOMAIN` in `.env`); see README "Mobile access". Single-user; a 2nd

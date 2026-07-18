@@ -7,7 +7,6 @@
   import { isDomainEnabled } from "$lib/domains";
   import { NAVIGATION } from "$lib/navigation";
   import { notifications } from "$lib/notifications.svelte";
-  import { theme } from "$lib/theme.svelte";
 
   let expanded = $state(
     browser ? localStorage.getItem("tl-rail") === "open" : false,
@@ -21,8 +20,8 @@
     (auth.user?.displayName ?? "?").charAt(0).toUpperCase(),
   );
 
-  function toggleRail() {
-    expanded = !expanded;
+  function toggleRail(expandedState = !expanded) {
+    expanded = expandedState;
 
     if (browser) {
       localStorage.setItem("tl-rail", expanded ? "open" : "closed");
@@ -62,22 +61,9 @@
 <div class="flex min-h-screen">
   <aside
     class="sticky top-0 hidden h-screen shrink-0 flex-col overflow-hidden border-r border-border bg-surface px-3 py-3 transition-[width] duration-200 md:flex
-    {expanded ? 'w-60' : 'w-16'}">
-    <button
-      onclick={toggleRail}
-      class="flex w-full items-center overflow-hidden rounded-xl text-fg hover:bg-surface-2"
-      aria-label="Changer la largeur du menu">
-      <span class="grid h-10 w-10 shrink-0 place-items-center">
-        <Icon name="menu" />
-      </span>
-
-      <span
-        class="whitespace-nowrap text-sm font-semibold transition-opacity
-        {expanded ? 'opacity-100' : 'opacity-0'}">
-        Réduire
-      </span>
-    </button>
-
+    {expanded ? 'w-60' : 'w-16'}"
+    onmouseenter={() => toggleRail(true)}
+    onmouseleave={() => toggleRail(false)}>
     <a href="/" class="mb-2 flex items-center overflow-hidden">
       <span
         class="grid h-10 w-10 shrink-0 place-items-center font-display text-xl font-extrabold text-accent">
@@ -101,7 +87,7 @@
             href="/admin"
             aria-current={page.url.pathname === "/admin" ? "page" : undefined}
             title={expanded ? undefined : "Vue d’ensemble"}
-            class="flex w-full items-center overflow-hidden rounded-xl transition-colors {page
+            class="flex w-full items-center overflow-hidden rounded-xl transition-colors shrink-0 {page
               .url.pathname === '/admin'
               ? 'bg-accent/15 text-accent'
               : 'text-dim hover:bg-surface-2 hover:text-fg'}">
@@ -118,11 +104,13 @@
 
           {#if expanded}
             <div
-              class="px-3 pt-3 pb-1 text-[0.6rem] font-bold tracking-[0.13em] text-dim uppercase">
+              class="px-3 pt-3 pb-2 text-[0.6rem] font-bold tracking-[0.13em] text-dim uppercase sticky top-0">
               Administration
             </div>
           {:else}
-            <div class="mx-3 my-2 border-t border-border" aria-hidden="true">
+            <div
+              class="mx-3 mt-4.5 mb-4 border-t border-border"
+              aria-hidden="true">
             </div>
           {/if}
 
@@ -133,7 +121,7 @@
               aria-current={active ? "page" : undefined}
               aria-disabled={item.soon ? "true" : undefined}
               title={expanded ? undefined : item.label}
-              class="flex w-full items-center overflow-hidden rounded-xl transition-colors {active
+              class="flex w-full items-center overflow-hidden rounded-xl transition-colors shrink-0 {active
                 ? 'bg-accent/15 text-accent'
                 : 'text-dim hover:bg-surface-2 hover:text-fg'} {item.soon
                 ? 'pointer-events-none opacity-60'
@@ -161,8 +149,13 @@
           {#each NAVIGATION as section (section.label)}
             {#if section.label && expanded}
               <div
-                class="px-3 pt-3 pb-1 text-[0.6rem] font-bold tracking-widest text-dim uppercase">
+                class="px-3 pt-3 pb-2 text-[0.6rem] font-bold tracking-widest text-dim uppercase whitespace-nowrap">
                 {section.label}
+              </div>
+            {:else if section.label}
+              <div
+                class="mx-3 mt-4.5 mb-4 border-t border-border"
+                aria-hidden="true">
               </div>
             {/if}
 
@@ -196,13 +189,13 @@
       </nav>
 
       <div
-        class="pointer-events-none absolute inset-x-0 top-0 h-5 bg-gradient-to-b from-surface to-transparent transition-opacity duration-150 {atTop
+        class="pointer-events-none absolute inset-x-0 top-0 h-5 bg-linear-to-b from-surface to-transparent transition-opacity duration-150 {atTop
           ? 'opacity-0'
           : 'opacity-100'}"
         aria-hidden="true">
       </div>
       <div
-        class="pointer-events-none absolute inset-x-0 bottom-0 h-5 bg-gradient-to-t from-surface to-transparent transition-opacity duration-150 {atBottom
+        class="pointer-events-none absolute inset-x-0 bottom-0 h-5 bg-linear-to-t from-surface to-transparent transition-opacity duration-150 {atBottom
           ? 'opacity-0'
           : 'opacity-100'}"
         aria-hidden="true">
@@ -268,7 +261,7 @@
         <a
           href="/account"
           title={expanded ? undefined : auth.user?.displayName}
-          class="mt-1 flex w-full items-center overflow-hidden rounded-xl transition-colors hover:bg-surface-2 {page.url.pathname.startsWith(
+          class="my-1 flex w-full items-center overflow-hidden rounded-xl transition-colors hover:bg-surface-2 {page.url.pathname.startsWith(
             '/account',
           )
             ? 'bg-surface-2'
@@ -290,7 +283,7 @@
         <a
           href="/"
           title={expanded ? undefined : "Retour à l’application"}
-          class="mt-1 flex w-full items-center overflow-hidden rounded-xl transition-colors hover:bg-surface-2 hover:text-fg">
+          class="my-1 flex w-full items-center overflow-hidden rounded-xl transition-colors hover:bg-surface-2 hover:text-fg">
           <span class="grid h-10 w-10 shrink-0 place-items-center">
             <Icon name="chevron-left" class="h-5 w-5" />
           </span>

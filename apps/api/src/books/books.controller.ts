@@ -18,12 +18,13 @@ import {
   BookSearchResponseDto,
   BookSource,
   BookStatsDto,
-  BookStatus,
   Domain,
 } from "@tracklore/shared";
+import type { PagedResult } from "@tracklore/shared";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { JwtPayload } from "../auth/decorators/current-user.decorator";
 import { parseEnumParam } from "../common/parse-enum-param.util";
+import { toQueryArray } from "../common/query-array.util";
 import { AgeGateService } from "../users/age-gate.service";
 import { filterAdultContent } from "../users/age.util";
 import { DomainGateService } from "../users/domain-gate.service";
@@ -70,11 +71,24 @@ export class BooksController {
   }
 
   @Get()
-  listEntries(
+  async listEntries(
     @CurrentUser() user: JwtPayload,
-    @Query("status") status?: BookStatus,
-  ): Promise<BookEntryDto[]> {
-    return this.bookLibraryService.listEntries(user.sub, { status });
+    @Query("q") q?: string,
+    @Query("favorite") favorite?: string,
+    @Query("status") status?: string | string[],
+    @Query("sort") sort?: string,
+    @Query("order") order?: string,
+    @Query("page") page?: string,
+  ): Promise<PagedResult<BookEntryDto>> {
+    await this.domainGate.assertEnabled(user.sub, Domain.BOOKS);
+    return this.bookLibraryService.listEntries(user.sub, {
+      q,
+      favorite: favorite === "true",
+      statuses: toQueryArray(status),
+      sort,
+      order: order === "asc" ? "asc" : "desc",
+      page: page ? Number(page) : undefined,
+    });
   }
 
   @Put()

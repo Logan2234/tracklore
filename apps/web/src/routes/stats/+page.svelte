@@ -5,11 +5,14 @@
     GameStatsDto,
     GameStatus,
     MediaType,
+    MusicStatsDto,
+    MusicStatus,
     StatsDto,
   } from "@tracklore/shared";
   import {
     getBookStats,
     getGameStats,
+    getMusicStats,
     getStats,
     ApiError,
   } from "$lib/api/client";
@@ -23,18 +26,22 @@
     BOOK_STATUS_ORDER,
     GAME_STATUS_LABELS,
     GAME_STATUS_ORDER,
+    MUSIC_STATUS_LABELS,
+    MUSIC_STATUS_ORDER,
   } from "$lib/status-labels";
   import { Domain } from "@tracklore/shared";
 
   let stats = $state<StatsDto | null>(null);
   let gameStats = $state<GameStatsDto | null>(null);
   let bookStats = $state<BookStatsDto | null>(null);
+  let musicStats = $state<MusicStatsDto | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
 
   const mediaOn = $derived(isDomainEnabled(Domain.MEDIA));
   const gamesOn = $derived(isDomainEnabled(Domain.GAMES));
   const booksOn = $derived(isDomainEnabled(Domain.BOOKS));
+  const musicOn = $derived(isDomainEnabled(Domain.MUSIC));
 
   // Only query the domains the user keeps enabled — the API 403s the others.
   // Waits for the profile so a disabled domain is never fetched. Re-runs when a
@@ -51,6 +58,8 @@
     else gameStats = null;
     if (booksOn) jobs.push(getBookStats().then((b) => (bookStats = b)));
     else bookStats = null;
+    if (musicOn) jobs.push(getMusicStats().then((m) => (musicStats = m)));
+    else musicStats = null;
 
     Promise.all(jobs)
       .catch((err) => {
@@ -98,6 +107,17 @@
     READING: "reading",
     READ: "read",
     DROPPED: "dropped",
+  };
+
+  // Music status funnel: dim to-listen → green listened. Deliberately binary.
+  const MUSIC_STATUS: Record<MusicStatus, { label: string; color: string }> = {
+    TO_LISTEN: { label: MUSIC_STATUS_LABELS.TO_LISTEN, color: "var(--dim)" },
+    LISTENED: { label: MUSIC_STATUS_LABELS.LISTENED, color: "var(--success)" },
+  };
+  // MusicStatsDto keys, in the same order as MUSIC_STATUS_ORDER.
+  const MUSIC_STATUS_KEY: Record<MusicStatus, "toListen" | "listened"> = {
+    TO_LISTEN: "toListen",
+    LISTENED: "listened",
   };
 
   const tiles = $derived(
@@ -149,12 +169,24 @@
       : [],
   );
 
+  const musicTiles = $derived(
+    musicStats
+      ? [
+          { value: musicStats.totalAlbums, label: "Albums" },
+          { value: musicStats.toListen, label: "À écouter" },
+          { value: musicStats.listened, label: "Écoutés" },
+          { value: musicStats.favorites, label: "Favoris" },
+        ]
+      : [],
+  );
+
   const totalHours = $derived(
     stats ? stats.timeByType.reduce((sum, t) => sum + t.hours, 0) : 0,
   );
   const maxGenre = $derived(stats?.topGenres[0]?.count ?? 0);
   const maxPlatform = $derived(gameStats?.topPlatforms[0]?.count ?? 0);
   const maxAuthor = $derived(bookStats?.topAuthors[0]?.count ?? 0);
+  const maxArtist = $derived(musicStats?.topArtists[0]?.count ?? 0);
 
   const gameCount = (status: GameStatus): number =>
     gameStats
@@ -166,6 +198,9 @@
 
   const bookCount = (status: BookStatus): number =>
     bookStats ? bookStats[BOOK_STATUS_KEY[status]] : 0;
+
+  const musicCount = (status: MusicStatus): number =>
+    musicStats ? musicStats[MUSIC_STATUS_KEY[status]] : 0;
 
   // A disabled domain counts as "empty" so it neither renders its section nor
   // blocks the global empty state.
@@ -182,7 +217,12 @@
   const booksEmpty = $derived(
     !booksOn || (!!bookStats && bookStats.totalBooks === 0),
   );
-  const allEmpty = $derived(mediaEmpty && gamesEmpty && booksEmpty);
+  const musicEmpty = $derived(
+    !musicOn || (!!musicStats && musicStats.totalAlbums === 0),
+  );
+  const allEmpty = $derived(
+    mediaEmpty && gamesEmpty && booksEmpty && musicEmpty,
+  );
 </script>
 
 <div class="mx-auto max-w-4xl px-4 py-6 md:px-8 md:py-10">
@@ -417,6 +457,77 @@
               </ul>
             {:else}
               <p class="timecode text-sm">Pas encore d’auteur.</p>
+            {/if}
+          </section>
+        </div>
+      </section>
+    {/if}
+
+    {#if musicStats && !musicEmpty}
+      <!-- Musique -->
+      <section class="mt-10">
+        <p class="timecode mb-3 text-xs uppercase">Musique</p>
+        <div class="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {#each musicTiles as t (t.label)}
+            <div class="card p-4">
+              <p class="font-display text-3xl font-extrabold tabular-nums">
+                {t.value}
+              </p>
+              <p class="timecode mt-1 text-xs uppercase">{t.label}</p>
+            </div>
+          {/each}
+        </div>
+
+        <div class="grid gap-5 md:grid-cols-2">
+          <!-- Status funnel -->
+          <section class="card p-5">
+            <h2 class="mb-4 font-display text-lg font-bold">Progression</h2>
+            <div class="flex h-3 overflow-hidden rounded-full bg-surface-2">
+              {#each MUSIC_STATUS_ORDER as status (status)}
+                {#if musicCount(status) > 0}
+                  <div
+                    style={`width:${(musicCount(status) / musicStats.totalAlbums) * 100}%;background:${MUSIC_STATUS[status].color}`}>
+                  </div>
+                {/if}
+              {/each}
+            </div>
+            <ul class="mt-4 flex flex-col gap-2">
+              {#each MUSIC_STATUS_ORDER as status (status)}
+                {#if musicCount(status) > 0}
+                  <li class="flex items-center gap-2.5 text-sm">
+                    <span
+                      class="h-3 w-3 rounded-sm"
+                      style={`background:${MUSIC_STATUS[status].color}`}></span>
+                    <span class="flex-1">{MUSIC_STATUS[status].label}</span>
+                    <span class="timecode">{musicCount(status)}</span>
+                  </li>
+                {/if}
+              {/each}
+            </ul>
+          </section>
+
+          <!-- Top artists -->
+          <section class="card p-5">
+            <h2 class="mb-4 font-display text-lg font-bold">Artistes</h2>
+            {#if musicStats.topArtists.length > 0}
+              <ul class="flex flex-col gap-3">
+                {#each musicStats.topArtists as a (a.artist)}
+                  <li>
+                    <div class="mb-1 flex justify-between text-sm">
+                      <span class="truncate">{a.artist}</span>
+                      <span class="timecode shrink-0">{a.count}</span>
+                    </div>
+                    <div class="h-2 overflow-hidden rounded-full bg-surface-2">
+                      <div
+                        class="h-full rounded-full bg-accent"
+                        style={`width:${maxArtist > 0 ? (a.count / maxArtist) * 100 : 0}%`}>
+                      </div>
+                    </div>
+                  </li>
+                {/each}
+              </ul>
+            {:else}
+              <p class="timecode text-sm">Pas encore d’artiste.</p>
             {/if}
           </section>
         </div>

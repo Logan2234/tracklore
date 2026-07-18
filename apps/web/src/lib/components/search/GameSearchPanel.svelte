@@ -1,6 +1,7 @@
 <script lang="ts">
   import {
     ApiError,
+    fetchAllPages,
     listGames,
     searchGames,
     upsertGameEntry,
@@ -39,7 +40,7 @@
 
   async function loadLibrary() {
     try {
-      entries = await listGames();
+      entries = await fetchAllPages((page) => listGames({ page }));
     } catch {
       // A failed library load only costs the "already added" flag; ignore.
     }

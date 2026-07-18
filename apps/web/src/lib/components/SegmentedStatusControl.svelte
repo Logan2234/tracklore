@@ -21,7 +21,8 @@
 </script>
 
 <div
-  class="grid grid-cols-4 gap-1 rounded-xl border border-border bg-surface-2 p-1"
+  class="grid gap-1 rounded-xl border border-border bg-surface-2 p-1"
+  style="grid-template-columns: repeat({statuses.length}, minmax(0, 1fr));"
   role="group"
   aria-label="Statut">
   {#each statuses as status (status)}

@@ -21,9 +21,11 @@ import type {
   MediaDetailDto,
   MediaItemDto,
   MediaType,
+  PagedResult,
   ProgressDto,
   StatsDto,
 } from "@tracklore/shared";
+import { isDormant } from "@tracklore/shared";
 import { MediaItemService } from "../catalog/media-item.service";
 import { canonicalExternalId } from "../common/external-id.util";
 import { PrismaService } from "../prisma/prisma.service";
@@ -45,6 +47,87 @@ const ENTRY_INCLUDE = {
 type EntryWithMedia = Prisma.LibraryEntryGetPayload<{
   include: typeof ENTRY_INCLUDE;
 }>;
+
+const PAGE_SIZE = 40;
+
+type MediaSortKey =
+  | "recent"
+  | "added"
+  | "title"
+  | "rating"
+  | "progress"
+  | "finished"
+  | "started"
+  | "status";
+const MEDIA_SORT_KEYS: MediaSortKey[] = [
+  "recent",
+  "added",
+  "title",
+  "rating",
+  "progress",
+  "finished",
+  "started",
+  "status",
+];
+// Order used by the "Statut" sort.
+const MEDIA_STATUS_SORT_ORDER: EntryStatus[] = [
+  "WATCHING",
+  "PLANNED",
+  "UP_TO_DATE",
+  "COMPLETED",
+  "DROPPED",
+];
+
+export interface ListEntriesFilters {
+  q?: string;
+  favorite?: boolean;
+  /** "DORMANT" is accepted alongside real `EntryStatus` values — see `isDormant`. */
+  statuses?: string[];
+  types?: MediaType[];
+  sort?: string;
+  order?: "asc" | "desc";
+  page?: number;
+}
+
+function timeMs(iso: string | null): number {
+  return iso ? new Date(iso).getTime() : 0;
+}
+
+function mediaProgressPct(entry: LibraryEntryDto): number {
+  if (!entry.progress || entry.progress.totalEpisodes === 0) return 0;
+  return Math.round(
+    (entry.progress.watchedEpisodes / entry.progress.totalEpisodes) * 100,
+  );
+}
+
+// Base comparator per criterion (its natural order); `order: "asc"` negates it.
+function compareMediaEntries(
+  sort: MediaSortKey,
+  a: LibraryEntryDto,
+  b: LibraryEntryDto,
+): number {
+  switch (sort) {
+    case "title":
+      return a.mediaItem.title.localeCompare(b.mediaItem.title, "fr");
+    case "rating":
+      return (b.rating ?? -1) - (a.rating ?? -1);
+    case "progress":
+      return mediaProgressPct(b) - mediaProgressPct(a);
+    case "finished":
+      return timeMs(b.finishedAt) - timeMs(a.finishedAt);
+    case "started":
+      return timeMs(b.startedAt) - timeMs(a.startedAt);
+    case "status":
+      return (
+        MEDIA_STATUS_SORT_ORDER.indexOf(a.status) -
+        MEDIA_STATUS_SORT_ORDER.indexOf(b.status)
+      );
+    case "added":
+      return b.createdAt.localeCompare(a.createdAt);
+    case "recent":
+      return timeMs(b.lastWatchedAt) - timeMs(a.lastWatchedAt);
+  }
+}
 
 @Injectable()
 export class LibraryService {
@@ -87,12 +170,15 @@ export class LibraryService {
 
   async listEntries(
     userId: string,
-    filters: { status?: EntryStatus; type?: MediaType },
-  ): Promise<LibraryEntryDto[]> {
+    filters: ListEntriesFilters,
+  ): Promise<PagedResult<LibraryEntryDto>> {
     const entries = await this.prisma.libraryEntry.findMany({
       where: {
         userId,
-        mediaItem: filters.type ? { type: filters.type } : undefined,
+        mediaItem:
+          filters.types && filters.types.length > 0
+            ? { type: { in: filters.types } }
+            : undefined,
       },
       include: ENTRY_INCLUDE,
       orderBy: { updatedAt: "desc" },
@@ -108,10 +194,39 @@ export class LibraryService {
       ),
     );
 
-    // Status is derived, so filter on the effective status, not the stored one.
-    return filters.status
-      ? dtos.filter((dto) => dto.status === filters.status)
-      : dtos;
+    // Status is derived, so filter on the effective status, not the stored
+    // one — "DORMANT" is a synthetic refinement of WATCHING (see isDormant).
+    const q = filters.q?.trim().toLowerCase();
+    const filtered = dtos.filter((dto) => {
+      if (
+        filters.statuses &&
+        filters.statuses.length > 0 &&
+        !filters.statuses.some((s) =>
+          s === "DORMANT" ? isDormant(dto) : dto.status === s,
+        )
+      )
+        return false;
+      if (filters.favorite && !dto.favorite) return false;
+      if (q && !dto.mediaItem.title.toLowerCase().includes(q)) return false;
+      return true;
+    });
+
+    const sort = MEDIA_SORT_KEYS.includes(filters.sort as MediaSortKey)
+      ? (filters.sort as MediaSortKey)
+      : "recent";
+    const asc = filters.order === "asc";
+    filtered.sort((a, b) => {
+      const c = compareMediaEntries(sort, a, b);
+      return asc ? -c : c;
+    });
+
+    const page = filters.page && filters.page > 0 ? filters.page : 1;
+    const start = (page - 1) * PAGE_SIZE;
+    return {
+      items: filtered.slice(start, start + PAGE_SIZE),
+      total: filtered.length,
+      hasMore: filtered.length > page * PAGE_SIZE,
+    };
   }
 
   async getEntry(userId: string, entryId: string): Promise<LibraryEntryDto> {

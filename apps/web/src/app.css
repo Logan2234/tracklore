@@ -116,6 +116,14 @@ body {
   .skeleton {
     @apply bg-surface-2 animate-pulse;
   }
+  /* Native scroll (and drag-to-scroll) without the browser's scrollbar chrome. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* Tailwind's preflight resets buttons to `cursor: default`; restore the

@@ -1,6 +1,7 @@
 <script lang="ts">
   import {
     ApiError,
+    fetchAllPages,
     listBooks,
     searchBooks,
     upsertBookEntry,
@@ -43,7 +44,7 @@
 
   async function loadLibrary() {
     try {
-      entries = await listBooks();
+      entries = await fetchAllPages((page) => listBooks({ page }));
     } catch {
       // A failed library load only costs the "already added" flag; ignore.
     }

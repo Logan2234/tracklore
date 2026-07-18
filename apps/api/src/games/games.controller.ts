@@ -19,11 +19,12 @@ import {
   GameSearchResponseDto,
   GameSource,
   GameStatsDto,
-  GameStatus,
 } from "@tracklore/shared";
+import type { PagedResult } from "@tracklore/shared";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { JwtPayload } from "../auth/decorators/current-user.decorator";
 import { parseEnumParam } from "../common/parse-enum-param.util";
+import { toQueryArray } from "../common/query-array.util";
 import { AgeGateService } from "../users/age-gate.service";
 import { DomainGateService } from "../users/domain-gate.service";
 import { filterAdultContent } from "../users/age.util";
@@ -73,11 +74,24 @@ export class GamesController {
   }
 
   @Get()
-  listEntries(
+  async listEntries(
     @CurrentUser() user: JwtPayload,
-    @Query("status") status?: GameStatus,
-  ): Promise<GameEntryDto[]> {
-    return this.gameLibraryService.listEntries(user.sub, { status });
+    @Query("q") q?: string,
+    @Query("favorite") favorite?: string,
+    @Query("status") status?: string | string[],
+    @Query("sort") sort?: string,
+    @Query("order") order?: string,
+    @Query("page") page?: string,
+  ): Promise<PagedResult<GameEntryDto>> {
+    await this.domainGate.assertEnabled(user.sub, Domain.GAMES);
+    return this.gameLibraryService.listEntries(user.sub, {
+      q,
+      favorite: favorite === "true",
+      statuses: toQueryArray(status),
+      sort,
+      order: order === "asc" ? "asc" : "desc",
+      page: page ? Number(page) : undefined,
+    });
   }
 
   @Put()

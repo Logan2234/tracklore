@@ -52,3 +52,16 @@ export const MEDIA_OWNERSHIP_SOURCES: Record<string, string[]> = {
   DIGITAL: ["Apple TV/iTunes", "Google Play", "Amazon Video"],
   STREAMING: ["Netflix", "Prime Video", "Disney+", "Canal+"],
 };
+
+export const MUSIC_OWNERSHIP_STATUS_OPTIONS = [
+  { value: "NONE", label: "Aucun" },
+  { value: "PHYSICAL", label: "Physique (vinyle, CD)" },
+  { value: "DIGITAL", label: "Numérique" },
+  { value: "STREAMING", label: "Streaming" },
+  { value: "BORROWED", label: "Emprunté" },
+];
+
+export const MUSIC_OWNERSHIP_SOURCES: Record<string, string[]> = {
+  DIGITAL: ["Bandcamp", "iTunes", "Amazon Music"],
+  STREAMING: ["Spotify", "Apple Music", "Deezer", "YouTube Music"],
+};

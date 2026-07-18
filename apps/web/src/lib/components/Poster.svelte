@@ -17,14 +17,23 @@
   const hue = $derived(
     [...title].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7),
   );
+
+  // Some sources (e.g. Cover Art Archive) build a URL without confirming the
+  // image exists — a 404 falls back to the same gradient as a null src.
+  let failed = $state(false);
+  $effect(() => {
+    src;
+    failed = false;
+  });
 </script>
 
 <div class="relative">
-  {#if src}
+  {#if src && !failed}
     <img
       {src}
       alt={title}
       loading="lazy"
+      onerror={() => (failed = true)}
       class="aspect-2/3 w-full bg-surface-2 object-cover {cls}" />
   {:else}
     <div

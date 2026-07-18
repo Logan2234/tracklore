@@ -1,5 +1,5 @@
 import { env } from "$env/dynamic/public";
-import type { AuthTokensDto } from "@tracklore/shared";
+import type { AuthTokensDto, PagedResult } from "@tracklore/shared";
 import { auth } from "../auth.svelte";
 
 const API_URL = env.PUBLIC_API_URL ?? "http://localhost:3000/api";
@@ -82,6 +82,25 @@ export async function request<T>(
   }
 
   return (await response.json()) as T;
+}
+
+/**
+ * Drains every page of a paginated `list*` call into one array — for the few
+ * call sites (search panels' "already tracked" lookup) that need the whole
+ * library rather than a page of it.
+ */
+export async function fetchAllPages<T>(
+  fetchPage: (page: number) => Promise<PagedResult<T>>,
+): Promise<T[]> {
+  const items: T[] = [];
+  let page = 1;
+  for (;;) {
+    const result = await fetchPage(page);
+    items.push(...result.items);
+    if (!result.hasMore) break;
+    page++;
+  }
+  return items;
 }
 
 // Refresh tokens rotate: the presented one is consumed server-side on success.

@@ -1,9 +1,26 @@
+<script module lang="ts">
+  export interface LibraryLoadParams {
+    query: string;
+    statuses: string[];
+    favoritesOnly: boolean;
+    /** The domain's extra filter value (media's type list), opaque here. */
+    extra: unknown;
+    sort: string;
+    order: "asc" | "desc";
+    /** 1-indexed. */
+    page: number;
+  }
+</script>
+
 <script lang="ts" generics="T">
-  // Generic library browser shared by the games / books / media list pages:
-  // fetch on mount, text filter, status multi-select, favorites toggle, sort +
-  // direction, loading skeleton, the three empty states and the poster grid.
-  // Everything domain-specific (comparators, labels, card markup, and media's
-  // extra "type" filter) is injected via props/snippets.
+  // Generic library browser shared by the games / books / media / music list
+  // pages: server-paginated infinite scroll (mirrors MediaSearchPanel's
+  // debounce + sentinel pattern), text filter, status multi-select, favorites
+  // toggle, sort + direction, loading states, the three empty states and the
+  // poster grid. Filtering/sorting itself happens server-side (see each
+  // domain's `listEntries`); everything domain-specific (labels, card markup,
+  // the actual `load` call, and media's extra "type" filter) is injected via
+  // props/snippets.
   import { ApiError } from "$lib/api/client";
   import Banner from "$lib/components/Banner.svelte";
   import Combobox from "$lib/components/Combobox.svelte";
@@ -12,6 +29,8 @@
   import PageHeader from "$lib/components/PageHeader.svelte";
   import PosterGrid from "$lib/components/PosterGrid.svelte";
   import PosterGridSkeleton from "$lib/components/PosterGridSkeleton.svelte";
+  import { debounce } from "$lib/debounce";
+  import type { PagedResult } from "@tracklore/shared";
   import type { ComponentProps, Snippet } from "svelte";
 
   type IconName = ComponentProps<typeof Icon>["name"];
@@ -28,17 +47,13 @@
     noun,
     load,
     keyOf,
-    titleOf,
-    favoriteOf,
     statusOptions,
-    statusMatch,
     sorts,
     defaultSort,
-    compare,
     card,
     extraFilters,
     extraActive = false,
-    extraMatch,
+    extra,
     onClearExtra,
   }: {
     icon: IconName;
@@ -47,66 +62,104 @@
     subtitle: (count: number) => string;
     /** Masculine noun for the empty-state copy: "livre", "jeu", "titre". */
     noun: string;
-    load: () => Promise<T[]>;
+    load: (params: LibraryLoadParams) => Promise<PagedResult<T>>;
     /** Stable key for the poster grid's keyed each. */
     keyOf: (entry: T) => string;
-    /** Title used by the text filter. */
-    titleOf: (entry: T) => string;
-    favoriteOf: (entry: T) => boolean;
     statusOptions: Option[];
-    statusMatch: (entry: T, statuses: string[]) => boolean;
     sorts: Option[];
     defaultSort: string;
-    /** Natural-order comparator for the chosen sort key. */
-    compare: (sort: string, a: T, b: T) => number;
     card: Snippet<[T]>;
     /** Extra filter controls (media's "type"), rendered after the status one. */
     extraFilters?: Snippet;
     /** Whether the extra filter is active (contributes to "has filters"). */
     extraActive?: boolean;
-    /** Extra filter predicate (media's "type"). */
-    extraMatch?: (entry: T) => boolean;
+    /** Current value of the extra filter, owned by the page — watched so a
+     * change there triggers a reset+reload here. */
+    extra?: unknown;
     /** Reset the extra filter when clearing all filters. */
     onClearExtra?: () => void;
   } = $props();
 
-  let entries = $state<T[]>([]);
+  let items = $state<T[]>([]);
+  let total = $state(0);
   let statuses = $state<string[]>([]);
   let favoritesOnly = $state(false);
   // svelte-ignore state_referenced_locally -- defaultSort is a fixed initial value
   let sort = $state<string>(defaultSort);
   let reversed = $state(false);
   let query = $state("");
-  let loading = $state(true);
+  let loading = $state(true); // fetching the first page for the current filters
+  let loadingMore = $state(false); // fetching a follow-up page (infinite scroll)
+  let done = $state(false); // no more pages for the current filters
   let error = $state<string | null>(null);
 
-  $effect(() => {
-    loading = true;
+  let sentinel = $state<HTMLElement | null>(null);
+
+  // Non-reactive bookkeeping.
+  let lastPage = 0;
+  let loadId = 0; // bumped on every reset; stale responses are discarded
+  const debouncedRun = debounce(() => run(true), 300);
+
+  async function run(reset: boolean): Promise<void> {
+    if (!reset && (loading || loadingMore || done)) return;
+
+    if (reset) {
+      loadId++;
+      lastPage = 0;
+      done = false;
+      items = [];
+    }
+    const mine = loadId;
+    const next = lastPage + 1;
+    if (reset) loading = true;
+    else loadingMore = true;
     error = null;
-    load()
-      .then((result) => {
-        entries = result;
-      })
-      .catch((err) => {
-        error = err instanceof ApiError ? err.message : "Chargement impossible";
-      })
-      .finally(() => {
-        loading = false;
+
+    try {
+      const result = await load({
+        query: query.trim(),
+        statuses,
+        favoritesOnly,
+        extra,
+        sort,
+        order: reversed ? "asc" : "desc",
+        page: next,
       });
+      if (mine !== loadId) return; // a newer load superseded this one
+      lastPage = next;
+      total = result.total;
+      items = reset ? result.items : [...items, ...result.items];
+      done = !result.hasMore;
+    } catch (err) {
+      if (mine !== loadId) return;
+      error = err instanceof ApiError ? err.message : "Chargement impossible";
+    } finally {
+      if (mine === loadId) {
+        loading = false;
+        loadingMore = false;
+      }
+    }
+  }
+
+  // The only filter not driven by a local handler below: media's "type" list
+  // lives on the page, not here. Also doubles as the initial load on mount.
+  $effect(() => {
+    extra;
+    void run(true);
   });
 
-  const shown = $derived.by(() => {
-    const q = query.trim().toLowerCase();
-    const list = entries.filter((e) => {
-      if (statuses.length > 0 && !statusMatch(e, statuses)) return false;
-      if (extraMatch && !extraMatch(e)) return false;
-      if (favoritesOnly && !favoriteOf(e)) return false;
-      if (q && !titleOf(e).toLowerCase().includes(q)) return false;
-      return true;
-    });
-    const sorted = [...list].sort((a, b) => compare(sort, a, b));
-    if (reversed) sorted.reverse();
-    return sorted;
+  // Infinite scroll: load the next page when the sentinel nears the viewport.
+  $effect(() => {
+    const el = sentinel;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) void run(false);
+      },
+      { rootMargin: "400px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
   });
 
   const hasQuery = $derived(query.trim() !== "");
@@ -118,11 +171,12 @@
     statuses = [];
     favoritesOnly = false;
     onClearExtra?.();
+    void run(true);
   }
 </script>
 
 <div class="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-10">
-  <PageHeader {icon} {title} subtitle={subtitle(shown.length)} class="mb-6" />
+  <PageHeader {icon} {title} subtitle={subtitle(total)} class="mb-6" />
 
   <div class="relative mb-4">
     <span
@@ -132,7 +186,11 @@
     <input
       type="search"
       placeholder="Filtrer ma bibliothèque…"
-      bind:value={query}
+      value={query}
+      oninput={(e) => {
+        query = e.currentTarget.value;
+        debouncedRun.call();
+      }}
       class="input pl-10" />
   </div>
 
@@ -142,12 +200,18 @@
       multiselect
       options={statusOptions}
       values={statuses}
-      onChange={(v) => (statuses = v)} />
+      onChange={(v) => {
+        statuses = v;
+        void run(true);
+      }} />
     {@render extraFilters?.()}
     <button
       class="chip inline-flex items-center gap-1"
       class:chip-on={favoritesOnly}
-      onclick={() => (favoritesOnly = !favoritesOnly)}>
+      onclick={() => {
+        favoritesOnly = !favoritesOnly;
+        void run(true);
+      }}>
       <Icon name="star" class="h-3.5 w-3.5" /> Favoris
     </button>
     <div class="ml-auto flex items-center gap-2">
@@ -155,13 +219,19 @@
         label="Trier"
         options={sorts}
         values={[sort]}
-        onChange={(v) => (sort = v[0] ?? sort)} />
+        onChange={(v) => {
+          sort = v[0] ?? sort;
+          void run(true);
+        }} />
       <button
         type="button"
         class="chip px-2.5 font-mono"
         title={reversed ? "Ordre inversé" : "Ordre par défaut"}
         aria-label="Inverser le sens du tri"
-        onclick={() => (reversed = !reversed)}>
+        onclick={() => {
+          reversed = !reversed;
+          void run(true);
+        }}>
         {reversed ? "↑" : "↓"}
       </button>
     </div>
@@ -171,7 +241,7 @@
     <Banner variant="error">{error}</Banner>
   {:else if loading}
     <PosterGridSkeleton />
-  {:else if shown.length === 0}
+  {:else if items.length === 0}
     <EmptyState>
       {#if !hasFilters && !hasQuery}
         <p>Tu n'as encore aucun {noun} dans ta bibliothèque.</p>
@@ -202,9 +272,18 @@
     </EmptyState>
   {:else}
     <PosterGrid>
-      {#each shown as entry (keyOf(entry))}
+      {#each items as entry (keyOf(entry))}
         {@render card(entry)}
       {/each}
     </PosterGrid>
+    {#if !done}
+      <!-- Sentinel: entering the viewport triggers the next page. -->
+      <div bind:this={sentinel} class="h-10"></div>
+    {/if}
+    {#if loadingMore}
+      <div class="mt-4">
+        <PosterGridSkeleton count={5} />
+      </div>
+    {/if}
   {/if}
 </div>

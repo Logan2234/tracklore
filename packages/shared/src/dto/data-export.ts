@@ -8,6 +8,9 @@ import type {
   GameSource,
   GameStatus,
   MediaType,
+  MusicOwnershipStatus,
+  MusicSource,
+  MusicStatus,
 } from "../enums";
 import type { UserDto } from "./auth";
 
@@ -85,6 +88,26 @@ export interface DataExportBookEntry {
   replays: string[];
 }
 
+/** One album library entry in a data export. */
+export interface DataExportMusicEntry {
+  album: {
+    title: string;
+    artists: string[];
+    canonicalSource: MusicSource;
+    sourceId: string;
+    externalIds: { source: string; externalId: string }[];
+  };
+  status: MusicStatus;
+  rating: number | null;
+  notes: string | null;
+  favorite: boolean;
+  ownershipStatus: MusicOwnershipStatus;
+  ownershipSource: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  createdAt: string;
+}
+
 /** One in-app notification in a data export. */
 export interface DataExportNotification {
   type: string;
@@ -107,6 +130,7 @@ export interface UserDataExportDto {
   episodeWatches: DataExportWatch[];
   games: DataExportGameEntry[];
   books: DataExportBookEntry[];
+  music: DataExportMusicEntry[];
   notifications: DataExportNotification[];
 }
 

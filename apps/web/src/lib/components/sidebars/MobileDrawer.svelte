@@ -5,7 +5,6 @@
   import Icon from "$lib/components/Icon.svelte";
   import { isDomainEnabled } from "$lib/domains";
   import { getDrawerNavigation } from "$lib/navigation";
-  import { theme } from "$lib/theme.svelte";
 
   let open = $state(false);
 
@@ -182,26 +181,6 @@
         border-border
         p-4
       ">
-      <button
-        onclick={() => theme.toggle()}
-        class="
-          flex
-          w-full
-          items-center
-          gap-3
-          rounded-xl
-          px-3
-          py-3
-          text-sm
-          font-semibold
-          text-dim
-          hover:bg-surface-2
-        ">
-        <Icon name={theme.mode === "dark" ? "sun" : "moon"} class="h-5 w-5" />
-
-        {theme.mode === "dark" ? "Thème clair" : "Thème sombre"}
-      </button>
-
       <a
         href="/account"
         onclick={close}

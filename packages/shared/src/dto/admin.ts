@@ -1,7 +1,7 @@
 import type { Domain, MediaType, Role, SecurityEventType } from "../enums";
 
 /** Which app area a dependency powers, for grouping in the admin status page. */
-export type ServiceArea = "Écrans" | "Jeux" | "Livres" | "Système";
+export type ServiceArea = "Écrans" | "Jeux" | "Livres" | "Musique" | "Système";
 
 /** Health of one external dependency, as surfaced by the admin services page. */
 export interface ServiceStatusDto {
@@ -167,7 +167,7 @@ export interface TrendPointDto {
 
 /** The four trend series shown on the admin stats page, all sharing one period. */
 export interface AdminTrendsSeriesDto {
-  /** Cumulative MediaItem+GameItem+BookItem total, bucket by bucket. */
+  /** Cumulative MediaItem+GameItem+BookItem+MusicItem total, bucket by bucket. */
   catalogGrowth: TrendPointDto[];
   /** EpisodeWatch rows created per bucket, across every account. */
   watchActivity: TrendPointDto[];
@@ -197,6 +197,7 @@ export interface AdminCacheStatsDto {
   mediaByType: { type: MediaType; count: number }[];
   totalGames: number;
   totalBooks: number;
+  totalMusic: number;
   totalSeasons: number;
   totalEpisodes: number;
   /** Tracked media past the 24h refresh TTL — a freshness proxy, not a full browser. */
@@ -207,6 +208,7 @@ export interface AdminActivityStatsDto {
   totalLibraryEntries: number;
   totalGameEntries: number;
   totalBookEntries: number;
+  totalMusicEntries: number;
   totalEpisodeWatches: number;
   totalNotifications: number;
   totalPushDevices: number;
