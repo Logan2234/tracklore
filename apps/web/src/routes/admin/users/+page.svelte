@@ -16,6 +16,7 @@
   import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import PageHeader from "$lib/components/PageHeader.svelte";
+  import { toast } from "$lib/toast.svelte";
   import type { AdminUserDto, SessionDto } from "@tracklore/shared";
 
   type Filter = "all" | "admin" | "unverified" | "never";
@@ -177,6 +178,7 @@
     try {
       await resendAdminUserVerification(selected.id);
       verifyMessage = "Email de vérification renvoyé.";
+      toast.success("Email de vérification renvoyé.");
     } catch (err) {
       verifyMessage =
         err instanceof ApiError ? err.message : "Échec de l'envoi";
@@ -192,6 +194,7 @@
     try {
       await sendAdminUserPasswordReset(selected.id);
       resetMessage = "Lien de réinitialisation envoyé.";
+      toast.success("Lien de réinitialisation envoyé.");
     } catch (err) {
       resetMessage = err instanceof ApiError ? err.message : "Échec de l'envoi";
     } finally {
@@ -215,10 +218,12 @@
     deleting = true;
     deleteError = "";
     try {
+      const deletedName = selected.displayName;
       await deleteAdminUser(selected.id);
       users = (users ?? []).filter((u) => u.id !== selected!.id);
       showDeleteModal = false;
       selected = null;
+      toast.success(`Compte de ${deletedName} supprimé.`);
     } catch (err) {
       deleteError =
         err instanceof ApiError ? err.message : "Suppression impossible";

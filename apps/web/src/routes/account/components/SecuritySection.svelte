@@ -10,6 +10,7 @@
   import { auth } from "$lib/auth.svelte";
   import Modal from "$lib/components/Modal.svelte";
   import PasswordInput from "$lib/components/PasswordInput.svelte";
+  import { toast } from "$lib/toast.svelte";
 
   type SecurityModal = "username" | "email" | "password" | null;
 
@@ -63,6 +64,7 @@
     try {
       await updateUsername({ username: usernameInput.trim() });
       openModal = null;
+      toast.success("Nom d'utilisateur mis à jour.");
     } catch (err) {
       usernameError =
         err instanceof ApiError ? err.message : "Enregistrement impossible";
@@ -113,6 +115,7 @@
     try {
       await confirmEmailChange({ code: emailCodeInput.trim() });
       openModal = null;
+      toast.success("Email mis à jour.");
     } catch (err) {
       emailConfirmError =
         err instanceof ApiError ? err.message : "Code invalide ou expiré";
@@ -152,6 +155,7 @@
         newPassword: newPasswordInput,
       });
       openModal = null;
+      toast.success("Mot de passe mis à jour.");
     } catch (err) {
       passwordError =
         err instanceof ApiError ? err.message : "Enregistrement impossible";

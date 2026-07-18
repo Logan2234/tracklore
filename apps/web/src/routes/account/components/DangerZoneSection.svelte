@@ -3,6 +3,7 @@
   import { ApiError, deleteAccount } from "$lib/api/client";
   import Modal from "$lib/components/Modal.svelte";
   import PasswordInput from "$lib/components/PasswordInput.svelte";
+  import { toast } from "$lib/toast.svelte";
 
   let showModal = $state(false);
   let deletePasswordInput = $state("");
@@ -24,6 +25,7 @@
     deleteSaving = true;
     try {
       await deleteAccount({ currentPassword: deletePasswordInput });
+      toast.success("Compte supprimé.");
       await goto("/login");
     } catch (err) {
       deleteError =

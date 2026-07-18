@@ -1,4 +1,5 @@
 import { ApiError } from "$lib/api/client";
+import { toast } from "$lib/toast.svelte";
 
 /**
  * Shared plumbing for the three detail pages (media, games, books): the
@@ -106,6 +107,7 @@ export function createLibraryEntryActions<
     try {
       await config.remove(entry.id);
       state.confirmRemove = false;
+      toast.success("Retiré de ta bibliothèque.");
       await reload(); // Entry becomes null → the page returns to the "add" state.
     } catch (err) {
       state.error =

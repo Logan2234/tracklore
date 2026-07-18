@@ -1,6 +1,7 @@
 <script lang="ts">
   import { ApiError, exportMyData } from "$lib/api/client";
   import Icon from "$lib/components/Icon.svelte";
+  import { toast } from "$lib/toast.svelte";
 
   let exporting = $state(false);
   let exportError = $state("");
@@ -19,6 +20,7 @@
       a.download = `tracklore-export-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
+      toast.success("Export terminé.");
     } catch (err) {
       exportError = err instanceof ApiError ? err.message : "Export impossible";
     } finally {

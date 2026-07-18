@@ -7,6 +7,7 @@
   } from "$lib/api/client";
   import Banner from "$lib/components/Banner.svelte";
   import PageHeader from "$lib/components/PageHeader.svelte";
+  import { toast } from "$lib/toast.svelte";
   import type { MailTemplateInfoDto } from "@tracklore/shared";
 
   let templates = $state<MailTemplateInfoDto[] | null>(null);
@@ -100,6 +101,7 @@
         values: fieldValues,
       });
       sendResult = { ok: true, message: `Envoyé à ${testTo}.` };
+      toast.success(`Email envoyé à ${testTo}.`);
     } catch (err) {
       sendResult = {
         ok: false,
