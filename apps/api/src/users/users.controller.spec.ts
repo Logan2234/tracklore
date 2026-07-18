@@ -1,12 +1,22 @@
 import { UnauthorizedException } from "@nestjs/common";
 import * as bcrypt from "bcryptjs";
 import { hashToken } from "../auth/auth.service";
+import type { JwtPayload } from "../auth/decorators/current-user.decorator";
+import type { MailService } from "../mail/mail.service";
+import type { PrismaService } from "../prisma/prisma.service";
+import type { SecurityEventService } from "../security/security-event.service";
+import type { CsvExportService } from "./csv-export.service";
+import type { DataExportService } from "./data-export.service";
 import { UsersController } from "./users.controller";
+
+function jwtPayload(sub: string): JwtPayload {
+  return { sub, email: `${sub}@example.com` };
+}
 
 describe("UsersController — email change", () => {
   const userId = "user-1";
-  let prisma: any;
-  let mail: any;
+  let prisma: PrismaService;
+  let mail: MailService;
   let controller: UsersController;
   let passwordHash: string;
 
@@ -24,52 +34,49 @@ describe("UsersController — email change", () => {
         findFirst: jest.fn(),
       },
       $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
-    };
+    } as unknown as PrismaService;
     mail = {
       sendEmailChangeCode: jest.fn(),
       sendEmailChanged: jest.fn(),
-    };
+    } as unknown as MailService;
     const security = { record: jest.fn() };
     const dataExport = { buildExport: jest.fn() };
     const csvExport = { buildCsv: jest.fn() };
     controller = new UsersController(
       prisma,
       mail,
-      security as any,
-      dataExport as any,
-      csvExport as any,
+      security as unknown as SecurityEventService,
+      dataExport as unknown as DataExportService,
+      csvExport as unknown as CsvExportService,
     );
   });
 
   describe("changeEmail", () => {
     it("rejects an incorrect current password without creating a request", async () => {
-      prisma.user.findUnique.mockResolvedValueOnce({
+      (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce({
         id: userId,
         passwordHash,
       });
 
       await expect(
-        controller.changeEmail(
-          { sub: userId } as any,
-          { newEmail: "new@example.com", currentPassword: "wrong" } as any,
-        ),
+        controller.changeEmail(jwtPayload(userId), {
+          newEmail: "new@example.com",
+          currentPassword: "wrong",
+        }),
       ).rejects.toBeInstanceOf(UnauthorizedException);
 
       expect(prisma.emailChangeRequest.create).not.toHaveBeenCalled();
     });
 
     it("creates a pending request and emails the code, without touching User.email", async () => {
-      prisma.user.findUnique
+      (prisma.user.findUnique as jest.Mock)
         .mockResolvedValueOnce({ id: userId, passwordHash }) // current user
         .mockResolvedValueOnce(null); // no email collision
 
-      await controller.changeEmail(
-        { sub: userId } as any,
-        {
-          newEmail: "new@example.com",
-          currentPassword: "correct-password",
-        } as any,
-      );
+      await controller.changeEmail(jwtPayload(userId), {
+        newEmail: "new@example.com",
+        currentPassword: "correct-password",
+      });
 
       expect(prisma.user.update).not.toHaveBeenCalled();
       expect(prisma.emailChangeRequest.deleteMany).toHaveBeenCalledWith({
@@ -104,15 +111,15 @@ describe("UsersController — email change", () => {
     }
 
     it("applies the new email and notifies both addresses on a correct code", async () => {
-      prisma.user.findUnique.mockResolvedValueOnce({
+      (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce({
         id: userId,
         email: "old@example.com",
         passwordHash,
       });
-      prisma.emailChangeRequest.findFirst.mockResolvedValueOnce(
+      (prisma.emailChangeRequest.findFirst as jest.Mock).mockResolvedValueOnce(
         pendingRequest(),
       );
-      prisma.user.update.mockResolvedValueOnce({
+      (prisma.user.update as jest.Mock).mockResolvedValueOnce({
         id: userId,
         email: "new@example.com",
         displayName: "Alice",
@@ -129,10 +136,9 @@ describe("UsersController — email change", () => {
         createdAt: new Date(),
       });
 
-      await controller.confirmEmailChange(
-        { sub: userId } as any,
-        { code: "123456" } as any,
-      );
+      await controller.confirmEmailChange(jwtPayload(userId), {
+        code: "123456",
+      });
 
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: userId },
@@ -148,19 +154,16 @@ describe("UsersController — email change", () => {
     });
 
     it("rejects a wrong code and increments attempts", async () => {
-      prisma.user.findUnique.mockResolvedValueOnce({
+      (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce({
         id: userId,
         passwordHash,
       });
-      prisma.emailChangeRequest.findFirst.mockResolvedValueOnce(
+      (prisma.emailChangeRequest.findFirst as jest.Mock).mockResolvedValueOnce(
         pendingRequest(),
       );
 
       await expect(
-        controller.confirmEmailChange(
-          { sub: userId } as any,
-          { code: "000000" } as any,
-        ),
+        controller.confirmEmailChange(jwtPayload(userId), { code: "000000" }),
       ).rejects.toBeInstanceOf(UnauthorizedException);
 
       expect(prisma.emailChangeRequest.update).toHaveBeenCalledWith({
@@ -171,19 +174,16 @@ describe("UsersController — email change", () => {
     });
 
     it("deletes the request after the max number of failed attempts", async () => {
-      prisma.user.findUnique.mockResolvedValueOnce({
+      (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce({
         id: userId,
         passwordHash,
       });
-      prisma.emailChangeRequest.findFirst.mockResolvedValueOnce(
+      (prisma.emailChangeRequest.findFirst as jest.Mock).mockResolvedValueOnce(
         pendingRequest({ attempts: 4 }),
       );
 
       await expect(
-        controller.confirmEmailChange(
-          { sub: userId } as any,
-          { code: "000000" } as any,
-        ),
+        controller.confirmEmailChange(jwtPayload(userId), { code: "000000" }),
       ).rejects.toBeInstanceOf(UnauthorizedException);
 
       expect(prisma.emailChangeRequest.deleteMany).toHaveBeenCalledWith({
@@ -193,19 +193,16 @@ describe("UsersController — email change", () => {
     });
 
     it("rejects an expired code", async () => {
-      prisma.user.findUnique.mockResolvedValueOnce({
+      (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce({
         id: userId,
         passwordHash,
       });
-      prisma.emailChangeRequest.findFirst.mockResolvedValueOnce(
+      (prisma.emailChangeRequest.findFirst as jest.Mock).mockResolvedValueOnce(
         pendingRequest({ expiresAt: new Date(Date.now() - 1_000) }),
       );
 
       await expect(
-        controller.confirmEmailChange(
-          { sub: userId } as any,
-          { code: "123456" } as any,
-        ),
+        controller.confirmEmailChange(jwtPayload(userId), { code: "123456" }),
       ).rejects.toBeInstanceOf(UnauthorizedException);
 
       expect(prisma.user.update).not.toHaveBeenCalled();

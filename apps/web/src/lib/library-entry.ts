@@ -27,10 +27,7 @@ export interface LibraryEntryState<TDetail extends DetailWithEntry> {
   removing: boolean;
 }
 
-export interface LibraryEntryConfig<
-  TDetail extends DetailWithEntry,
-  TChanges,
-> {
+export interface LibraryEntryConfig<TDetail extends DetailWithEntry, TChanges> {
   /** Fetches the detail; used by reload() and after every mutation. */
   load: () => Promise<TDetail>;
   /** Creates the library entry (the page builds its own upsert payload). */
@@ -72,6 +69,7 @@ export function createLibraryEntryActions<
     if (!detail) return;
     state.saving = true;
     state.error = null;
+
     try {
       await config.add(detail);
       await reload();
@@ -88,6 +86,7 @@ export function createLibraryEntryActions<
     if (!entry) return;
     state.saving = true;
     state.error = null;
+
     try {
       await config.update(entry.id, changes);
       await reload(); // Re-fetch so the derived status/progress refresh.
@@ -104,6 +103,7 @@ export function createLibraryEntryActions<
     if (!entry) return;
     state.removing = true;
     state.error = null;
+
     try {
       await config.remove(entry.id);
       state.confirmRemove = false;
@@ -122,6 +122,7 @@ export function createLibraryEntryActions<
     if (!entry || !config.addReplay) return;
     state.saving = true;
     state.error = null;
+
     try {
       await config.addReplay(entry.id);
       await reload();
@@ -137,6 +138,7 @@ export function createLibraryEntryActions<
     if (!config.removeReplay) return;
     state.saving = true;
     state.error = null;
+
     try {
       await config.removeReplay(replayId);
       await reload();

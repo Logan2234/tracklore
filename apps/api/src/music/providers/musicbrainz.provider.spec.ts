@@ -156,7 +156,10 @@ describe("MusicBrainzProvider", () => {
               id: "release1",
               status: "Official",
               "label-info": [
-                { label: { name: "Virgin" }, "catalog-number": "7243 8496062 6" },
+                {
+                  label: { name: "Virgin" },
+                  "catalog-number": "7243 8496062 6",
+                },
               ],
               media: [
                 {
@@ -174,8 +177,14 @@ describe("MusicBrainzProvider", () => {
         "coverartarchive.org/release-group/rg1",
         {
           images: [
-            { image: "https://coverartarchive.org/rg1/front.jpg", types: ["Front"] },
-            { image: "https://coverartarchive.org/rg1/back.jpg", types: ["Back"] },
+            {
+              image: "https://coverartarchive.org/rg1/front.jpg",
+              types: ["Front"],
+            },
+            {
+              image: "https://coverartarchive.org/rg1/back.jpg",
+              types: ["Back"],
+            },
           ],
         },
       ],
@@ -184,7 +193,11 @@ describe("MusicBrainzProvider", () => {
         {
           // Browsing by artist also returns the album itself — must be excluded.
           "release-groups": [
-            { id: "rg1", title: "Discovery", "artist-credit": [{ name: "Daft Punk" }] },
+            {
+              id: "rg1",
+              title: "Discovery",
+              "artist-credit": [{ name: "Daft Punk" }],
+            },
             ...otherAlbums,
           ],
         },

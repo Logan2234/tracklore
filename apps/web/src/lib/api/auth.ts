@@ -131,8 +131,8 @@ export function exportMyData(): Promise<UserDataExportDto> {
   return request("/users/me/export");
 }
 
-/** Flat per-domain CSV, meant for migrating to another tool — not gated by
- * `enabledDomains` (a hidden domain is still exportable). */
+// Flat per-domain CSV, meant for migrating to another tool — not gated by
+// `enabledDomains` (a hidden domain is still exportable).
 export function exportMyDataCsv(domain: Domain): Promise<CsvExportDto> {
   const params = new URLSearchParams({ domain });
   return request(`/users/me/export.csv?${params}`);

@@ -90,6 +90,7 @@ async function runToEnd(
     if (service.getJob(userId, jobId).status !== "running") break;
     await new Promise((resolve) => setImmediate(resolve));
   }
+
   return service.getJob(userId, jobId);
 }
 

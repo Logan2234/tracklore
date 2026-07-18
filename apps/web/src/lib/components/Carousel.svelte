@@ -45,7 +45,7 @@
   }
 
   $effect(() => {
-    items;
+    void items;
     updateEdges();
     const el = stripEl;
     if (!el) return;

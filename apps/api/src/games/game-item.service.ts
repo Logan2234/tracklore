@@ -18,7 +18,7 @@ export class GameItemService {
     private readonly igdbProvider: IgdbProvider,
   ) {}
 
-  providerFor(_source: GameSource): GameCatalogProvider {
+  providerFor(): GameCatalogProvider {
     // IGDB is the only game source today; this indirection keeps the
     // multi-source seam for when another one lands.
     return this.igdbProvider;
@@ -29,7 +29,7 @@ export class GameItemService {
     source: GameSource,
     sourceId: string,
   ): Promise<GameDetailsDto> {
-    const details = await this.providerFor(source).getDetails(sourceId);
+    const details = await this.providerFor().getDetails(sourceId);
     return {
       ...details.summary,
       overview: details.overview,
@@ -70,7 +70,7 @@ export class GameItemService {
       return existingRef.gameItem;
     }
 
-    const details = await this.providerFor(source).getDetails(sourceId);
+    const details = await this.providerFor().getDetails(sourceId);
     return this.persistDetails(source, details);
   }
 

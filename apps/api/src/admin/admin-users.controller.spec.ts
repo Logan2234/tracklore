@@ -1,9 +1,14 @@
 import { BadRequestException, NotFoundException } from "@nestjs/common";
 import type { AuthService } from "../auth/auth.service";
+import type { JwtPayload } from "../auth/decorators/current-user.decorator";
 import type { PrismaService } from "../prisma/prisma.service";
 import type { SecurityEventService } from "../security/security-event.service";
 import type { DataExportService } from "../users/data-export.service";
 import { AdminUsersController } from "./admin-users.controller";
+
+function jwtPayload(sub: string): JwtPayload {
+  return { sub, email: `${sub}@example.com` };
+}
 
 function makeController() {
   const prisma = {
@@ -77,9 +82,11 @@ describe("AdminUsersController.updateUserRole", () => {
     const { controller } = makeController();
 
     await expect(
-      controller.updateUserRole("user-1", { role: "USER" }, {
-        sub: "user-1",
-      } as any),
+      controller.updateUserRole(
+        "user-1",
+        { role: "USER" },
+        jwtPayload("user-1"),
+      ),
     ).rejects.toThrow(BadRequestException);
   });
 
@@ -92,7 +99,7 @@ describe("AdminUsersController.updateUserRole", () => {
     const result = await controller.updateUserRole(
       "user-2",
       { role: "ADMIN" },
-      { sub: "user-1" } as any,
+      jwtPayload("user-1"),
     );
 
     expect(prisma.user.update).toHaveBeenCalledWith({
@@ -109,9 +116,11 @@ describe("AdminUsersController.updateUserRole", () => {
     });
 
     await expect(
-      controller.updateUserRole("user-1", { role: "ADMIN" }, {
-        sub: "user-1",
-      } as any),
+      controller.updateUserRole(
+        "user-1",
+        { role: "ADMIN" },
+        jwtPayload("user-1"),
+      ),
     ).resolves.toEqual({ role: "ADMIN" });
   });
 });
@@ -169,7 +178,7 @@ describe("AdminUsersController.deleteUser", () => {
     const { controller } = makeController();
 
     await expect(
-      controller.deleteUser("user-1", { sub: "user-1" } as any),
+      controller.deleteUser("user-1", jwtPayload("user-1")),
     ).rejects.toThrow(BadRequestException);
   });
 
@@ -178,7 +187,7 @@ describe("AdminUsersController.deleteUser", () => {
     (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
 
     await expect(
-      controller.deleteUser("nobody", { sub: "user-1" } as any),
+      controller.deleteUser("nobody", jwtPayload("user-1")),
     ).rejects.toThrow(NotFoundException);
   });
 
@@ -189,7 +198,7 @@ describe("AdminUsersController.deleteUser", () => {
       email: "bob@example.com",
     });
 
-    await controller.deleteUser("user-2", { sub: "user-1" } as any);
+    await controller.deleteUser("user-2", jwtPayload("user-1"));
 
     expect(securityEvents.record).toHaveBeenCalledWith(
       expect.objectContaining({

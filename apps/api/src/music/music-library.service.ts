@@ -37,12 +37,7 @@ type EntryWithAlbum = Prisma.MusicEntryGetPayload<{
 const PAGE_SIZE = 40;
 
 type MusicSortKey =
-  | "added"
-  | "title"
-  | "artist"
-  | "rating"
-  | "finished"
-  | "status";
+  "added" | "title" | "artist" | "rating" | "finished" | "status";
 const MUSIC_SORT_KEYS: MusicSortKey[] = [
   "added",
   "title",

@@ -31,8 +31,7 @@
   const filteredUsers = $derived.by(() => {
     if (!users) return [];
     let list = users;
-    if (filter === "admin")
-      list = list.filter((u) => u.role === "ADMIN");
+    if (filter === "admin") list = list.filter((u) => u.role === "ADMIN");
     else if (filter === "unverified")
       list = list.filter((u) => !u.emailVerified);
     else if (filter === "never") list = list.filter((u) => !u.lastActiveAt);

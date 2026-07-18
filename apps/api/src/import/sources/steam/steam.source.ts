@@ -143,8 +143,7 @@ export class SteamImportSource implements ImportSource<SteamParsed> {
         key,
         title: detail.summary.title,
         sourceTitle: detail.summary.title,
-        subtitle:
-          fmtPlaytime(playtime) + (recent ? " · joué récemment" : ""),
+        subtitle: fmtPlaytime(playtime) + (recent ? " · joué récemment" : ""),
         coverUrl: detail.summary.coverUrl,
         match: toMatch(igdbId, detail.summary.title, detail.summary.coverUrl),
         include: !alreadyInLibrary,
@@ -155,12 +154,14 @@ export class SteamImportSource implements ImportSource<SteamParsed> {
 
     const all = [...matchedByIgdb.values(), ...unmatchedByApp.values()];
     const byStatus = new Map<GameStatus, ImportPlanItem[]>();
+
     for (const item of all) {
       const s = item.defaultStatus as GameStatus;
       const bucket = byStatus.get(s) ?? [];
       bucket.push(item);
       byStatus.set(s, bucket);
     }
+
     // Sort each bucket by playtime, longest first (matches the old preview).
     for (const bucket of byStatus.values()) {
       bucket.sort(
@@ -182,7 +183,12 @@ export class SteamImportSource implements ImportSource<SteamParsed> {
     const unresolved = unmatchedByApp.size;
     return {
       groups,
-      counts: { total: matched + unresolved, matched, unresolved, apiErrors: 0 },
+      counts: {
+        total: matched + unresolved,
+        matched,
+        unresolved,
+        apiErrors: 0,
+      },
       searchDomain: "games",
     };
   }
@@ -195,6 +201,7 @@ export class SteamImportSource implements ImportSource<SteamParsed> {
     progress: ProgressReporter,
   ): Promise<ImportReport> {
     const matchByKey = indexPlanMatches(plan);
+
     if (decisions.overwrite) {
       // GameReplay cascades on GameEntry delete (schema onDelete: Cascade).
       await this.prisma.gameEntry.deleteMany({ where: { userId } });
@@ -202,10 +209,12 @@ export class SteamImportSource implements ImportSource<SteamParsed> {
 
     // Resolve the target ids first, then bulk-fetch their IGDB details.
     const targets: { key: string; sourceId: string }[] = [];
+
     for (const key of decisions.include) {
       const match = decisions.overrides.get(key) ?? matchByKey.get(key);
       if (match) targets.push({ key, sourceId: match.sourceId });
     }
+
     const details = await this.igdb.getDetailsByIds([
       ...new Set(targets.map((t) => t.sourceId)),
     ]);
@@ -217,6 +226,7 @@ export class SteamImportSource implements ImportSource<SteamParsed> {
 
     for (const { key, sourceId } of targets) {
       const detail = detailById.get(sourceId);
+
       if (!detail || (detail.summary.isAdult && !allowAdult)) {
         progress.tick();
         continue;
@@ -304,6 +314,7 @@ export class SteamImportSource implements ImportSource<SteamParsed> {
         "Profil Steam introuvable — vérifie l'identifiant ou l'URL du profil.",
       );
     }
+
     return data.response.steamid;
   }
 
@@ -326,6 +337,7 @@ export class SteamImportSource implements ImportSource<SteamParsed> {
         "Bibliothèque Steam inaccessible — le profil et les détails des jeux doivent être publics.",
       );
     }
+
     return data.response.games ?? [];
   }
 
@@ -338,16 +350,19 @@ export class SteamImportSource implements ImportSource<SteamParsed> {
       "key",
       this.configService.getOrThrow<string>("STEAM_API_KEY"),
     );
+
     for (const [key, value] of Object.entries(params)) {
       target.searchParams.set(key, value);
     }
 
     const response = await fetch(target);
+
     if (!response.ok) {
       throw new BadGatewayException(
         `Steam request failed with status ${response.status}`,
       );
     }
+
     return (await response.json()) as T;
   }
 }
@@ -363,16 +378,24 @@ function toMatch(
   title: string,
   coverUrl: string | null,
 ): ImportMatch {
-  return { source: GameSource.IGDB, sourceId: igdbId, title, year: null, coverUrl };
+  return {
+    source: GameSource.IGDB,
+    sourceId: igdbId,
+    title,
+    year: null,
+    coverUrl,
+  };
 }
 
 /** Flatten a plan's auto-resolved matches into a key → match lookup. */
 function indexPlanMatches(plan: ImportPlan): Map<string, ImportMatch> {
   const byKey = new Map<string, ImportMatch>();
+
   for (const group of plan.groups) {
     for (const item of group.items) {
       if (item.match) byKey.set(item.key, item.match);
     }
   }
+
   return byKey;
 }

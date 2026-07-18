@@ -72,9 +72,15 @@
   // Per-item status options (books/games); media derives status server-side.
   const statusOptions = $derived(
     descriptor.domain === "books"
-      ? BOOK_STATUS_ORDER.map((s) => ({ value: s, label: BOOK_STATUS_LABELS[s] }))
+      ? BOOK_STATUS_ORDER.map((s) => ({
+          value: s,
+          label: BOOK_STATUS_LABELS[s],
+        }))
       : descriptor.domain === "games"
-        ? GAME_STATUS_ORDER.map((s) => ({ value: s, label: GAME_STATUS_LABELS[s] }))
+        ? GAME_STATUS_ORDER.map((s) => ({
+            value: s,
+            label: GAME_STATUS_LABELS[s],
+          }))
         : [],
   );
 
@@ -345,7 +351,10 @@
 
 <div class="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
   <div class="mb-6 flex items-center gap-3">
-    <a href="/account/import" class="text-dim hover:text-fg" aria-label="Retour">
+    <a
+      href="/account/import"
+      class="text-dim hover:text-fg"
+      aria-label="Retour">
       <Icon name="chevron-left" class="h-5 w-5" />
     </a>
     <h1 class="font-display text-3xl font-extrabold tracking-tight md:text-4xl">
@@ -499,7 +508,8 @@
           </details>
         {:else}
           <section class="card mb-3 p-4">
-            <div class="flex items-center justify-between font-display font-bold">
+            <div
+              class="flex items-center justify-between font-display font-bold">
               <span>{g.label} ({g.items.length})</span>
               <span class="flex gap-2 text-xs font-normal">
                 <button class="chip" onclick={() => setAll(g.items, true)}
@@ -636,7 +646,8 @@
                       </div>
                       <span class="min-w-0 flex-1 truncate">
                         {r.title}
-                        {#if r.year}<span class="text-dim"> · {r.year}</span
+                        {#if r.year}<span class="text-dim">
+                            · {r.year}</span
                           >{/if}
                       </span>
                       {#if r.type}<span class="timecode text-xs">{r.type}</span

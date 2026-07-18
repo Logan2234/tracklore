@@ -34,13 +34,21 @@ function makeRow(overrides: Partial<Record<string, unknown>> = {}) {
 interface ServiceOpts {
   episodesByMediaItem?: Record<
     string,
-    { id: string; number: number; airDate: Date | null; season: { number: number } }[]
+    {
+      id: string;
+      number: number;
+      airDate: Date | null;
+      season: { number: number };
+    }[]
   >;
   watchedByMediaItem?: Record<string, string[]>;
   lastWatchedByMediaItem?: Record<string, Date | null>;
 }
 
-function makeService(rows: ReturnType<typeof makeRow>[], opts: ServiceOpts = {}) {
+function makeService(
+  rows: ReturnType<typeof makeRow>[],
+  opts: ServiceOpts = {},
+) {
   const prisma = {
     libraryEntry: { findMany: jest.fn().mockResolvedValue(rows) },
     episode: {

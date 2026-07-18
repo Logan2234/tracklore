@@ -10,7 +10,17 @@ import { UsersController } from "./users.controller";
 @Module({
   imports: [MailModule, SecurityModule],
   controllers: [UsersController],
-  providers: [AgeGateService, DomainGateService, DataExportService, CsvExportService],
-  exports: [AgeGateService, DomainGateService, DataExportService, CsvExportService],
+  providers: [
+    AgeGateService,
+    DomainGateService,
+    DataExportService,
+    CsvExportService,
+  ],
+  exports: [
+    AgeGateService,
+    DomainGateService,
+    DataExportService,
+    CsvExportService,
+  ],
 })
 export class UsersModule {}

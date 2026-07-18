@@ -52,7 +52,11 @@ interface Mocks {
   ageGate: { allowsAdultContent: jest.Mock };
   prisma: {
     gameExternalId: { findMany: jest.Mock };
-    gameEntry: { findMany: jest.Mock; upsert: jest.Mock; deleteMany: jest.Mock };
+    gameEntry: {
+      findMany: jest.Mock;
+      upsert: jest.Mock;
+      deleteMany: jest.Mock;
+    };
   };
 }
 
@@ -101,12 +105,14 @@ async function runToEnd(
     if (service.getJob(userId, jobId).status !== "running") break;
     await new Promise((resolve) => setImmediate(resolve));
   }
+
   return service.getJob(userId, jobId);
 }
 
 function items(plan: ImportPlan): ImportPlanItem[] {
   return plan.groups.flatMap((g) => g.items);
 }
+
 function byKey(plan: ImportPlan, key: string): ImportPlanItem | undefined {
   return items(plan).find((it) => it.key === key);
 }
@@ -128,7 +134,11 @@ describe("SteamImportSource (via ImportJobService)", () => {
         ),
         getDetailsByIds: jest
           .fn()
-          .mockResolvedValue([detail("100"), detail("200"), detail("300", true)]),
+          .mockResolvedValue([
+            detail("100"),
+            detail("200"),
+            detail("300", true),
+          ]),
       },
       prisma: {
         gameExternalId: {

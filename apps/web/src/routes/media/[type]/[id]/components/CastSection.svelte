@@ -61,10 +61,7 @@
 {#if cast.length > 0}
   <section class="mt-10">
     <h2 class="mb-3 font-display text-xl font-bold">Distribution</h2>
-    <Carousel
-      items={cast}
-      keyOf={(c) => c.name + (c.role ?? "")}
-      gap="gap-3">
+    <Carousel items={cast} keyOf={(c) => c.name + (c.role ?? "")} gap="gap-3">
       {#snippet card(c)}
         {#if c.id}
           <button

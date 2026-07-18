@@ -12,7 +12,8 @@
       href="https://gdpr.tvtime.com/gdpr/self-service"
       target="_blank"
       rel="noopener noreferrer"
-      class="link-accent">export GDPR TV Time ↗</a>. On l’analyse pour te laisser
-    trier collection par collection avant d’écrire quoi que ce soit.
+      class="link-accent">export GDPR TV Time ↗</a
+    >. On l’analyse pour te laisser trier collection par collection avant
+    d’écrire quoi que ce soit.
   {/snippet}
 </ImportWizard>

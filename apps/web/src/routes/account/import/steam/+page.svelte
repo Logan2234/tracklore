@@ -5,14 +5,15 @@
 
 <ImportWizard descriptor={IMPORT_SOURCES.steam}>
   {#snippet intro()}
-    Récupère ta bibliothèque et ton temps de jeu Steam. Ton profil et les détails
-    des jeux doivent être <strong class="text-fg">publics</strong> le temps de
-    l'import (<a
+    Récupère ta bibliothèque et ton temps de jeu Steam. Ton profil et les
+    détails des jeux doivent être <strong class="text-fg">publics</strong> le
+    temps de l'import (<a
       href="https://steamcommunity.com/my/edit/settings"
       target="_blank"
       rel="noopener noreferrer"
-      class="link-accent">réglages de confidentialité ↗</a>). Le SteamID64 se
-    trouve via un outil comme <a
+      class="link-accent">réglages de confidentialité ↗</a
+    >). Le SteamID64 se trouve via un outil comme
+    <a
       href="https://steamid.io"
       target="_blank"
       rel="noopener noreferrer"

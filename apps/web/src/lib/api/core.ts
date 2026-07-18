@@ -94,12 +94,14 @@ export async function fetchAllPages<T>(
 ): Promise<T[]> {
   const items: T[] = [];
   let page = 1;
+
   for (;;) {
     const result = await fetchPage(page);
     items.push(...result.items);
     if (!result.hasMore) break;
     page++;
   }
+
   return items;
 }
 

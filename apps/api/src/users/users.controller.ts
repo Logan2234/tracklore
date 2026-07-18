@@ -82,11 +82,7 @@ export class UsersController {
     @CurrentUser() payload: JwtPayload,
     @Query("domain") domainParam: string,
   ): Promise<CsvExportDto> {
-    const domain = parseEnumParam(
-      domainParam,
-      Object.values(Domain),
-      "domain",
-    );
+    const domain = parseEnumParam(domainParam, Object.values(Domain), "domain");
     return { csv: await this.csvExport.buildCsv(payload.sub, domain) };
   }
 
