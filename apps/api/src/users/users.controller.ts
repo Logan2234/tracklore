@@ -14,20 +14,24 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import type { User } from "@prisma/client";
-import type {
-  UserDataExportDto,
-  UserDto,
-  UsernameAvailabilityDto,
+import {
+  Domain,
+  type CsvExportDto,
+  type UserDataExportDto,
+  type UserDto,
+  type UsernameAvailabilityDto,
 } from "@tracklore/shared";
 import * as bcrypt from "bcryptjs";
 import { randomInt } from "node:crypto";
 import { BCRYPT_ROUNDS, hashToken, toUserDto } from "../auth/auth.service";
 import type { JwtPayload } from "../auth/decorators/current-user.decorator";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
+import { parseEnumParam } from "../common/parse-enum-param.util";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { SecurityEventService } from "../security/security-event.service";
 import { isAdult } from "./age.util";
+import { CsvExportService } from "./csv-export.service";
 import { DataExportService } from "./data-export.service";
 import { ChangeEmailDto } from "./dto/change-email.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
@@ -46,6 +50,7 @@ export class UsersController {
     private readonly mail: MailService,
     private readonly security: SecurityEventService,
     private readonly dataExport: DataExportService,
+    private readonly csvExport: CsvExportService,
   ) {}
 
   @Get("me")
@@ -65,6 +70,24 @@ export class UsersController {
   @Get("me/export")
   exportData(@CurrentUser() payload: JwtPayload): Promise<UserDataExportDto> {
     return this.dataExport.buildExport(payload.sub);
+  }
+
+  /**
+   * Flat per-domain CSV, meant for migrating to another tool rather than the
+   * GDPR dump above. Deliberately not gated by `enabledDomains` — a domain the
+   * user hid from their own nav is still theirs to export.
+   */
+  @Get("me/export.csv")
+  async exportCsv(
+    @CurrentUser() payload: JwtPayload,
+    @Query("domain") domainParam: string,
+  ): Promise<CsvExportDto> {
+    const domain = parseEnumParam(
+      domainParam,
+      Object.values(Domain),
+      "domain",
+    );
+    return { csv: await this.csvExport.buildCsv(payload.sub, domain) };
   }
 
   @Patch("me")

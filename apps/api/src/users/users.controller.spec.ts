@@ -31,11 +31,13 @@ describe("UsersController — email change", () => {
     };
     const security = { record: jest.fn() };
     const dataExport = { buildExport: jest.fn() };
+    const csvExport = { buildCsv: jest.fn() };
     controller = new UsersController(
       prisma,
       mail,
       security as any,
       dataExport as any,
+      csvExport as any,
     );
   });
 
