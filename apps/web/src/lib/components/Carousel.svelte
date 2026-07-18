@@ -59,30 +59,44 @@
   });
 
   // Drag-to-pan (mouse only — touch keeps its native swipe scroll). A real
-  // drag (past a small threshold) suppresses the click on whatever's
-  // underneath so panning doesn't accidentally trigger a link/button.
+  // drag (the strip actually ended up scrolled somewhere else) suppresses
+  // the click on whatever's underneath so panning doesn't accidentally
+  // trigger a link/button. Listens on window (not pointer capture) so the
+  // click that follows keeps its normal hit-tested target — pointer capture
+  // retargets that click to the strip itself, silently swallowing it.
   let dragged = false;
   let startX = 0;
   let startScroll = 0;
 
   function onPointerDown(e: PointerEvent) {
     if (e.pointerType !== "mouse" || e.button !== 0 || !stripEl) return;
+    // Nothing to pan (row fits without overflow) — skip drag tracking
+    // entirely so ordinary mouse jitter during a click never gets
+    // mistaken for a drag and cancels the underlying link/button.
+    if (stripEl.scrollWidth <= stripEl.clientWidth) return;
     dragging = true;
-    dragged = false;
     startX = e.clientX;
     startScroll = stripEl.scrollLeft;
-    stripEl.setPointerCapture(e.pointerId);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
   }
 
   function onPointerMove(e: PointerEvent) {
-    if (!dragging || !stripEl) return;
-    const delta = e.clientX - startX;
-    if (Math.abs(delta) > 4) dragged = true;
-    stripEl.scrollLeft = startScroll - delta;
+    if (!stripEl) return;
+    stripEl.scrollLeft = startScroll - (e.clientX - startX);
   }
 
+  // Checked once, from the strip's actual net displacement, rather than
+  // latching on any single transient movement sample — a mouse click is
+  // rarely perfectly still, and momentary overshoot below this threshold
+  // must not get mistaken for a deliberate pan.
   function onPointerUp() {
     dragging = false;
+    dragged = stripEl ? Math.abs(stripEl.scrollLeft - startScroll) > 4 : false;
+    window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerup", onPointerUp);
+    window.removeEventListener("pointercancel", onPointerUp);
   }
 
   function onClickCapture(e: MouseEvent) {
@@ -106,9 +120,6 @@
         : 'cursor-grab'}"
       onscroll={updateEdges}
       onpointerdown={onPointerDown}
-      onpointermove={onPointerMove}
-      onpointerup={onPointerUp}
-      onpointercancel={onPointerUp}
       onclickcapture={onClickCapture}>
       {#each items as item (keyOf(item))}
         {@render card(item)}
