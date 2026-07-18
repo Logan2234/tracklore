@@ -174,7 +174,7 @@
                 aria-current={active ? "page" : undefined}
                 title={expanded ? undefined : item.label}
                 class="
-              flex items-center overflow-hidden rounded-xl
+              flex shrink-0 items-center overflow-hidden rounded-xl
               transition-colors
               {active
                   ? 'bg-accent/15 text-accent'

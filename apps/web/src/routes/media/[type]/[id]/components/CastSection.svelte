@@ -36,7 +36,7 @@
 {#snippet castCard(c: CastMemberDto, clickable: boolean)}
   <div
     class="aspect-2/3 w-full overflow-hidden rounded-lg border border-transparent bg-surface-2 {clickable
-      ? 'transition-colors group-hover:border-accent'
+      ? 'transition-colors group-hover/cast:border-accent'
       : ''}">
     {#if c.photoUrl}
       <img
@@ -48,7 +48,7 @@
   </div>
   <p
     class="mt-1.5 truncate text-xs font-semibold {clickable
-      ? 'group-hover:text-accent'
+      ? 'group-hover/cast:text-accent'
       : ''}">
     {c.name}
   </p>
@@ -67,7 +67,7 @@
           <button
             type="button"
             onclick={() => openCast(c)}
-            class="group w-24 shrink-0 snap-start text-center">
+            class="group/cast w-24 shrink-0 snap-start text-center">
             {@render castCard(c, true)}
           </button>
         {:else}

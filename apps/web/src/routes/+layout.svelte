@@ -6,6 +6,7 @@
   import { auth } from "$lib/auth.svelte";
   import DesktopSidebar from "$lib/components/sidebars/DesktopSidebar.svelte";
   import MobileLayout from "$lib/components/sidebars/MobileLayout.svelte";
+  import Toast from "$lib/components/Toast.svelte";
   import { notifications } from "$lib/notifications.svelte";
   import { theme } from "$lib/theme.svelte";
   import "@fontsource-variable/bricolage-grotesque/wght.css";
@@ -76,3 +77,5 @@
 {:else if ready}
   {@render children()}
 {/if}
+
+<Toast />
