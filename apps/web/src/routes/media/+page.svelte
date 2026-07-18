@@ -1,22 +1,18 @@
 <script lang="ts">
   import { listLibrary } from "$lib/api/client";
   import Combobox from "$lib/components/Combobox.svelte";
+  import type { LibraryLoadParams } from "$lib/components/LibraryBrowser.svelte";
   import LibraryBrowser from "$lib/components/LibraryBrowser.svelte";
   import PosterCard from "$lib/components/PosterCard.svelte";
-  import type {
-    EntryStatus,
-    LibraryEntryDto,
-    MediaType,
-  } from "@tracklore/shared";
+  import type { LibraryEntryDto, MediaType } from "@tracklore/shared";
   import { isDormant } from "@tracklore/shared";
 
-  // "DORMANT" is not a real status: it's a client-side refinement over WATCHING
-  // (nothing watched for a while).
-  type StatusTab = EntryStatus | "DORMANT";
-  const STATUS_OPTIONS: { label: string; value: StatusTab }[] = [
+  const STATUS_OPTIONS = [
     { label: "En cours", value: "WATCHING" },
     { label: "À voir", value: "PLANNED" },
     { label: "Terminé", value: "COMPLETED" },
+    // "DORMANT" is not a real status: it's a server-side refinement over
+    // WATCHING (nothing watched for a while) — see isDormant.
     { label: "En pause", value: "DORMANT" },
     { label: "Abandonné", value: "DROPPED" },
   ];
@@ -33,25 +29,7 @@
     ANIME: "Animé",
   };
 
-  // Order used by the "Statut" sort.
-  const STATUS_SORT_ORDER: EntryStatus[] = [
-    "WATCHING",
-    "PLANNED",
-    "UP_TO_DATE",
-    "COMPLETED",
-    "DROPPED",
-  ];
-
-  type SortKey =
-    | "recent"
-    | "added"
-    | "title"
-    | "rating"
-    | "progress"
-    | "finished"
-    | "started"
-    | "status";
-  const SORTS: { label: string; value: SortKey }[] = [
+  const SORTS = [
     { label: "Vu récemment", value: "recent" },
     { label: "Ajout récent", value: "added" },
     { label: "Titre", value: "title" },
@@ -65,8 +43,6 @@
   // Extra "type" filter, owned by the page and passed to LibraryBrowser.
   let types = $state<MediaType[]>([]);
 
-  const time = (iso: string | null) => (iso ? new Date(iso).getTime() : 0);
-
   function pct(entry: LibraryEntryDto): number {
     if (!entry.progress || entry.progress.totalEpisodes === 0) return 0;
     return Math.round(
@@ -74,56 +50,31 @@
     );
   }
 
-  // Base comparator per criterion (its natural order); the direction toggle
-  // reverses the whole list.
-  function compare(sort: string, a: LibraryEntryDto, b: LibraryEntryDto): number {
-    switch (sort as SortKey) {
-      case "title":
-        return a.mediaItem.title.localeCompare(b.mediaItem.title, "fr");
-      case "rating":
-        return (b.rating ?? -1) - (a.rating ?? -1);
-      case "progress":
-        return pct(b) - pct(a);
-      case "finished":
-        return time(b.finishedAt) - time(a.finishedAt);
-      case "started":
-        return time(b.startedAt) - time(a.startedAt);
-      case "status":
-        return (
-          STATUS_SORT_ORDER.indexOf(a.status) -
-          STATUS_SORT_ORDER.indexOf(b.status)
-        );
-      case "added":
-        return b.createdAt.localeCompare(a.createdAt);
-      case "recent":
-        return time(b.lastWatchedAt) - time(a.lastWatchedAt);
-    }
-    return 0;
-  }
-
-  function statusMatch(entry: LibraryEntryDto, statuses: string[]): boolean {
-    return statuses.some((s) =>
-      s === "DORMANT" ? isDormant(entry) : entry.status === s,
-    );
+  function load(params: LibraryLoadParams) {
+    return listLibrary({
+      query: params.query,
+      favorite: params.favoritesOnly,
+      statuses: params.statuses,
+      types: params.extra as MediaType[],
+      sort: params.sort,
+      order: params.order,
+      page: params.page,
+    });
   }
 </script>
 
 <LibraryBrowser
-  icon="library"
+  icon="tv"
   title="Écrans"
   subtitle={(n) => `${n} titre${n > 1 ? "s" : ""}`}
   noun="titre"
-  load={listLibrary}
+  {load}
   keyOf={(e) => e.id}
-  titleOf={(e) => e.mediaItem.title}
-  favoriteOf={(e) => e.favorite}
   statusOptions={STATUS_OPTIONS}
-  {statusMatch}
   sorts={SORTS}
   defaultSort="recent"
-  {compare}
   extraActive={types.length > 0}
-  extraMatch={(e) => types.length === 0 || types.includes(e.mediaItem.type)}
+  extra={types}
   onClearExtra={() => (types = [])}>
   {#snippet extraFilters()}
     <Combobox

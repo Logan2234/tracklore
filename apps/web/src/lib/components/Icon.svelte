@@ -28,7 +28,9 @@
     | "mail"
     | "database"
     | "gauge"
-    | "archive";
+    | "archive"
+    | "music"
+    | "tv";
 
   let { name, class: cls = "h-5 w-5" }: { name: IconName; class?: string } =
     $props();
@@ -126,5 +128,13 @@
     <rect x="3" y="4" width="18" height="5" rx="1.5" />
     <path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9" />
     <path d="M10 13h4" />
+  {:else if name === "music"}
+    <path d="M9 18V4l11-2v14" />
+    <circle cx="6" cy="18" r="3" />
+    <circle cx="17" cy="16" r="3" />
+  {:else if name === "tv"}
+    <path d="M9 3l3 3 3-3" />
+    <rect x="3" y="6" width="18" height="12" rx="2" />
+    <path d="M8 21h8" />
   {/if}
 </svg>

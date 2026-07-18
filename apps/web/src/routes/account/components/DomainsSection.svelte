@@ -20,6 +20,12 @@
         desc: "Romans, BD, mangas.",
         soon: false,
       },
+      {
+        id: Domain.MUSIC,
+        label: "Musique",
+        desc: "Albums.",
+        soon: false,
+      },
     ];
 
   let domainsError = $state("");

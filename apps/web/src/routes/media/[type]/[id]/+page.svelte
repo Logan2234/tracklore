@@ -11,6 +11,7 @@
   } from "$lib/api/client";
   import Banner from "$lib/components/Banner.svelte";
   import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
+  import DetailHeroSkeleton from "$lib/components/DetailHeroSkeleton.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import Lightbox from "$lib/components/Lightbox.svelte";
   import NoteField from "$lib/components/NoteField.svelte";
@@ -539,7 +540,5 @@
       onClose={() => (lightboxOpen = false)} />
   {/if}
 {:else if !error}
-  <div class="mx-auto max-w-4xl px-4 py-6 md:px-8">
-    <p class="timecode text-sm">Chargement…</p>
-  </div>
+  <DetailHeroSkeleton wide={false} />
 {/if}

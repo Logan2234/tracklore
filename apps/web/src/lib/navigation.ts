@@ -8,6 +8,8 @@ type NavIcon =
   | "stats"
   | "gamepad"
   | "book"
+  | "music"
+  | "tv"
   | "bell"
   | "user"
   | "shield";
@@ -61,7 +63,7 @@ export const NAVIGATION: NavSection[] = [
       {
         href: "/media",
         label: "Écrans",
-        icon: "library",
+        icon: "tv",
         mobile: true,
         domain: Domain.MEDIA,
         match: (p) => p.startsWith("/media"),
@@ -81,6 +83,14 @@ export const NAVIGATION: NavSection[] = [
         domain: Domain.BOOKS,
         drawer: true,
         match: (p) => p.startsWith("/books"),
+      },
+      {
+        href: "/music",
+        label: "Musique",
+        icon: "music",
+        domain: Domain.MUSIC,
+        drawer: true,
+        match: (p) => p.startsWith("/music"),
       },
     ],
   },

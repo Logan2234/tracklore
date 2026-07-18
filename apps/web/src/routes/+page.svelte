@@ -4,31 +4,36 @@
     listBooks,
     listGames,
     listLibrary,
+    listMusic,
     watchEpisode,
   } from "$lib/api/client";
   import { auth } from "$lib/auth.svelte";
-  import { isDomainEnabled } from "$lib/domains";
+  import Carousel from "$lib/components/Carousel.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import PageHeader from "$lib/components/PageHeader.svelte";
   import Poster from "$lib/components/Poster.svelte";
-  import { Domain } from "@tracklore/shared";
+  import { isDomainEnabled } from "$lib/domains";
   import type {
     BookEntryDto,
     CalendarEntryDto,
     GameEntryDto,
     LibraryEntryDto,
+    MusicEntryDto,
     NextEpisodeDto,
   } from "@tracklore/shared";
+  import { Domain } from "@tracklore/shared";
 
   const mediaOn = $derived(isDomainEnabled(Domain.MEDIA));
   const gamesOn = $derived(isDomainEnabled(Domain.GAMES));
   const booksOn = $derived(isDomainEnabled(Domain.BOOKS));
+  const musicOn = $derived(isDomainEnabled(Domain.MUSIC));
 
   let watching = $state<LibraryEntryDto[]>([]);
   let upcoming = $state<CalendarEntryDto[]>([]);
   let playingGames = $state<GameEntryDto[]>([]);
   let readingBooks = $state<BookEntryDto[]>([]);
+  let toListenAlbums = $state<MusicEntryDto[]>([]);
   let loading = $state(true);
   let resuming = $state<string | null>(null); // entry id being resumed
 
@@ -42,7 +47,9 @@
 
     if (mediaOn) {
       jobs.push(
-        listLibrary({ status: "WATCHING" }).then((w) => (watching = w)),
+        listLibrary({ statuses: ["WATCHING"] }).then(
+          (r) => (watching = r.items),
+        ),
       );
       jobs.push(getCalendar().then((c) => (upcoming = c)));
     } else {
@@ -51,14 +58,25 @@
     }
     if (gamesOn)
       jobs.push(
-        listGames({ status: "PLAYING" }).then((g) => (playingGames = g)),
+        listGames({ statuses: ["PLAYING"] }).then(
+          (r) => (playingGames = r.items),
+        ),
       );
     else playingGames = [];
     if (booksOn)
       jobs.push(
-        listBooks({ status: "READING" }).then((b) => (readingBooks = b)),
+        listBooks({ statuses: ["READING"] }).then(
+          (r) => (readingBooks = r.items),
+        ),
       );
     else readingBooks = [];
+    if (musicOn)
+      jobs.push(
+        listMusic({ statuses: ["TO_LISTEN"] }).then(
+          (r) => (toListenAlbums = r.items),
+        ),
+      );
+    else toListenAlbums = [];
 
     try {
       await Promise.all(jobs);
@@ -122,10 +140,14 @@
     `/media/${e.mediaItem.type.toLowerCase()}/${e.mediaItem.sourceId}`;
   const week = $derived(upcoming.slice(0, 3));
 
-  // Surface the most recently watched shows first.
+  // Surface the most recently watched shows first; capped so "reprendre"
+  // stays a quick strip rather than the whole watching list.
   const time = (iso: string | null) => (iso ? new Date(iso).getTime() : 0);
+  const RESUME_LIMIT = 20;
   const watchingRecent = $derived(
-    [...watching].sort((a, b) => time(b.lastWatchedAt) - time(a.lastWatchedAt)),
+    [...watching]
+      .sort((a, b) => time(b.lastWatchedAt) - time(a.lastWatchedAt))
+      .slice(0, RESUME_LIMIT),
   );
 
   // A domain section shows only when it has something in progress.
@@ -134,8 +156,9 @@
   );
   const showGames = $derived(gamesOn && playingGames.length > 0);
   const showBooks = $derived(booksOn && readingBooks.length > 0);
+  const showMusic = $derived(musicOn && toListenAlbums.length > 0);
   const nothing = $derived(
-    !loading && !showScreens && !showGames && !showBooks,
+    !loading && !showScreens && !showGames && !showBooks && !showMusic,
   );
 </script>
 
@@ -146,7 +169,21 @@
     subtitle="Reprends là où tu t’es arrêté." />
 
   {#if loading}
-    <p class="timecode text-sm mb-10">Chargement…</p>
+    <div class="mb-10 flex flex-col gap-8">
+      {#each { length: 2 } as _, i (i)}
+        <div>
+          <div class="mb-4 h-3 w-20 skeleton rounded"></div>
+          <div class="flex gap-4 overflow-hidden">
+            {#each { length: 4 } as _, j (j)}
+              <div class="w-32 shrink-0 sm:w-36">
+                <div class="aspect-2/3 w-full skeleton rounded-xl"></div>
+                <div class="mt-1.5 h-3 w-4/5 skeleton rounded"></div>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/each}
+    </div>
   {:else if nothing}
     <EmptyState class="mb-10">
       Rien en cours pour l’instant.
@@ -160,47 +197,49 @@
       <div class="mb-4 flex items-baseline justify-between">
         <p class="timecode text-xs uppercase">Écrans</p>
         <a href="/media" class="text-sm font-semibold text-dim hover:text-fg"
-          >Voir →</a>
+          >Voir plus →</a>
       </div>
 
       {#if watching.length > 0}
         <h2 class="mb-3 font-display text-lg font-bold">À reprendre</h2>
-        <div
-          class="-mx-4 mb-6 flex snap-x gap-4 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
-          {#each watchingRecent as e (e.id)}
-            <div class="w-32 shrink-0 snap-start sm:w-36">
-              <a
-                href={`/media/${e.mediaItem.type.toLowerCase()}/${e.mediaItem.sourceId}`}
-                class="block">
-                <div
-                  class="card overflow-hidden transition-[border-color] hover:border-accent">
-                  <Poster
-                    src={e.mediaItem.posterUrl}
-                    title={e.mediaItem.title} />
-                </div>
-                <p class="mt-2 truncate font-display text-sm font-semibold">
-                  {e.mediaItem.title}
-                </p>
-              </a>
-              {#if e.progress}
-                <div class="mt-1 h-1 overflow-hidden rounded-full bg-surface-2">
-                  <div class="h-full bg-accent" style={`width: ${pct(e)}%`}>
+        <div class="mb-6">
+          <Carousel items={watchingRecent} keyOf={(e) => e.id}>
+            {#snippet card(e)}
+              <div class="w-32 shrink-0 snap-start sm:w-36">
+                <a
+                  href={`/media/${e.mediaItem.type.toLowerCase()}/${e.mediaItem.sourceId}`}
+                  class="block">
+                  <div
+                    class="card overflow-hidden transition-[border-color] hover:border-accent">
+                    <Poster
+                      src={e.mediaItem.posterUrl}
+                      title={e.mediaItem.title} />
                   </div>
-                </div>
-                <p class="timecode mt-1 text-xs">
-                  {e.progress.watchedEpisodes} / {e.progress.totalEpisodes}
-                </p>
-                {#if e.progress.nextEpisode}
-                  <button
-                    class="btn btn-primary mt-1.5 w-full px-2 py-1 text-xs"
-                    disabled={resuming === e.id}
-                    onclick={() => resume(e)}>
-                    ▶ {epCodeOf(e.progress.nextEpisode)}
-                  </button>
+                  <p class="mt-2 truncate font-display text-sm font-semibold">
+                    {e.mediaItem.title}
+                  </p>
+                </a>
+                {#if e.progress}
+                  <div
+                    class="mt-1 h-1 overflow-hidden rounded-full bg-surface-2">
+                    <div class="h-full bg-accent" style={`width: ${pct(e)}%`}>
+                    </div>
+                  </div>
+                  <p class="timecode mt-1 text-xs">
+                    {e.progress.watchedEpisodes} / {e.progress.totalEpisodes}
+                  </p>
+                  {#if e.progress.nextEpisode}
+                    <button
+                      class="btn btn-primary mt-1.5 w-full px-2 py-1 text-xs"
+                      disabled={resuming === e.id}
+                      onclick={() => resume(e)}>
+                      ▶ {epCodeOf(e.progress.nextEpisode)}
+                    </button>
+                  {/if}
                 {/if}
-              {/if}
-            </div>
-          {/each}
+              </div>
+            {/snippet}
+          </Carousel>
         </div>
       {/if}
 
@@ -244,9 +283,8 @@
           >Voir →</a>
       </div>
       <h2 class="mb-3 font-display text-lg font-bold">En cours</h2>
-      <div
-        class="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
-        {#each playingGames as e (e.id)}
+      <Carousel items={playingGames} keyOf={(e) => e.id}>
+        {#snippet card(e)}
           <a
             href={`/games/${e.game.sourceId}`}
             class="w-32 shrink-0 snap-start sm:w-36">
@@ -258,8 +296,8 @@
               {e.game.title}
             </p>
           </a>
-        {/each}
-      </div>
+        {/snippet}
+      </Carousel>
     </section>
   {/if}
 
@@ -272,9 +310,8 @@
           >Voir →</a>
       </div>
       <h2 class="mb-3 font-display text-lg font-bold">En lecture</h2>
-      <div
-        class="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
-        {#each readingBooks as e (e.id)}
+      <Carousel items={readingBooks} keyOf={(e) => e.id}>
+        {#snippet card(e)}
           <a
             href={`/books/${e.book.sourceId}`}
             class="w-32 shrink-0 snap-start sm:w-36">
@@ -286,8 +323,35 @@
               {e.book.title}
             </p>
           </a>
-        {/each}
+        {/snippet}
+      </Carousel>
+    </section>
+  {/if}
+
+  <!-- Musique -->
+  {#if showMusic}
+    <section class="mb-10">
+      <div class="mb-4 flex items-baseline justify-between">
+        <p class="timecode text-xs uppercase">Musique</p>
+        <a href="/music" class="text-sm font-semibold text-dim hover:text-fg"
+          >Voir →</a>
       </div>
+      <h2 class="mb-3 font-display text-lg font-bold">À écouter</h2>
+      <Carousel items={toListenAlbums} keyOf={(e) => e.id}>
+        {#snippet card(e)}
+          <a
+            href={`/music/${e.album.sourceId}`}
+            class="w-32 shrink-0 snap-start sm:w-36">
+            <div
+              class="card overflow-hidden transition-[border-color] hover:border-accent">
+              <Poster src={e.album.coverUrl} title={e.album.title} />
+            </div>
+            <p class="mt-2 truncate font-display text-sm font-semibold">
+              {e.album.title}
+            </p>
+          </a>
+        {/snippet}
+      </Carousel>
     </section>
   {/if}
 

@@ -29,7 +29,7 @@
   });
 
   // Ordered areas so groups render in a stable, sensible order.
-  const AREAS = ["Écrans", "Jeux", "Livres", "Système"] as const;
+  const AREAS = ["Écrans", "Jeux", "Livres", "Musique", "Système"] as const;
 
   const grouped = $derived(
     AREAS.map((area) => ({

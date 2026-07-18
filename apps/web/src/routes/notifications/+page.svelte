@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { notifications } from "$lib/notifications.svelte";
+  import CardRowSkeleton from "$lib/components/CardRowSkeleton.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import PageHeader from "$lib/components/PageHeader.svelte";
@@ -34,7 +35,7 @@
   </PageHeader>
 
   {#if loading}
-    <p class="timecode text-sm">Chargement…</p>
+    <CardRowSkeleton count={5} />
   {:else if notifications.items.length === 0}
     <EmptyState>
       Rien de neuf. Les nouveaux épisodes de tes séries suivies apparaîtront

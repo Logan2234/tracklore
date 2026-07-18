@@ -9,5 +9,6 @@ export * from "./catalog";
 export * from "./library";
 export * from "./games";
 export * from "./books";
+export * from "./music";
 export * from "./notifications";
 export * from "./import";

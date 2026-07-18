@@ -3,11 +3,11 @@ import type {
   BookEntryDto,
   BookSearchResponseDto,
   BookStatsDto,
-  BookStatus,
   GoodreadsImportCommitRequestDto,
   GoodreadsImportPreviewDto,
   GoodreadsImportPreviewRequestDto,
   GoodreadsImportResultDto,
+  PagedResult,
   StoryGraphImportCommitRequestDto,
   StoryGraphImportPreviewDto,
   StoryGraphImportPreviewRequestDto,
@@ -22,11 +22,25 @@ export function searchBooks(query: string): Promise<BookSearchResponseDto> {
   return request(`/books/search?${params}`);
 }
 
+export interface ListBooksFilters {
+  query?: string;
+  favorite?: boolean;
+  statuses?: string[];
+  sort?: string;
+  order?: "asc" | "desc";
+  page?: number;
+}
+
 export function listBooks(
-  filters: { status?: BookStatus } = {},
-): Promise<BookEntryDto[]> {
+  filters: ListBooksFilters = {},
+): Promise<PagedResult<BookEntryDto>> {
   const params = new URLSearchParams();
-  if (filters.status) params.set("status", filters.status);
+  if (filters.query) params.set("q", filters.query);
+  if (filters.favorite) params.set("favorite", "true");
+  for (const s of filters.statuses ?? []) params.append("status", s);
+  if (filters.sort) params.set("sort", filters.sort);
+  if (filters.order) params.set("order", filters.order);
+  if (filters.page && filters.page > 1) params.set("page", String(filters.page));
   const suffix = params.size > 0 ? `?${params}` : "";
   return request(`/books${suffix}`);
 }

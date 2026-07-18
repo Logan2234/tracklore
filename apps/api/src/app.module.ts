@@ -13,6 +13,7 @@ import { HealthModule } from "./health/health.module";
 import { ImportModule } from "./import/tvtime/import.module";
 import { LibraryModule } from "./library/library.module";
 import { MailModule } from "./mail/mail.module";
+import { MusicModule } from "./music/music.module";
 import { NotificationModule } from "./notifications/notification.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { UsersModule } from "./users/users.module";
@@ -32,6 +33,7 @@ import { UsersModule } from "./users/users.module";
     CatalogModule,
     GamesModule,
     BooksModule,
+    MusicModule,
     LibraryModule,
     ImportModule,
     NotificationModule,

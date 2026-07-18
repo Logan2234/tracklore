@@ -18,7 +18,7 @@ function makeUser(overrides: Partial<User> = {}): User {
     emailVerified: false,
     entitlements: [],
     role: "USER",
-    enabledDomains: ["MEDIA", "BOOKS", "GAMES"],
+    enabledDomains: ["MEDIA", "BOOKS", "GAMES", "MUSIC"],
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     ...overrides,
@@ -32,6 +32,7 @@ function makeService() {
     episodeWatch: { findMany: jest.fn().mockResolvedValue([]) },
     gameEntry: { findMany: jest.fn().mockResolvedValue([]) },
     bookEntry: { findMany: jest.fn().mockResolvedValue([]) },
+    musicEntry: { findMany: jest.fn().mockResolvedValue([]) },
     notification: { findMany: jest.fn().mockResolvedValue([]) },
   } as unknown as PrismaService;
 
@@ -118,6 +119,43 @@ describe("DataExportService.buildExport", () => {
           sourceId: "abc",
         }),
         currentPage: 320,
+      }),
+    ]);
+  });
+
+  it("includes the music library and its external id", async () => {
+    const { service, prisma } = makeService();
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(makeUser());
+    (prisma.musicEntry.findMany as jest.Mock).mockResolvedValue([
+      {
+        status: "LISTENED",
+        rating: 9,
+        notes: null,
+        favorite: true,
+        ownershipStatus: "PHYSICAL",
+        ownershipSource: null,
+        startedAt: null,
+        finishedAt: new Date("2026-02-10T00:00:00.000Z"),
+        createdAt: new Date("2026-02-01T00:00:00.000Z"),
+        musicItem: {
+          title: "Discovery",
+          artists: ["Daft Punk"],
+          canonicalSource: "MUSICBRAINZ",
+          externalIds: [{ source: "MUSICBRAINZ", externalId: "mbid-1" }],
+        },
+      },
+    ]);
+
+    const result = await service.buildExport("user-1");
+
+    expect(result.music).toEqual([
+      expect.objectContaining({
+        album: expect.objectContaining({
+          title: "Discovery",
+          artists: ["Daft Punk"],
+          sourceId: "mbid-1",
+        }),
+        status: "LISTENED",
       }),
     ]);
   });

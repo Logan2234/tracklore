@@ -13,7 +13,7 @@ import {
 } from "./admin-stats.util";
 
 // Mirrors the 24h refresh TTL in MediaItemService — a freshness proxy only
-// (games/books have no periodic refresh cron yet, so they're not counted here).
+// (games/books/music have no periodic refresh cron yet, so they're not counted here).
 const MEDIA_SYNC_TTL_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
@@ -61,6 +61,7 @@ export class AdminStatsService {
       mediaByType,
       totalGames,
       totalBooks,
+      totalMusic,
       totalSeasons,
       totalEpisodes,
       staleMediaCount,
@@ -73,6 +74,7 @@ export class AdminStatsService {
       ),
       this.prisma.gameItem.count(),
       this.prisma.bookItem.count(),
+      this.prisma.musicItem.count(),
       this.prisma.season.count(),
       this.prisma.episode.count(),
       this.prisma.mediaItem.count({
@@ -85,6 +87,7 @@ export class AdminStatsService {
       mediaByType,
       totalGames,
       totalBooks,
+      totalMusic,
       totalSeasons,
       totalEpisodes,
       staleMediaCount,
@@ -96,6 +99,7 @@ export class AdminStatsService {
       totalLibraryEntries,
       totalGameEntries,
       totalBookEntries,
+      totalMusicEntries,
       totalEpisodeWatches,
       totalNotifications,
       totalPushDevices,
@@ -103,6 +107,7 @@ export class AdminStatsService {
       this.prisma.libraryEntry.count(),
       this.prisma.gameEntry.count(),
       this.prisma.bookEntry.count(),
+      this.prisma.musicEntry.count(),
       this.prisma.episodeWatch.count(),
       this.prisma.notification.count(),
       this.prisma.pushSubscription.count(),
@@ -111,6 +116,7 @@ export class AdminStatsService {
       totalLibraryEntries,
       totalGameEntries,
       totalBookEntries,
+      totalMusicEntries,
       totalEpisodeWatches,
       totalNotifications,
       totalPushDevices,
@@ -142,12 +148,14 @@ export class AdminStatsService {
       mediaCreated,
       gamesCreated,
       booksCreated,
+      musicCreated,
       watches,
       accounts,
       notifications,
       mediaBefore,
       gamesBefore,
       booksBefore,
+      musicBefore,
     ] = await Promise.all([
       this.prisma.mediaItem.findMany({
         where: { createdAt: since },
@@ -158,6 +166,10 @@ export class AdminStatsService {
         select: { createdAt: true },
       }),
       this.prisma.bookItem.findMany({
+        where: { createdAt: since },
+        select: { createdAt: true },
+      }),
+      this.prisma.musicItem.findMany({
         where: { createdAt: since },
         select: { createdAt: true },
       }),
@@ -176,12 +188,14 @@ export class AdminStatsService {
       this.prisma.mediaItem.count({ where: { createdAt: before } }),
       this.prisma.gameItem.count({ where: { createdAt: before } }),
       this.prisma.bookItem.count({ where: { createdAt: before } }),
+      this.prisma.musicItem.count({ where: { createdAt: before } }),
     ]);
 
     const catalogDates = [
       ...mediaCreated.map((m) => m.createdAt),
       ...gamesCreated.map((g) => g.createdAt),
       ...booksCreated.map((b) => b.createdAt),
+      ...musicCreated.map((m) => m.createdAt),
     ];
 
     return {
@@ -191,7 +205,7 @@ export class AdminStatsService {
         catalogGrowth: cumulativeBucketize(
           catalogDates,
           starts,
-          mediaBefore + gamesBefore + booksBefore,
+          mediaBefore + gamesBefore + booksBefore + musicBefore,
         ),
         watchActivity: bucketize(
           watches.map((w) => w.watchedAt),

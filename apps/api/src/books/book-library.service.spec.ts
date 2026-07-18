@@ -1,0 +1,97 @@
+import type { PrismaService } from "../prisma/prisma.service";
+import type { AgeGateService } from "../users/age-gate.service";
+import type { BookItemService } from "./book-item.service";
+import { BookLibraryService } from "./book-library.service";
+
+function makeRow(overrides: Partial<Record<string, unknown>> = {}) {
+  const id = (overrides.id as string) ?? "entry-1";
+  return {
+    id,
+    userId: "user-1",
+    bookItemId: `book-${id}`,
+    status: overrides.status ?? "TO_READ",
+    rating: overrides.rating ?? null,
+    notes: null,
+    favorite: overrides.favorite ?? false,
+    currentPage: overrides.currentPage ?? 0,
+    startedAt: null,
+    finishedAt: overrides.finishedAt ?? null,
+    ownershipStatus: "NONE",
+    ownershipSource: null,
+    createdAt: overrides.createdAt ?? new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    replays: [],
+    bookItem: {
+      id: `book-${id}`,
+      title: overrides.title ?? "Dune",
+      authors: overrides.authors ?? ["Frank Herbert"],
+      coverUrl: null,
+      pageCount: overrides.pageCount ?? null,
+      canonicalSource: "GOOGLE_BOOKS",
+      externalIds: [{ source: "GOOGLE_BOOKS", externalId: `gb-${id}` }],
+    },
+  };
+}
+
+function makeService(rows: ReturnType<typeof makeRow>[]) {
+  const prisma = {
+    bookEntry: { findMany: jest.fn().mockResolvedValue(rows) },
+  } as unknown as PrismaService;
+  const service = new BookLibraryService(
+    prisma,
+    {} as BookItemService,
+    {} as AgeGateService,
+  );
+  return { service, prisma };
+}
+
+describe("BookLibraryService.listEntries", () => {
+  it("paginates and reports total/hasMore", async () => {
+    const rows = Array.from({ length: 45 }, (_, i) =>
+      makeRow({ id: `e${i}`, title: `Book ${i}` }),
+    );
+    const { service } = makeService(rows);
+
+    const page1 = await service.listEntries("user-1", {});
+    expect(page1.items).toHaveLength(40);
+    expect(page1.total).toBe(45);
+    expect(page1.hasMore).toBe(true);
+
+    const page2 = await service.listEntries("user-1", { page: 2 });
+    expect(page2.items).toHaveLength(5);
+    expect(page2.hasMore).toBe(false);
+  });
+
+  it("filters by favorite", async () => {
+    const rows = [
+      makeRow({ id: "a", favorite: true }),
+      makeRow({ id: "b", favorite: false }),
+    ];
+    const { service } = makeService(rows);
+
+    const result = await service.listEntries("user-1", { favorite: true });
+    expect(result.items.map((i) => i.id)).toEqual(["a"]);
+  });
+
+  it("filters by free-text title search, case-insensitive", async () => {
+    const rows = [
+      makeRow({ id: "a", title: "Dune" }),
+      makeRow({ id: "b", title: "Foundation" }),
+    ];
+    const { service } = makeService(rows);
+
+    const result = await service.listEntries("user-1", { q: "dun" });
+    expect(result.items.map((i) => i.id)).toEqual(["a"]);
+  });
+
+  it("sorts by pages, descending by default", async () => {
+    const rows = [
+      makeRow({ id: "a", pageCount: 200 }),
+      makeRow({ id: "b", pageCount: 900 }),
+    ];
+    const { service } = makeService(rows);
+
+    const result = await service.listEntries("user-1", { sort: "pages" });
+    expect(result.items.map((i) => i.id)).toEqual(["b", "a"]);
+  });
+});

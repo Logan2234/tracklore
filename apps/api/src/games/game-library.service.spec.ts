@@ -1,0 +1,95 @@
+import type { PrismaService } from "../prisma/prisma.service";
+import type { AgeGateService } from "../users/age-gate.service";
+import type { GameItemService } from "./game-item.service";
+import { GameLibraryService } from "./game-library.service";
+
+function makeRow(overrides: Partial<Record<string, unknown>> = {}) {
+  const id = (overrides.id as string) ?? "entry-1";
+  return {
+    id,
+    userId: "user-1",
+    gameItemId: `game-${id}`,
+    status: overrides.status ?? "BACKLOG",
+    rating: overrides.rating ?? null,
+    notes: null,
+    favorite: overrides.favorite ?? false,
+    playtimeMinutes: overrides.playtimeMinutes ?? 0,
+    startedAt: null,
+    finishedAt: overrides.finishedAt ?? null,
+    ownershipStatus: "NONE",
+    ownershipSource: null,
+    createdAt: overrides.createdAt ?? new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    replays: [],
+    gameItem: {
+      id: `game-${id}`,
+      title: overrides.title ?? "Hades",
+      coverUrl: null,
+      canonicalSource: "IGDB",
+      externalIds: [{ source: "IGDB", externalId: `igdb-${id}` }],
+    },
+  };
+}
+
+function makeService(rows: ReturnType<typeof makeRow>[]) {
+  const prisma = {
+    gameEntry: { findMany: jest.fn().mockResolvedValue(rows) },
+  } as unknown as PrismaService;
+  const service = new GameLibraryService(
+    prisma,
+    {} as GameItemService,
+    {} as AgeGateService,
+  );
+  return { service, prisma };
+}
+
+describe("GameLibraryService.listEntries", () => {
+  it("paginates and reports total/hasMore", async () => {
+    const rows = Array.from({ length: 45 }, (_, i) =>
+      makeRow({ id: `e${i}`, title: `Game ${i}` }),
+    );
+    const { service } = makeService(rows);
+
+    const page1 = await service.listEntries("user-1", {});
+    expect(page1.items).toHaveLength(40);
+    expect(page1.total).toBe(45);
+    expect(page1.hasMore).toBe(true);
+
+    const page2 = await service.listEntries("user-1", { page: 2 });
+    expect(page2.items).toHaveLength(5);
+    expect(page2.hasMore).toBe(false);
+  });
+
+  it("filters by favorite", async () => {
+    const rows = [
+      makeRow({ id: "a", favorite: true }),
+      makeRow({ id: "b", favorite: false }),
+    ];
+    const { service } = makeService(rows);
+
+    const result = await service.listEntries("user-1", { favorite: true });
+    expect(result.items.map((i) => i.id)).toEqual(["a"]);
+  });
+
+  it("filters by free-text title search, case-insensitive", async () => {
+    const rows = [
+      makeRow({ id: "a", title: "Hades" }),
+      makeRow({ id: "b", title: "Celeste" }),
+    ];
+    const { service } = makeService(rows);
+
+    const result = await service.listEntries("user-1", { q: "had" });
+    expect(result.items.map((i) => i.id)).toEqual(["a"]);
+  });
+
+  it("sorts by playtime, descending by default", async () => {
+    const rows = [
+      makeRow({ id: "a", playtimeMinutes: 60 }),
+      makeRow({ id: "b", playtimeMinutes: 600 }),
+    ];
+    const { service } = makeService(rows);
+
+    const result = await service.listEntries("user-1", { sort: "playtime" });
+    expect(result.items.map((i) => i.id)).toEqual(["b", "a"]);
+  });
+});

@@ -1,23 +1,36 @@
 import type {
   CalendarEntryDto,
-  EntryStatus,
   EpisodeWatchDto,
   LibraryEntryDto,
   MediaType,
+  PagedResult,
   StatsDto,
   UpsertLibraryEntryDto,
 } from "@tracklore/shared";
 import { request } from "./core";
 
+export interface ListLibraryFilters {
+  query?: string;
+  favorite?: boolean;
+  /** Includes the synthetic "DORMANT" status alongside real `EntryStatus` values. */
+  statuses?: string[];
+  types?: MediaType[];
+  sort?: string;
+  order?: "asc" | "desc";
+  page?: number;
+}
+
 export function listLibrary(
-  filters: {
-    status?: EntryStatus;
-    type?: MediaType;
-  } = {},
-): Promise<LibraryEntryDto[]> {
+  filters: ListLibraryFilters = {},
+): Promise<PagedResult<LibraryEntryDto>> {
   const params = new URLSearchParams();
-  if (filters.status) params.set("status", filters.status);
-  if (filters.type) params.set("type", filters.type);
+  if (filters.query) params.set("q", filters.query);
+  if (filters.favorite) params.set("favorite", "true");
+  for (const s of filters.statuses ?? []) params.append("status", s);
+  for (const t of filters.types ?? []) params.append("type", t);
+  if (filters.sort) params.set("sort", filters.sort);
+  if (filters.order) params.set("order", filters.order);
+  if (filters.page && filters.page > 1) params.set("page", String(filters.page));
   const suffix = params.size > 0 ? `?${params}` : "";
   return request(`/library${suffix}`);
 }

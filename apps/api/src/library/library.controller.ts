@@ -14,15 +14,16 @@ import {
 import type {
   CalendarEntryDto,
   EntryEpisodesResponseDto,
-  EntryStatus,
   EpisodeWatchDto,
   LibraryEntryDto,
   MediaType,
+  PagedResult,
   StatsDto,
 } from "@tracklore/shared";
 import { Domain } from "@tracklore/shared";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { JwtPayload } from "../auth/decorators/current-user.decorator";
+import { toQueryArray } from "../common/query-array.util";
 import { DomainGateService } from "../users/domain-gate.service";
 import { UpdateEntryDto } from "./dto/update-entry.dto";
 import { UpsertEntryDto } from "./dto/upsert-entry.dto";
@@ -37,12 +38,26 @@ export class LibraryController {
   ) {}
 
   @Get()
-  listEntries(
+  async listEntries(
     @CurrentUser() user: JwtPayload,
-    @Query("status") status?: EntryStatus,
-    @Query("type") type?: MediaType,
-  ): Promise<LibraryEntryDto[]> {
-    return this.libraryService.listEntries(user.sub, { status, type });
+    @Query("q") q?: string,
+    @Query("favorite") favorite?: string,
+    @Query("status") status?: string | string[],
+    @Query("type") type?: string | string[],
+    @Query("sort") sort?: string,
+    @Query("order") order?: string,
+    @Query("page") page?: string,
+  ): Promise<PagedResult<LibraryEntryDto>> {
+    await this.domainGate.assertEnabled(user.sub, Domain.MEDIA);
+    return this.libraryService.listEntries(user.sub, {
+      q,
+      favorite: favorite === "true",
+      statuses: toQueryArray(status),
+      types: toQueryArray(type) as MediaType[],
+      sort,
+      order: order === "asc" ? "asc" : "desc",
+      page: page ? Number(page) : undefined,
+    });
   }
 
   @Put()
