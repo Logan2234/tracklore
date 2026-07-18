@@ -303,9 +303,11 @@ export class MusicBrainzProvider implements MusicCatalogProvider {
   /** Serialises requests to at most one per `MIN_REQUEST_INTERVAL_MS`. */
   private async throttle(): Promise<void> {
     const elapsed = Date.now() - this.lastRequestAt;
+
     if (elapsed < MIN_REQUEST_INTERVAL_MS) {
       await sleep(MIN_REQUEST_INTERVAL_MS - elapsed);
     }
+
     this.lastRequestAt = Date.now();
   }
 }
@@ -322,7 +324,9 @@ function parseYear(date: string | undefined): number | null {
 }
 
 /** MusicBrainz date strings are "YYYY", "YYYY-MM" or "YYYY-MM-DD" — reports which. */
-function datePrecision(date: string | undefined): "day" | "month" | "year" | null {
+function datePrecision(
+  date: string | undefined,
+): "day" | "month" | "year" | null {
   if (!date) return null;
   if (date.length >= 10) return "day";
   if (date.length >= 7) return "month";
@@ -353,5 +357,8 @@ function externalLinksFrom(
 ): { label: string; url: string }[] {
   return (releaseGroup.relations ?? [])
     .filter((r) => r.url?.resource && EXTERNAL_LINK_LABELS[r.type])
-    .map((r) => ({ label: EXTERNAL_LINK_LABELS[r.type], url: r.url!.resource }));
+    .map((r) => ({
+      label: EXTERNAL_LINK_LABELS[r.type],
+      url: r.url!.resource,
+    }));
 }

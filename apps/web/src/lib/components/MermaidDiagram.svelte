@@ -138,6 +138,8 @@
     <div
       style="transform: translate({panX}px, {panY}px) scale({scale}); transform-origin: top left;"
       class="w-full p-4">
+      <!-- svg is mermaid's own output with securityLevel: "strict" (sanitized), not user input -->
+      <!-- eslint-disable-next-line svelte/no-at-html-tags -->
       {@html svg}
     </div>
   </div>

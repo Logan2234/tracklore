@@ -66,6 +66,7 @@ export class ImportJobService {
     const source = this.sourceOrThrow(sourceId);
 
     let parsed: unknown;
+
     try {
       parsed = source.parseInput(dto.input, dto.options ?? {});
     } catch (error) {
@@ -98,13 +99,20 @@ export class ImportJobService {
 
     const analyzed = this.jobs.get(jobId);
     if (!analyzed) throw new NotFoundException("Import job not found");
+
     if (analyzed.userId !== userId) {
       throw new ForbiddenException("This import job belongs to another user");
     }
+
     if (analyzed.sourceId !== sourceId) {
       throw new BadRequestException("Import job source mismatch");
     }
-    if (analyzed.parsed == null || !analyzed.plan) {
+
+    if (
+      analyzed.parsed === null ||
+      analyzed.parsed === undefined ||
+      !analyzed.plan
+    ) {
       throw new BadRequestException("This job has no analysis to commit");
     }
 
@@ -137,23 +145,22 @@ export class ImportJobService {
   getJob(userId: string, jobId: string): ImportJobDto {
     const job = this.jobs.get(jobId);
     if (!job) throw new NotFoundException("Import job not found");
+
     if (job.userId !== userId) {
       throw new ForbiddenException("This import job belongs to another user");
     }
+
     return toDto(job);
   }
 
   private sourceOrThrow(sourceId: string): ImportSource {
     const source = this.sources.get(sourceId);
-    if (!source) throw new NotFoundException(`Unknown import source: ${sourceId}`);
+    if (!source)
+      throw new NotFoundException(`Unknown import source: ${sourceId}`);
     return source;
   }
 
-  private newJob(
-    userId: string,
-    sourceId: string,
-    parsed: unknown,
-  ): JobRecord {
+  private newJob(userId: string, sourceId: string, parsed: unknown): JobRecord {
     return {
       id: randomUUID(),
       userId,
@@ -194,6 +201,7 @@ export class ImportJobService {
 
   private pruneOldJobs(): void {
     const cutoff = Date.now() - JOB_RETENTION_MS;
+
     for (const [id, job] of this.jobs) {
       if (job.finishedAt !== null && job.finishedAt < cutoff) {
         this.jobs.delete(id);

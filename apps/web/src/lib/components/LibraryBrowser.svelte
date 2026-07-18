@@ -84,7 +84,6 @@
   let total = $state(0);
   let statuses = $state<string[]>([]);
   let favoritesOnly = $state(false);
-  // svelte-ignore state_referenced_locally -- defaultSort is a fixed initial value
   let sort = $state<string>(defaultSort);
   let reversed = $state(false);
   let query = $state("");
@@ -144,7 +143,7 @@
   // The only filter not driven by a local handler below: media's "type" list
   // lives on the page, not here. Also doubles as the initial load on mount.
   $effect(() => {
-    extra;
+    void extra;
     void run(true);
   });
 

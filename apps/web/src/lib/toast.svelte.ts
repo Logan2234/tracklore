@@ -6,8 +6,8 @@ interface ToastItem {
   variant: ToastVariant;
 }
 
-/** Global toast queue (rune store) — transient confirmations that don't need
- * a full Banner or block the UI. Mounted once via <Toast /> in the root layout. */
+// Global toast queue (rune store) — transient confirmations that don't need
+// a full Banner or block the UI. Mounted once via <Toast /> in the root layout.
 class ToastStore {
   items = $state<ToastItem[]>([]);
   #nextId = 0;
@@ -15,6 +15,7 @@ class ToastStore {
   show(message: string, variant: ToastVariant = "info", duration = 4000): void {
     const id = this.#nextId++;
     this.items.push({ id, message, variant });
+
     if (duration > 0) {
       setTimeout(() => this.dismiss(id), duration);
     }

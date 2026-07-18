@@ -32,7 +32,8 @@ export function listBooks(
   for (const s of filters.statuses ?? []) params.append("status", s);
   if (filters.sort) params.set("sort", filters.sort);
   if (filters.order) params.set("order", filters.order);
-  if (filters.page && filters.page > 1) params.set("page", String(filters.page));
+  if (filters.page && filters.page > 1)
+    params.set("page", String(filters.page));
   const suffix = params.size > 0 ? `?${params}` : "";
   return request(`/books${suffix}`);
 }

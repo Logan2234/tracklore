@@ -42,7 +42,11 @@ const FILE_NAMES: Record<keyof TvTimeImportFilesDto, string> = {
 };
 
 /** A catalogue match resolved to its required media type, ready to write. */
-type ResolvedMatch = { source: CatalogSource; sourceId: string; type: MediaType };
+type ResolvedMatch = {
+  source: CatalogSource;
+  sourceId: string;
+  type: MediaType;
+};
 
 /** Season/episode listing reduced to what episode matching needs. */
 interface EpisodeIndex {
@@ -144,9 +148,17 @@ export class TvTimeImportSource implements ImportSource<ParsedImport> {
 
     const groups: ImportPlanGroup[] = [
       { id: "seriesTracked", label: "Séries suivies", items: seriesTracked },
-      { id: "seriesWatchlist", label: "Séries — watchlist", items: seriesWatchlist },
+      {
+        id: "seriesWatchlist",
+        label: "Séries — watchlist",
+        items: seriesWatchlist,
+      },
       { id: "moviesWatched", label: "Films vus", items: moviesWatched },
-      { id: "moviesWatchlist", label: "Films — watchlist", items: moviesWatchlist },
+      {
+        id: "moviesWatchlist",
+        label: "Films — watchlist",
+        items: moviesWatchlist,
+      },
     ].filter((g) => g.items.length > 0);
 
     const total = parsed.shows.length + parsed.movies.length;
@@ -229,6 +241,7 @@ export class TvTimeImportSource implements ImportSource<ParsedImport> {
     matchByKey: Map<string, ResolvedMatch>,
   ): ResolvedMatch | null {
     const override = decisions.overrides.get(key);
+
     if (override && override.type) {
       return {
         source: override.source as CatalogSource,
@@ -236,13 +249,17 @@ export class TvTimeImportSource implements ImportSource<ParsedImport> {
         type: override.type,
       };
     }
+
     return matchByKey.get(key) ?? null;
   }
 
   /** Resolve a show to a catalogue match (via its TVDB id); null if none. */
-  private async resolveShowMatch(show: ImportShow): Promise<ImportMatch | null> {
+  private async resolveShowMatch(
+    show: ImportShow,
+  ): Promise<ImportMatch | null> {
     const tvdbId = show.externalIds.tvdb;
     if (!tvdbId) return null;
+
     try {
       const summary = await this.tmdb.findSeriesSummaryByTvdbId(tvdbId);
       return summary ? toMatch(summary) : null;
@@ -296,6 +313,7 @@ export class TvTimeImportSource implements ImportSource<ParsedImport> {
     );
 
     let watchedRegular = 0;
+
     for (const ep of show.episodes) {
       const episodeId = index.byKey.get(`${ep.season}|${ep.episode}`);
       if (episodeId === undefined) continue; // numbering gap — no target
@@ -361,12 +379,14 @@ export class TvTimeImportSource implements ImportSource<ParsedImport> {
 
     const byKey = new Map<string, string>();
     let totalRegular = 0;
+
     for (const season of seasons) {
       for (const episode of season.episodes) {
         byKey.set(`${season.number}|${episode.number}`, episode.id);
         if (season.number > 0) totalRegular++;
       }
     }
+
     return { byKey, totalRegular };
   }
 
@@ -460,6 +480,7 @@ function extractFiles(input: Buffer): TvTimeImportFilesDto {
   }
 
   let entries: Map<string, string>;
+
   try {
     entries = readZipEntries(input, new Set(Object.values(FILE_NAMES)));
   } catch (error) {
@@ -478,6 +499,7 @@ function extractFiles(input: Buffer): TvTimeImportFilesDto {
   const missing: string[] = [];
   if (!files.episodesCsv) missing.push(FILE_NAMES.episodesCsv);
   if (!files.showsCsv) missing.push(FILE_NAMES.showsCsv);
+
   if (missing.length > 0) {
     throw new BadRequestException(
       `Missing required file(s) in the archive: ${missing.join(", ")}`,
@@ -504,6 +526,7 @@ function movieKey(movie: ImportMovie): string {
 /** Flatten a plan's auto-resolved matches into a key → write-target lookup. */
 function indexPlanMatches(plan: ImportPlan): Map<string, ResolvedMatch> {
   const byKey = new Map<string, ResolvedMatch>();
+
   for (const group of plan.groups) {
     for (const item of group.items) {
       if (item.match && item.match.type) {
@@ -515,6 +538,7 @@ function indexPlanMatches(plan: ImportPlan): Map<string, ResolvedMatch> {
       }
     }
   }
+
   return byKey;
 }
 
@@ -571,5 +595,6 @@ function pickMovie(
     );
     if (sameYear) return sameYear;
   }
+
   return exact[0];
 }

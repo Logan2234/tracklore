@@ -75,7 +75,7 @@
       });
   });
 
-  const { reload, add, patch, doRemove, addReplay, removeReplay } =
+  const { add, patch, doRemove, addReplay, removeReplay } =
     createLibraryEntryActions(
       {
         get detail() {

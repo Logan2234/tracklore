@@ -22,7 +22,7 @@
   // image exists — a 404 falls back to the same gradient as a null src.
   let failed = $state(false);
   $effect(() => {
-    src;
+    void src;
     failed = false;
   });
 </script>

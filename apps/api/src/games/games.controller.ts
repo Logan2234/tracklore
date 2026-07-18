@@ -61,7 +61,7 @@ export class GamesController {
     await this.domainGate.assertEnabled(user.sub, Domain.GAMES);
 
     const [results, allowAdult] = await Promise.all([
-      this.gameItemService.providerFor(GameSource.IGDB).search(query),
+      this.gameItemService.providerFor().search(query),
       this.ageGate.allowsAdultContent(user.sub),
     ]);
     return { results: filterAdultContent(results, allowAdult) };

@@ -69,9 +69,9 @@ interface ResolvedRow<TRow> {
  * Generic over `TRow` (the source's parsed row); the parse model carried on the
  * job between analyze and commit is simply `TRow[]`, keyed by original index.
  */
-export abstract class BookCsvSource<TRow extends ParsedCsvBookRow>
-  implements ImportSource<TRow[]>
-{
+export abstract class BookCsvSource<
+  TRow extends ParsedCsvBookRow,
+> implements ImportSource<TRow[]> {
   abstract readonly id: string;
   readonly searchDomain = "books" as const;
   readonly supportsOverwrite = true;
@@ -177,6 +177,7 @@ export abstract class BookCsvSource<TRow extends ParsedCsvBookRow>
       const index = rowIndex(key);
       const row = index === null ? undefined : rows[index];
       const match = decisions.overrides.get(key) ?? matchByKey.get(key);
+
       if (!row || !match) {
         progress.tick();
         continue;
@@ -198,6 +199,7 @@ export abstract class BookCsvSource<TRow extends ParsedCsvBookRow>
     const tiles: ImportReportTile[] = STATUS_GROUPS.filter(
       (g) => (tally.get(g.status) ?? 0) > 0,
     ).map((g) => ({ label: g.label, value: tally.get(g.status)!, sub: null }));
+
     if (tiles.length === 0) {
       tiles.push({ label: "Livres", value: 0, sub: null });
     }
@@ -318,6 +320,7 @@ export abstract class BookCsvSource<TRow extends ParsedCsvBookRow>
     row: TRow,
   ): Promise<{ summary: BookSummaryDto | null; apiError: boolean }> {
     const query = [row.title, row.authors[0]].filter(Boolean).join(" ");
+
     try {
       const summary = await this.bookItemService.resolve(null, query);
       return { summary, apiError: false };
@@ -368,11 +371,13 @@ function toMatch(summary: BookSummaryDto): ImportMatch {
 /** Flatten a plan's auto-resolved matches into a key → match lookup. */
 function indexPlanMatches(plan: ImportPlan): Map<string, ImportMatch> {
   const byKey = new Map<string, ImportMatch>();
+
   for (const group of plan.groups) {
     for (const item of group.items) {
       if (item.match) byKey.set(item.key, item.match);
     }
   }
+
   return byKey;
 }
 

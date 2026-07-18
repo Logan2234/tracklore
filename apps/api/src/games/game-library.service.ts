@@ -44,13 +44,7 @@ type EntryWithGame = Prisma.GameEntryGetPayload<{
 const PAGE_SIZE = 40;
 
 type GameSortKey =
-  | "added"
-  | "title"
-  | "rating"
-  | "playtime"
-  | "finished"
-  | "started"
-  | "status";
+  "added" | "title" | "rating" | "playtime" | "finished" | "started" | "status";
 const GAME_SORT_KEYS: GameSortKey[] = [
   "added",
   "title",

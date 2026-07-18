@@ -30,7 +30,11 @@ function setup(
     resolve?: jest.Mock;
     resolveByIsbns?: jest.Mock;
     getDetails?: jest.Mock;
-    inLibraryRefs?: { source: string; externalId: string; bookItemId: string }[];
+    inLibraryRefs?: {
+      source: string;
+      externalId: string;
+      bookItemId: string;
+    }[];
     ownedEntries?: { bookItemId: string }[];
     existingEntry?: { id: string } | null;
     allowAdult?: boolean;
@@ -61,7 +65,9 @@ function setup(
     bookReplay: { createMany },
   };
   const ageGate = {
-    allowsAdultContent: jest.fn().mockResolvedValue(overrides.allowAdult ?? true),
+    allowsAdultContent: jest
+      .fn()
+      .mockResolvedValue(overrides.allowAdult ?? true),
   };
 
   const source = new StoryGraphImportSource(
@@ -82,12 +88,14 @@ async function runToEnd(
     if (service.getJob(userId, jobId).status !== "running") break;
     await new Promise((resolve) => setImmediate(resolve));
   }
+
   return service.getJob(userId, jobId);
 }
 
 function items(plan: ImportPlan): ImportPlanItem[] {
   return plan.groups.flatMap((g) => g.items);
 }
+
 function byKey(plan: ImportPlan, key: string): ImportPlanItem | undefined {
   return items(plan).find((it) => it.key === key);
 }
@@ -233,7 +241,9 @@ describe("BookCsvSource (via StoryGraphImportSource)", () => {
       HEADER,
       'Résister,Salomé Saqué,"",9782228937597,paperback,read,2025/07/23,2025/03/31,2025/02/01-2025/03/31,3,"",fast,,,,,,4.0,loved it,"","","",Yes',
     ].join("\n");
-    const analyzed = service.startAnalyze("user-1", "storygraph", { input: csv });
+    const analyzed = service.startAnalyze("user-1", "storygraph", {
+      input: csv,
+    });
     await runToEnd(service, "user-1", analyzed.id);
 
     const committed = service.commit("user-1", "storygraph", analyzed.id, {
@@ -255,8 +265,14 @@ describe("BookCsvSource (via StoryGraphImportSource)", () => {
     // Read Count 3 → 2 backfilled replays on a first-time import.
     expect(createMany).toHaveBeenCalledWith({
       data: [
-        { bookEntryId: "entry-1", finishedAt: new Date("2025-03-31T00:00:00.000Z") },
-        { bookEntryId: "entry-1", finishedAt: new Date("2025-03-31T00:00:00.000Z") },
+        {
+          bookEntryId: "entry-1",
+          finishedAt: new Date("2025-03-31T00:00:00.000Z"),
+        },
+        {
+          bookEntryId: "entry-1",
+          finishedAt: new Date("2025-03-31T00:00:00.000Z"),
+        },
       ],
     });
   });
@@ -283,7 +299,9 @@ describe("BookCsvSource (via StoryGraphImportSource)", () => {
       HEADER,
       'Résister,Salomé Saqué,"",9782228937597,paperback,read,2025/07/23,2025/03/31,"",3,"",,,,,,,,"","","","",Yes',
     ].join("\n");
-    const analyzed = service.startAnalyze("user-1", "storygraph", { input: csv });
+    const analyzed = service.startAnalyze("user-1", "storygraph", {
+      input: csv,
+    });
     await runToEnd(service, "user-1", analyzed.id);
     const committed = service.commit("user-1", "storygraph", analyzed.id, {
       include: ["b0"],
@@ -317,7 +335,9 @@ describe("BookCsvSource (via StoryGraphImportSource)", () => {
       HEADER,
       'X,Author,"",9782228937597,paperback,read,2025/07/23,"","",0,"",,,,,,,,"","","","",Yes',
     ].join("\n");
-    const analyzed = service.startAnalyze("user-1", "storygraph", { input: csv });
+    const analyzed = service.startAnalyze("user-1", "storygraph", {
+      input: csv,
+    });
     const plan = await runToEnd(service, "user-1", analyzed.id);
     // Adult filtered from plan while opted-out — nothing to include; force the id.
     const key = items(plan.plan!)[0]?.key ?? "b0";
@@ -350,7 +370,9 @@ describe("BookCsvSource (via StoryGraphImportSource)", () => {
       HEADER,
       'X,Author,"",9782228937597,paperback,read,2025/07/23,"","",0,"",,,,,,,,"","","","",Yes',
     ].join("\n");
-    const analyzed = service.startAnalyze("user-1", "storygraph", { input: csv });
+    const analyzed = service.startAnalyze("user-1", "storygraph", {
+      input: csv,
+    });
     await runToEnd(service, "user-1", analyzed.id);
     const committed = service.commit("user-1", "storygraph", analyzed.id, {
       include: ["b0"],

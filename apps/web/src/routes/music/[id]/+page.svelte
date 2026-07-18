@@ -78,7 +78,8 @@
   const galleryImages = $derived.by(() => {
     if (!detail) return [];
     const images: { src: string; alt: string }[] = [];
-    if (detail.coverUrl) images.push({ src: detail.coverUrl, alt: detail.title });
+    if (detail.coverUrl)
+      images.push({ src: detail.coverUrl, alt: detail.title });
     for (const img of detail.extraCoverImages) {
       images.push({ src: img.url, alt: `${detail.title} — ${img.type}` });
     }
@@ -117,7 +118,7 @@
       });
   });
 
-  const { reload, add, patch, doRemove } = createLibraryEntryActions(
+  const { add, patch, doRemove } = createLibraryEntryActions(
     {
       get detail() {
         return detail;
@@ -332,7 +333,9 @@
                   class="w-20 shrink-0 overflow-hidden rounded-lg border border-border shadow-sm transition-colors hover:border-accent"
                   aria-label={`Agrandir : ${img.type}`}
                   onclick={() => openLightbox(img.url)}>
-                  <Poster src={img.url} title={`${detail.title} — ${img.type}`} />
+                  <Poster
+                    src={img.url}
+                    title={`${detail.title} — ${img.type}`} />
                 </button>
               {/each}
             </div>

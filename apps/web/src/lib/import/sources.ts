@@ -19,7 +19,9 @@ export const IMPORT_SOURCES: Record<string, ImportSourceDescriptor> = {
     collapsibleGroups: true,
     noun: { one: "titre", many: "titres" },
     libraryHref: "/media",
-    options: [{ key: "importMovies", label: "Inclure les films", default: true }],
+    options: [
+      { key: "importMovies", label: "Inclure les films", default: true },
+    ],
   },
   storygraph: {
     id: "storygraph",
