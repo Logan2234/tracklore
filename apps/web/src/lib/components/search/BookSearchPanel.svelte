@@ -20,6 +20,10 @@
 
   const DEBOUNCE_MS = 300;
 
+  // Google Books parses `inauthor:"…"` as a field-scoped query; toggling this
+  // wraps the free-text query instead of adding a separate API param.
+  let byAuthor = $state(false);
+
   let results = $state<BookSummaryDto[]>([]);
   let searching = $state(false);
   let searched = $state(false);
@@ -49,7 +53,8 @@
     void loadLibrary();
   });
 
-  // Debounced catalogue search.
+  // Debounced catalogue search. Re-runs when the "by author" toggle changes,
+  // since it changes the query sent, not just its formatting.
   $effect(() => {
     const q = query.trim();
     if (!q) {
@@ -61,7 +66,7 @@
       searching = false;
       return;
     }
-    debouncedSearch.call(q);
+    debouncedSearch.call(byAuthor ? `inauthor:"${q.replace(/"/g, "")}"` : q);
     return () => debouncedSearch.cancel();
   });
 
@@ -100,6 +105,15 @@
 {#if searchError}
   <Banner variant="error" class="mb-4">{searchError}</Banner>
 {/if}
+
+<div class="mb-4 flex flex-wrap gap-2">
+  <button
+    class="chip"
+    class:chip-on={byAuthor}
+    onclick={() => (byAuthor = !byAuthor)}>
+    Par auteur
+  </button>
+</div>
 
 {#if searching && results.length === 0}
   <PosterGrid>
