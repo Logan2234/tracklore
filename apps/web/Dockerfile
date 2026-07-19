@@ -1,4 +1,4 @@
-FROM node:22-alpine AS build
+FROM node:26-alpine AS build
 
 RUN npm install -g pnpm@11.9.0
 WORKDIR /app
@@ -14,7 +14,7 @@ COPY apps/web apps/web
 RUN pnpm --filter @tracklore/shared build && pnpm --filter @tracklore/web build
 
 # adapter-node output is self-contained: the runtime image only needs it.
-FROM node:22-alpine
+FROM node:26-alpine
 WORKDIR /app
 COPY --from=build /app/apps/web/build ./build
 ENV PORT=3000
