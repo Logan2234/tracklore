@@ -265,3 +265,13 @@ export const VisibilityFacet = {
 } as const;
 export type VisibilityFacet =
   (typeof VisibilityFacet)[keyof typeof VisibilityFacet];
+
+/**
+ * State of a directed follow. A follow of a PUBLIC profile is ACCEPTED at once;
+ * a follow of a PRIVATE profile is PENDING until the followee approves it.
+ */
+export const FollowStatus = {
+  PENDING: "PENDING",
+  ACCEPTED: "ACCEPTED",
+} as const;
+export type FollowStatus = (typeof FollowStatus)[keyof typeof FollowStatus];
