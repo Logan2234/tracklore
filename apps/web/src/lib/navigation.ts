@@ -27,6 +27,8 @@ interface NavItem {
    * `href`/`match` restent présents (clé de liste) mais ne sont pas suivis.
    */
   comingSoon?: boolean;
+  /** Masqué tant que la dimension sociale (P4) n'est pas activée sur le déploiement. */
+  social?: boolean;
 }
 
 export interface NavSection {
@@ -116,6 +118,13 @@ export const NAVIGATION: NavSection[] = [
         icon: "stats",
         match: (p) => p.startsWith("/stats"),
       },
+      {
+        href: "/people",
+        label: "Communauté",
+        icon: "user",
+        social: true,
+        match: (p) => p.startsWith("/people") || p.startsWith("/u/"),
+      },
     ],
   },
 ];
@@ -144,6 +153,7 @@ export type MobileNavId =
   | "boardgames"
   | "calendar"
   | "stats"
+  | "people"
   | "notifications"
   | "account"
   | "admin";
@@ -160,6 +170,8 @@ export interface MobileDestination {
   comingSoon?: boolean;
   /** Only surfaced to admins (the /admin entry). */
   adminOnly?: boolean;
+  /** Hidden until the social features (P4) are enabled on the deployment. */
+  social?: boolean;
 }
 
 const MOBILE_DESTINATIONS: Record<MobileNavId, MobileDestination> = {
@@ -250,6 +262,14 @@ const MOBILE_DESTINATIONS: Record<MobileNavId, MobileDestination> = {
     icon: "stats",
     match: (p) => p.startsWith("/stats"),
   },
+  people: {
+    id: "people",
+    href: "/people",
+    label: "Communauté",
+    icon: "user",
+    social: true,
+    match: (p) => p.startsWith("/people") || p.startsWith("/u/"),
+  },
   notifications: {
     id: "notifications",
     href: "/notifications",
@@ -282,7 +302,7 @@ const MENU_GROUPS: { label: string; ids: MobileNavId[] }[] = [
   },
   {
     label: "Suivi & compte",
-    ids: ["calendar", "stats", "notifications", "account", "admin"],
+    ids: ["calendar", "stats", "people", "notifications", "account", "admin"],
   },
 ];
 
@@ -315,12 +335,15 @@ const BOTTOM_SHORTCUT_CHOICES: MobileNavId[] = [
 interface MobileGateOptions {
   isDomainEnabled: (domain: Domain) => boolean;
   isAdmin: boolean;
+  /** Whether social features are enabled on this deployment (default false). */
+  socialEnabled?: boolean;
 }
 
 function isVisible(d: MobileDestination, opts: MobileGateOptions): boolean {
   return (
     (!d.domain || opts.isDomainEnabled(d.domain)) &&
-    (!d.adminOnly || opts.isAdmin)
+    (!d.adminOnly || opts.isAdmin) &&
+    (!d.social || !!opts.socialEnabled)
   );
 }
 
