@@ -117,15 +117,12 @@
           {#each ADMIN_NAV as item (item.href)}
             {@const active = item.match(page.url.pathname)}
             <a
-              href={item.soon ? undefined : item.href}
+              href={item.href}
               aria-current={active ? "page" : undefined}
-              aria-disabled={item.soon ? "true" : undefined}
               title={expanded ? undefined : item.label}
               class="flex w-full shrink-0 items-center overflow-hidden rounded-xl transition-colors {active
                 ? 'bg-accent/15 text-accent'
-                : 'text-dim hover:bg-surface-2 hover:text-fg'} {item.soon
-                ? 'pointer-events-none opacity-60'
-                : ''}">
+                : 'text-dim hover:bg-surface-2 hover:text-fg'}">
               <span class="grid h-10 w-10 shrink-0 place-items-center">
                 <Icon name={item.icon} class="h-5 w-5" />
               </span>
@@ -135,14 +132,6 @@
                   : 'opacity-0'}">
                 {item.label}
               </span>
-              {#if item.soon}
-                <span
-                  class="border-border text-dim mr-2 ml-auto rounded-full border px-1.5 py-0.5 text-[0.55rem] font-bold whitespace-nowrap transition-opacity duration-150 {expanded
-                    ? 'opacity-100'
-                    : 'opacity-0'}">
-                  Bientôt
-                </span>
-              {/if}
             </a>
           {/each}
         {:else}

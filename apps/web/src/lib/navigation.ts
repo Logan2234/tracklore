@@ -20,17 +20,12 @@ interface NavItem {
   icon: NavIcon;
   match(path: string): boolean;
   domain?: Domain;
-  soon?: boolean;
   // Affiché directement dans la BottomNavigation.
   mobile?: boolean;
   /**
    * Toujours affiché dans le drawer.
    */
   drawer?: boolean;
-  /**
-   * N'apparaît que pour les admins.
-   */
-  admin?: boolean;
 }
 
 export interface NavSection {

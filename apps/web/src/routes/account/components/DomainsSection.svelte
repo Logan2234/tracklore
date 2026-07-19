@@ -5,28 +5,24 @@
 
   // Content domains the user composes the app from. Games/Books are still
   // placeholders (no screens yet), but the toggle already drives the nav.
-  const DOMAINS: { id: Domain; label: string; desc: string; soon: boolean }[] =
-    [
-      {
-        id: Domain.MEDIA,
-        label: "Vidéo",
-        desc: "Films, séries et anime.",
-        soon: false,
-      },
-      { id: Domain.GAMES, label: "Jeux", desc: "Jeux vidéo.", soon: false },
-      {
-        id: Domain.BOOKS,
-        label: "Livres",
-        desc: "Romans, BD, mangas.",
-        soon: false,
-      },
-      {
-        id: Domain.MUSIC,
-        label: "Musique",
-        desc: "Albums.",
-        soon: false,
-      },
-    ];
+  const DOMAINS: { id: Domain; label: string; desc: string }[] = [
+    {
+      id: Domain.MEDIA,
+      label: "Vidéo",
+      desc: "Films, séries et anime.",
+    },
+    { id: Domain.GAMES, label: "Jeux", desc: "Jeux vidéo." },
+    {
+      id: Domain.BOOKS,
+      label: "Livres",
+      desc: "Romans, BD, mangas.",
+    },
+    {
+      id: Domain.MUSIC,
+      label: "Musique",
+      desc: "Albums.",
+    },
+  ];
 
   let domainsError = $state("");
 
@@ -65,12 +61,6 @@
           <div>
             <p class="font-semibold">
               {d.label}
-              {#if d.soon}
-                <span
-                  class="bg-surface-2 text-dim ml-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold">
-                  Bientôt
-                </span>
-              {/if}
             </p>
             <p class="text-dim text-sm">{d.desc}</p>
           </div>

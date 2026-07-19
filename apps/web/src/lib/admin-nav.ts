@@ -10,13 +10,8 @@ export type AdminNavItem = {
   description: string;
   icon: IconName;
   match: (path: string) => boolean;
-  /** Not built yet: shown dimmed with a "Bientôt" badge, not navigable. */
-  soon?: boolean;
 };
 
-// Full list per the admin-panel-idea memory: Logan's requested features plus
-// Claude's suggestions. Only Services is built; the rest are placeholders
-// ("soon") so the destination and its rationale aren't lost between sessions.
 export const ADMIN_NAV: AdminNavItem[] = [
   {
     href: "/admin/services",
