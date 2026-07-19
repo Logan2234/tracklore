@@ -167,7 +167,7 @@
 </script>
 
 {#if error}
-  <div class="mx-auto max-w-4xl px-4 py-6 md:px-8">
+  <div class="mx-auto max-w-4xl px-5 py-6 md:px-8">
     <Banner variant="error">{error}</Banner>
     <a href="/music" class="btn btn-ghost mt-4">← Musique</a>
   </div>
@@ -190,7 +190,7 @@
 
   <!-- relative z-10: the positioned hero would otherwise paint over the cover
        pulled up into it. -->
-  <div class="relative z-10 mx-auto max-w-5xl px-4 pb-6 md:px-8 md:pb-10">
+  <div class="relative z-10 mx-auto max-w-5xl px-5 pb-6 md:px-8 md:pb-10">
     <div class="md:grid md:grid-cols-[1fr_260px] md:items-start md:gap-8">
       <div class="min-w-0">
         <div

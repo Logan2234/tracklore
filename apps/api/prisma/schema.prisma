@@ -183,6 +183,11 @@ model User {
   // Composition seam: content domains the user enabled. Drives the nav today;
   // search/notif filtering follow at P3. Default = every domain visible.
   enabledDomains    Domain[]  @default([MEDIA, BOOKS, GAMES, MUSIC])
+  // Ordered ids of the mobile bottom-bar shortcuts (see web navigation.ts,
+  // `MobileNavId`). Free-form strings, not a Prisma enum: the set is a web-UI
+  // concern (includes the "menu" launcher and non-domain routes), gated at
+  // render time. Default mirrors DEFAULT_BOTTOM_SHORTCUTS.
+  mobileNavShortcuts String[] @default(["home", "search", "menu", "calendar", "account"])
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 

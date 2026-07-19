@@ -6,6 +6,7 @@
     ApiError,
   } from "$lib/api/client";
   import Banner from "$lib/components/Banner.svelte";
+  import Combobox from "$lib/components/Combobox.svelte";
   import PageHeader from "$lib/components/PageHeader.svelte";
   import { toast } from "$lib/toast.svelte";
   import type { MailTemplateInfoDto } from "@tracklore/shared";
@@ -117,7 +118,7 @@
   });
 </script>
 
-<div class="mx-auto max-w-5xl px-4 py-6 md:px-8 md:py-10">
+<div class="mx-auto max-w-5xl px-5 py-6 md:px-8 md:py-10">
   <PageHeader
     icon="mail"
     title="Emails"
@@ -136,18 +137,31 @@
     {/if}
 
     <div class="grid gap-6 md:grid-cols-[220px_1fr]">
-      <nav class="flex gap-1 overflow-x-auto md:flex-col md:overflow-visible">
-        {#each templates as t (t.key)}
-          <button
-            onclick={() => selectTemplate(t.key)}
-            class="shrink-0 rounded-lg px-3 py-2 text-left text-sm font-semibold whitespace-nowrap transition-colors md:whitespace-normal {selectedKey ===
-            t.key
-              ? 'bg-accent/15 text-accent'
-              : 'text-dim hover:bg-surface-2 hover:text-fg'}">
-            {t.label}
-          </button>
-        {/each}
-      </nav>
+      <div>
+        <!-- Mobile: a dropdown instead of an ugly horizontal scroll strip. -->
+        <div class="md:hidden">
+          <Combobox
+            label="Gabarit"
+            searchable
+            options={templates.map((t) => ({ label: t.label, value: t.key }))}
+            values={selectedKey ? [selectedKey] : []}
+            onChange={(v) => v[0] && selectTemplate(v[0])} />
+        </div>
+
+        <!-- Desktop: the full vertical list. -->
+        <nav class="hidden gap-1 md:flex md:flex-col">
+          {#each templates as t (t.key)}
+            <button
+              onclick={() => selectTemplate(t.key)}
+              class="rounded-lg px-3 py-2 text-left text-sm font-semibold transition-colors {selectedKey ===
+              t.key
+                ? 'bg-accent/15 text-accent'
+                : 'text-dim hover:bg-surface-2 hover:text-fg'}">
+              {t.label}
+            </button>
+          {/each}
+        </nav>
+      </div>
 
       <div class="min-w-0 space-y-4">
         {#if selectedTemplate && selectedTemplate.fields.length > 0}

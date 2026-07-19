@@ -31,9 +31,9 @@ step covers both; `prettier --write` for json/md/css/yaml) and re-stages them.
 **Formatting is handled by this hook — don't run `pnpm format` by hand before
 committing, it's redundant and the hook will re-touch the files anyway.**
 `pre-push` runs the heavier gate once per push: `pnpm build:package && pnpm
-lint && pnpm --filter @tracklore/web check && pnpm test` (deliberately
-excludes e2e — needs a running Postgres, too environment-fragile to gate every
-push). `knip` (dead code / unused dependency detection) is available via
+lint && pnpm --filter @tracklore/web check` (unit tests and e2e are left to
+CI's `lint-build-test`/`e2e` jobs — running them again locally on every push
+just duplicates that gate). `knip` (dead code / unused dependency detection) is available via
 `pnpm knip` but isn't wired into a hook — run it on demand.
 
 Dev database: Docker container `tracklore-dev-db`, Postgres 17 on port **5433**

@@ -31,17 +31,21 @@
 
 {#if auth.user}
   <section class="card mb-5 p-5 md:p-6">
-    <div class="flex flex-wrap items-center gap-4">
-      <div
-        class="bg-accent/15 font-display text-accent flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-xl font-bold">
-        {initials}
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
+      <div class="flex min-w-0 items-center gap-4 sm:flex-1">
+        <div
+          class="bg-accent/15 font-display text-accent flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-xl font-bold">
+          {initials}
+        </div>
+        <div class="min-w-0">
+          <p class="truncate text-lg font-bold">{auth.user.displayName}</p>
+          <p class="timecode truncate text-sm">{auth.user.email}</p>
+          <p class="text-dim mt-0.5 text-sm">Membre depuis {memberSince}</p>
+        </div>
       </div>
-      <div class="min-w-0 flex-1">
-        <p class="truncate text-lg font-bold">{auth.user.displayName}</p>
-        <p class="timecode truncate text-sm">{auth.user.email}</p>
-        <p class="text-dim mt-0.5 text-sm">Membre depuis {memberSince}</p>
-      </div>
-      <button class="btn btn-danger" onclick={signOut}>Se déconnecter</button>
+      <button class="btn btn-danger w-full sm:w-auto" onclick={signOut}>
+        Se déconnecter
+      </button>
     </div>
   </section>
 {/if}

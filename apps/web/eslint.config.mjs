@@ -4,8 +4,8 @@ import ts from "typescript-eslint";
 import { baseConfig } from "../../eslint.config.base.mjs";
 
 export default defineConfig(
-  // The service worker is compiled in SvelteKit's own worker context, which the
-  // typed-lint projectService can't resolve; it is type-checked by svelte-check.
+  // The service worker is compiled in SvelteKit's own worker context (no DOM
+  // globals); it is type-checked by svelte-check, not by this ESLint config.
   { ignores: ["src/service-worker.ts"] },
   ...baseConfig(import.meta.dirname, { browser: true }),
   svelte.configs.recommended,
@@ -22,7 +22,6 @@ export default defineConfig(
     files: ["**/*.svelte", "**/*.svelte.ts", "**/*.svelte.js"],
     languageOptions: {
       parserOptions: {
-        projectService: true,
         extraFileExtensions: [".svelte"],
         parser: ts.parser,
       },

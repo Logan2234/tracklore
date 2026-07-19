@@ -46,7 +46,7 @@
   const activeGraph = $derived(tab === "erd" ? data?.erd : data?.modules);
 </script>
 
-<div class="px-4 py-6 md:px-8 md:py-10">
+<div class="px-5 py-6 md:px-8 md:py-10">
   <PageHeader
     icon="library"
     title="Schéma"

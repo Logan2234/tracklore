@@ -1,9 +1,10 @@
 <script lang="ts" generics="T">
   // Content-agnostic horizontal scroll-snap strip, shared by every "row of
   // cards" in the app (related titles, cast, home dashboard resume strips...).
-  // Navigable by mouse drag or by hover-revealed edge arrows; native touch
-  // swipe still works since only mouse pointers drive the drag logic. Callers
-  // supply their own per-item markup via the `card` snippet.
+  // Navigation adapts to the input: on hover-capable pointers (desktop) the
+  // edges reveal prev/next arrows; on coarse/touch pointers native swipe drives
+  // it and a row of tappable page dots gives the affordance arrows can't.
+  // Callers supply their own per-item markup via the `card` snippet.
   import Icon from "./Icon.svelte";
   import type { Snippet } from "svelte";
 
@@ -12,8 +13,9 @@
     keyOf,
     card,
     gap = "gap-4",
-    wrapClass = "-mx-4 md:mx-0",
-    innerClass = "px-4 pt-2 pb-2 md:px-0",
+    wrapClass = "-mx-5 md:mx-0",
+    innerClass = "px-5 pt-2 pb-2 md:px-0",
+    snapPad = "scroll-pl-5 md:scroll-pl-0",
   }: {
     items: T[];
     keyOf: (item: T) => string;
@@ -24,24 +26,43 @@
     wrapClass?: string;
     /** Inner scroll-track padding, tuned to the surrounding layout. */
     innerClass?: string;
+    /** Scroll-snap padding — must match the inner left padding so the first
+     * card snaps flush to the gutter instead of hiding it. */
+    snapPad?: string;
   } = $props();
 
   let stripEl = $state<HTMLDivElement | null>(null);
   let canScrollLeft = $state(false);
   let canScrollRight = $state(false);
   let dragging = $state(false);
+  // Coarse pointer (touch): swap the hover-only arrows for tappable page dots.
+  let coarse = $state(false);
+  let pageCount = $state(1);
+  let pageIndex = $state(0);
 
   function updateEdges() {
     const el = stripEl;
     if (!el) return;
     canScrollLeft = el.scrollLeft > 4;
     canScrollRight = el.scrollLeft < el.scrollWidth - el.clientWidth - 4;
+    // One "page" ≈ one viewport of cards; used only for the touch dots. Keep the
+    // count in a local — reading the `pageCount` state back here would make the
+    // measuring $effect depend on state it writes and loop forever.
+    const pages = Math.max(1, Math.round(el.scrollWidth / el.clientWidth));
+    pageCount = pages;
+    pageIndex = Math.min(pages - 1, Math.round(el.scrollLeft / el.clientWidth));
   }
 
   function scrollByPage(dir: 1 | -1) {
     const el = stripEl;
     if (!el) return;
     el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: "smooth" });
+  }
+
+  function scrollToPage(i: number) {
+    const el = stripEl;
+    if (!el) return;
+    el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" });
   }
 
   $effect(() => {
@@ -52,9 +73,16 @@
     const ro = new ResizeObserver(updateEdges);
     ro.observe(el);
     window.addEventListener("resize", updateEdges);
+    // Reflect the pointer type so the arrows/dots choice tracks a device that
+    // switches modes (e.g. a 2-in-1 laptop) rather than only the first render.
+    const mql = window.matchMedia("(hover: none)");
+    const syncCoarse = () => (coarse = mql.matches);
+    syncCoarse();
+    mql.addEventListener("change", syncCoarse);
     return () => {
       ro.disconnect();
       window.removeEventListener("resize", updateEdges);
+      mql.removeEventListener("change", syncCoarse);
     };
   });
 
@@ -115,7 +143,7 @@
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
       bind:this={stripEl}
-      class="no-scrollbar flex snap-x {gap} {innerClass} overflow-x-auto select-none {dragging
+      class="no-scrollbar flex snap-x {gap} {innerClass} {snapPad} overflow-x-auto select-none {dragging
         ? 'cursor-grabbing'
         : 'cursor-grab'}"
       onscroll={updateEdges}
@@ -126,7 +154,7 @@
       {/each}
     </div>
 
-    {#if canScrollLeft}
+    {#if !coarse && canScrollLeft}
       <button
         type="button"
         aria-label="Précédent"
@@ -135,7 +163,7 @@
         <Icon name="chevron-left" class="h-4 w-4" />
       </button>
     {/if}
-    {#if canScrollRight}
+    {#if !coarse && canScrollRight}
       <button
         type="button"
         aria-label="Suivant"
@@ -145,4 +173,21 @@
       </button>
     {/if}
   </div>
+
+  {#if coarse && pageCount > 1}
+    <!-- Touch affordance: page dots (arrows are hover-only and unreachable). -->
+    <div class="mt-2 flex justify-center gap-1.5">
+      {#each { length: pageCount } as _, i (i)}
+        <button
+          type="button"
+          aria-label={`Aller à la page ${i + 1}`}
+          aria-current={i === pageIndex ? "true" : undefined}
+          onclick={() => scrollToPage(i)}
+          class="h-1.5 rounded-full transition-all {i === pageIndex
+            ? 'bg-accent w-5'
+            : 'bg-border w-1.5'}">
+        </button>
+      {/each}
+    </div>
+  {/if}
 {/if}

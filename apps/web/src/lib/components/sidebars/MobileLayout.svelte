@@ -1,6 +1,6 @@
 <script lang="ts">
   import BottomNavigation from "./BottomNavigation.svelte";
-  import MobileDrawer from "./MobileDrawer.svelte";
+  import MenuSheet from "./MenuSheet.svelte";
 
   let { children } = $props();
 </script>
@@ -16,5 +16,5 @@
 
   <BottomNavigation />
 
-  <MobileDrawer />
+  <MenuSheet />
 </div>

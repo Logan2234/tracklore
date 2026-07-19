@@ -125,6 +125,13 @@ export class UsersController {
       nextAllowAdultContent = false;
     }
 
+    // The "menu" launcher must always be reachable from the bottom bar.
+    if (dto.mobileNavShortcuts && !dto.mobileNavShortcuts.includes("menu")) {
+      throw new BadRequestException(
+        'mobileNavShortcuts must include the "menu" launcher',
+      );
+    }
+
     const user = await this.prisma.user.update({
       where: { id: payload.sub },
       data: {
@@ -135,6 +142,7 @@ export class UsersController {
         notifyEmail: dto.notifyEmail,
         notifyPush: dto.notifyPush,
         enabledDomains: dto.enabledDomains,
+        mobileNavShortcuts: dto.mobileNavShortcuts,
       },
     });
     return toUserDto(user);

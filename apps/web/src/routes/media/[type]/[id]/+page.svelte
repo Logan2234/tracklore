@@ -243,7 +243,7 @@
 </script>
 
 {#if error}
-  <div class="mx-auto max-w-4xl px-4 py-6 md:px-8">
+  <div class="mx-auto max-w-4xl px-5 py-6 md:px-8">
     <Banner variant="error">{error}</Banner>
   </div>
 {/if}
@@ -279,7 +279,7 @@
 
   <!-- relative z-10: the hero above is positioned, so without a stacking
        context here it would paint over the poster pulled up into it. -->
-  <div class="relative z-10 mx-auto max-w-4xl px-4 pb-6 md:px-8 md:pb-10">
+  <div class="relative z-10 mx-auto max-w-4xl px-5 pb-6 md:px-8 md:pb-10">
     <div class="-mt-24 flex flex-col gap-5 sm:flex-row sm:items-end md:-mt-28">
       <button
         type="button"

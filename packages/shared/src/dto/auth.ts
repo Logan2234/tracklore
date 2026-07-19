@@ -43,6 +43,13 @@ export interface UserDto {
    * today; edited from the settings "Domaines" section. See `Domain`.
    */
   enabledDomains: Domain[];
+  /**
+   * Ordered ids of the mobile bottom-bar shortcuts (3–7 entries), as chosen in
+   * settings. Always contains the required `"menu"` launcher. Values are
+   * `MobileNavId`s from the web nav registry; gating by `enabledDomains` /
+   * admin role happens at render time. See the web `navigation.ts`.
+   */
+  mobileNavShortcuts: string[];
   /** ISO datetime the account was created — shown as "member since". */
   createdAt: string;
 }
@@ -57,6 +64,8 @@ export interface UpdateUserRequestDto {
   notifyPush?: boolean;
   /** Content domains to keep visible; must list at least one. See `Domain`. */
   enabledDomains?: Domain[];
+  /** Ordered mobile bottom-bar shortcut ids (3–7 entries, must include "menu"). */
+  mobileNavShortcuts?: string[];
 }
 
 export interface UpdateUsernameRequestDto {

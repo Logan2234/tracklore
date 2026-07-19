@@ -21,7 +21,7 @@
     `S${String(s).padStart(2, "0")}E${String(e).padStart(2, "0")}`;
 </script>
 
-<div class="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
+<div class="mx-auto max-w-3xl px-5 py-6 md:px-8 md:py-10">
   <PageHeader icon="bell" title="Notifications" class="mb-6">
     {#snippet actions()}
       {#if notifications.unread > 0}

@@ -449,6 +449,7 @@ export function toUserDto(user: User): UserDto {
     emailVerified: user.emailVerified,
     role: user.role,
     enabledDomains: user.enabledDomains,
+    mobileNavShortcuts: user.mobileNavShortcuts,
     createdAt: user.createdAt.toISOString(),
   };
 }

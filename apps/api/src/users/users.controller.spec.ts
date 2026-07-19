@@ -1,4 +1,4 @@
-import { UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, UnauthorizedException } from "@nestjs/common";
 import * as bcrypt from "bcryptjs";
 import { hashToken } from "../auth/auth.service";
 import type { JwtPayload } from "../auth/decorators/current-user.decorator";
@@ -207,5 +207,78 @@ describe("UsersController — email change", () => {
 
       expect(prisma.user.update).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("UsersController — updateMe mobile nav shortcuts", () => {
+  const userId = "user-1";
+  let prisma: PrismaService;
+  let controller: UsersController;
+
+  // Minimal stored user returned by prisma.user.update, enough for toUserDto.
+  function updatedUser(mobileNavShortcuts: string[]) {
+    return {
+      id: userId,
+      email: "alice@example.com",
+      username: "alice",
+      displayName: "Alice",
+      birthDate: null,
+      allowAdultContent: false,
+      notifyInApp: true,
+      notifyEmail: false,
+      notifyPush: false,
+      emailVerified: false,
+      role: "USER",
+      enabledDomains: ["MEDIA"],
+      mobileNavShortcuts,
+      createdAt: new Date(),
+    };
+  }
+
+  beforeEach(() => {
+    prisma = {
+      user: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ birthDate: null, allowAdultContent: false }),
+        update: jest.fn(),
+      },
+    } as unknown as PrismaService;
+    controller = new UsersController(
+      prisma,
+      {} as unknown as MailService,
+      { record: jest.fn() } as unknown as SecurityEventService,
+      {} as unknown as DataExportService,
+      {} as unknown as CsvExportService,
+    );
+  });
+
+  it("persists a valid ordered list that includes the menu launcher", async () => {
+    const shortcuts = ["home", "menu", "account"];
+    (prisma.user.update as jest.Mock).mockResolvedValueOnce(
+      updatedUser(shortcuts),
+    );
+
+    const dto = await controller.updateMe(jwtPayload(userId), {
+      mobileNavShortcuts: shortcuts,
+    });
+
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: userId },
+        data: expect.objectContaining({ mobileNavShortcuts: shortcuts }),
+      }),
+    );
+    expect(dto.mobileNavShortcuts).toEqual(shortcuts);
+  });
+
+  it("rejects a list missing the required menu launcher without writing", async () => {
+    await expect(
+      controller.updateMe(jwtPayload(userId), {
+        mobileNavShortcuts: ["home", "search", "account"],
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(prisma.user.update).not.toHaveBeenCalled();
   });
 });

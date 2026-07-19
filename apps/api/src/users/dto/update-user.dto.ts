@@ -1,5 +1,8 @@
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
   ArrayNotEmpty,
+  ArrayUnique,
   IsBoolean,
   IsDateString,
   IsIn,
@@ -43,4 +46,15 @@ export class UpdateUserDto implements UpdateUserRequestDto {
   @ArrayNotEmpty()
   @IsIn(Object.values(DomainValues), { each: true })
   enabledDomains?: Domain[];
+
+  // Ordered mobile bottom-bar shortcut ids (3–7, unique). Individual ids aren't
+  // enum-checked here — they're a web-UI vocabulary and unknown ones are simply
+  // ignored at render time — but the required "menu" launcher is enforced in the
+  // controller. See web navigation.ts.
+  @IsOptional()
+  @ArrayMinSize(3)
+  @ArrayMaxSize(7)
+  @ArrayUnique()
+  @IsString({ each: true })
+  mobileNavShortcuts?: string[];
 }
