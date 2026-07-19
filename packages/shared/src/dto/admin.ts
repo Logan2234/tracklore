@@ -1,7 +1,14 @@
 import type { Domain, MediaType, Role, SecurityEventType } from "../enums";
 
 /** Which app area a dependency powers, for grouping in the admin services page. */
-export type ServiceArea = "Vidéo" | "Jeux" | "Livres" | "Musique" | "Système";
+export type ServiceArea =
+  | "Vidéo"
+  | "Jeux"
+  | "Livres"
+  | "Musique"
+  | "Podcasts"
+  | "Jeux de société"
+  | "Système";
 
 /** Billing window a documented provider quota resets on. */
 export type QuotaWindow = "day" | "month";
@@ -39,6 +46,11 @@ export interface ServiceStatusDto {
   limit?: { max: number; window: QuotaWindow };
   /** `today` or `thisMonth` (matching `limit.window`) relative to `limit.max`, as a percentage. Present only when `limit` is set. */
   percentUsed?: number;
+  /**
+   * Planned-but-unbuilt provider (podcasts, board games): shown with a "Bientôt"
+   * badge and never probed. When set, `configured`/`reachable` are meaningless.
+   */
+  comingSoon?: boolean;
 }
 
 export interface ServiceStatusResponseDto {

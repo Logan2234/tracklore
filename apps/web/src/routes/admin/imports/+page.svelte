@@ -80,7 +80,7 @@
   <PageHeader
     icon="download"
     title="Imports"
-    subtitle="Journal des imports commis (TV Time, StoryGraph, Goodreads, Steam), tous comptes confondus. Les analyses non validées n'écrivent rien et n'apparaissent pas ici." />
+    subtitle="Journal des imports commis, tous comptes confondus. Les analyses non validées n'écrivent rien et n'apparaissent pas ici." />
 
   <div class="mb-5 flex flex-wrap items-center gap-2">
     <Combobox

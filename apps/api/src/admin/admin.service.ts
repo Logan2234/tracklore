@@ -38,6 +38,11 @@ interface ServiceSpec {
   /** Where to obtain the missing key/credentials, shown when unconfigured. */
   keyUrl?: string;
   /**
+   * Planned-but-unbuilt provider (podcasts, board games): listed so its area
+   * appears on the services page, but never probed and reported as "coming soon".
+   */
+  comingSoon?: boolean;
+  /**
    * Live probe. Resolves to `true`/`false` when it ran, or `null` when there's
    * nothing cheap to ping (only the config presence is reported). Receives the
    * abort signal so the request is bounded by {@link PROBE_TIMEOUT_MS}.
@@ -205,6 +210,34 @@ export class AdminService {
         required: false,
         envKeys: ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY"],
       },
+      // Planned P3 providers — no integration yet, surfaced as "coming soon" so
+      // their areas already show on the page. Keep to sources we'd build against.
+      {
+        key: "podcastindex",
+        label: "Podcast Index",
+        area: "Podcasts",
+        required: false,
+        envKeys: [],
+        keyUrl: "https://podcastindex.org/",
+        comingSoon: true,
+      },
+      {
+        key: "applePodcasts",
+        label: "Apple Podcasts (iTunes Search)",
+        area: "Podcasts",
+        required: false,
+        envKeys: [],
+        comingSoon: true,
+      },
+      {
+        key: "boardgamegeek",
+        label: "BoardGameGeek",
+        area: "Jeux de société",
+        required: false,
+        envKeys: [],
+        keyUrl: "https://boardgamegeek.com/wiki/page/BGG_XML_API2",
+        comingSoon: true,
+      },
     ];
   }
 
@@ -244,6 +277,21 @@ export class AdminService {
     now: Date,
     callRows: { provider: string; day: Date; count: number }[],
   ): Promise<ServiceStatusDto> {
+    // A planned provider has no integration to configure or probe — report it
+    // as such and skip everything below (quota rows never exist for it).
+    if (spec.comingSoon) {
+      return {
+        key: spec.key,
+        label: spec.label,
+        area: spec.area,
+        required: false,
+        configured: false,
+        reachable: null,
+        comingSoon: true,
+        keyUrl: spec.keyUrl,
+      };
+    }
+
     const configured = spec.envKeys.every((k) => Boolean(this.env(k)));
     const quota = this.quotaFieldsFor(spec, now, callRows);
 

@@ -9,7 +9,7 @@ import { AdminOnly } from "./admin-only.decorator";
 const PAGE_SIZE = 50;
 const STATUSES: JobStatus[] = ["SUCCESS", "FAILURE"];
 
-/** Audit log of committed imports (TV Time, StoryGraph, Goodreads, Steam), across every account. */
+/** Audit log of committed imports, across every account. */
 @AdminOnly()
 @Controller("admin")
 export class AdminImportsController {

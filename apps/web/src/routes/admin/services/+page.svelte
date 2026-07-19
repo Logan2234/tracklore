@@ -30,7 +30,15 @@
 
   // Ordered areas so groups render in a stable, sensible order. Must match the
   // ServiceArea values the API emits (see admin.service.ts).
-  const AREAS = ["Vidéo", "Jeux", "Livres", "Musique", "Système"] as const;
+  const AREAS = [
+    "Vidéo",
+    "Jeux",
+    "Livres",
+    "Musique",
+    "Podcasts",
+    "Jeux de société",
+    "Système",
+  ] as const;
 
   const grouped = $derived(
     AREAS.map((area) => ({
@@ -51,6 +59,12 @@
 
   /** Overall health badge for one service, combining config + probe. */
   function health(s: ServiceStatusDto): Health {
+    if (s.comingSoon) {
+      return {
+        label: "Bientôt",
+        cls: "border-border bg-surface-2 text-dim",
+      };
+    }
     if (!s.configured) {
       return s.required
         ? {

@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { Domain } from "@tracklore/shared";
 import { toCsv } from "../common/csv.util";
 import { PrismaService } from "../prisma/prisma.service";
@@ -25,6 +25,13 @@ export class CsvExportService {
         return this.buildBooksCsv(userId);
       case Domain.MUSIC:
         return this.buildMusicCsv(userId);
+      case Domain.PODCASTS:
+      case Domain.BOARDGAMES:
+        // Planned domains with no backing tables yet — the UI keeps their CSV
+        // buttons disabled, so this only guards a hand-crafted request.
+        throw new BadRequestException(
+          `CSV export is not available for the '${domain}' domain yet`,
+        );
     }
   }
 

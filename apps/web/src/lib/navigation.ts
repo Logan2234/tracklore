@@ -10,6 +10,8 @@ type NavIcon =
   | "book"
   | "music"
   | "tv"
+  | "podcast"
+  | "boardgame"
   | "bell"
   | "user"
   | "shield";
@@ -26,6 +28,11 @@ interface NavItem {
    * Toujours affiché dans le drawer.
    */
   drawer?: boolean;
+  /**
+   * Domaine planifié sans écran : rendu non cliquable avec un badge « Bientôt ».
+   * `href`/`match` restent présents (clé de liste) mais ne sont pas suivis.
+   */
+  comingSoon?: boolean;
 }
 
 export interface NavSection {
@@ -86,6 +93,24 @@ export const NAVIGATION: NavSection[] = [
         domain: Domain.MUSIC,
         drawer: true,
         match: (p) => p.startsWith("/music"),
+      },
+      {
+        href: "/podcasts",
+        label: "Podcasts",
+        icon: "podcast",
+        domain: Domain.PODCASTS,
+        drawer: true,
+        comingSoon: true,
+        match: () => false,
+      },
+      {
+        href: "/boardgames",
+        label: "Jeux de société",
+        icon: "boardgame",
+        domain: Domain.BOARDGAMES,
+        drawer: true,
+        comingSoon: true,
+        match: () => false,
       },
     ],
   },

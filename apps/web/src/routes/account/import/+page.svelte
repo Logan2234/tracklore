@@ -12,7 +12,7 @@
   type ImportGroup = {
     domain: Domain;
     label: string;
-    icon: "library" | "book" | "gamepad";
+    icon: "library" | "book" | "gamepad" | "podcast" | "boardgame";
     sources: ImportSource[];
   };
 
@@ -68,6 +68,30 @@
           href: "/account/import/steam",
         },
         { name: "Backloggd", description: "Backlog et jeux terminés." },
+      ],
+    },
+    {
+      domain: Domain.PODCASTS,
+      label: "Podcasts",
+      icon: "podcast",
+      sources: [
+        {
+          name: "OPML",
+          description:
+            "Abonnements exportés depuis Apple Podcasts, Pocket Casts…",
+        },
+        { name: "Spotify", description: "Podcasts suivis." },
+      ],
+    },
+    {
+      domain: Domain.BOARDGAMES,
+      label: "Jeux de société",
+      icon: "boardgame",
+      sources: [
+        {
+          name: "BoardGameGeek",
+          description: "Collection et parties (export CSV).",
+        },
       ],
     },
   ];

@@ -22,13 +22,26 @@
     Domain,
   } from "@tracklore/shared";
 
-  type DomainIcon = "tv" | "gamepad" | "book" | "music";
+  type DomainIcon =
+    "tv" | "gamepad" | "book" | "music" | "podcast" | "boardgame";
 
-  const DOMAINS: { id: Domain; label: string; icon: DomainIcon }[] = [
+  const DOMAINS: {
+    id: Domain;
+    label: string;
+    icon: DomainIcon;
+    comingSoon?: boolean;
+  }[] = [
     { id: "MEDIA", label: "Vidéo", icon: "tv" },
     { id: "GAMES", label: "Jeux", icon: "gamepad" },
     { id: "BOOKS", label: "Livres", icon: "book" },
     { id: "MUSIC", label: "Musique", icon: "music" },
+    { id: "PODCASTS", label: "Podcasts", icon: "podcast", comingSoon: true },
+    {
+      id: "BOARDGAMES",
+      label: "Jeux de société",
+      icon: "boardgame",
+      comingSoon: true,
+    },
   ];
 
   const SORT_OPTIONS: { label: string; value: AdminCacheSort }[] = [
@@ -276,13 +289,28 @@
 
   <div class="mb-3 flex flex-wrap items-center gap-2">
     {#each DOMAINS as d (d.id)}
-      <button
-        class="chip"
-        class:chip-on={activeDomain === d.id}
-        onclick={() => selectDomain(d.id)}>
-        <Icon name={d.icon} class="mr-1 -ml-0.5 inline h-3.5 w-3.5" />
-        {d.label}
-      </button>
+      {#if d.comingSoon}
+        <!-- Planned domain: nothing in cache yet, tab is non-clickable. -->
+        <button
+          class="chip disabled:pointer-events-none disabled:opacity-40"
+          disabled
+          title="Disponible prochainement">
+          <Icon name={d.icon} class="mr-1 -ml-0.5 inline h-3.5 w-3.5" />
+          {d.label}
+          <span
+            class="bg-surface-2 text-dim ml-1.5 rounded-full px-1.5 py-0.5 text-[0.55rem] font-bold">
+            Bientôt
+          </span>
+        </button>
+      {:else}
+        <button
+          class="chip"
+          class:chip-on={activeDomain === d.id}
+          onclick={() => selectDomain(d.id)}>
+          <Icon name={d.icon} class="mr-1 -ml-0.5 inline h-3.5 w-3.5" />
+          {d.label}
+        </button>
+      {/if}
     {/each}
   </div>
 

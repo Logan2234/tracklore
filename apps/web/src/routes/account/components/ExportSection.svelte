@@ -35,11 +35,28 @@
     }
   }
 
-  const CSV_DOMAINS: { domain: Domain; label: string; slug: string }[] = [
+  const CSV_DOMAINS: {
+    domain: Domain;
+    label: string;
+    slug: string;
+    comingSoon?: boolean;
+  }[] = [
     { domain: Domain.MEDIA, label: "Films, séries et animés", slug: "media" },
     { domain: Domain.BOOKS, label: "Livres", slug: "books" },
     { domain: Domain.GAMES, label: "Jeux", slug: "games" },
     { domain: Domain.MUSIC, label: "Musique", slug: "music" },
+    {
+      domain: Domain.PODCASTS,
+      label: "Podcasts",
+      slug: "podcasts",
+      comingSoon: true,
+    },
+    {
+      domain: Domain.BOARDGAMES,
+      label: "Jeux de société",
+      slug: "boardgames",
+      comingSoon: true,
+    },
   ];
 
   let csvExporting = $state<Domain | null>(null);
@@ -84,13 +101,24 @@
     </p>
     <div class="flex flex-wrap gap-2">
       {#each CSV_DOMAINS as d (d.domain)}
-        <button
-          class="btn btn-ghost"
-          disabled={csvExporting !== null}
-          onclick={() => downloadCsv(d.domain, d.slug)}>
-          <Icon name="download" class="mr-1.5 inline h-4 w-4" />
-          {csvExporting === d.domain ? "Préparation…" : `${d.label} (CSV)`}
-        </button>
+        {#if d.comingSoon}
+          <!-- Planned domain: no data to export yet. -->
+          <button
+            class="btn btn-ghost disabled:pointer-events-none disabled:opacity-40"
+            disabled
+            title="Disponible prochainement">
+            <Icon name="download" class="mr-1.5 inline h-4 w-4" />
+            {d.label} (CSV) · Bientôt
+          </button>
+        {:else}
+          <button
+            class="btn btn-ghost"
+            disabled={csvExporting !== null}
+            onclick={() => downloadCsv(d.domain, d.slug)}>
+            <Icon name="download" class="mr-1.5 inline h-4 w-4" />
+            {csvExporting === d.domain ? "Préparation…" : `${d.label} (CSV)`}
+          </button>
+        {/if}
       {/each}
     </div>
     {#if csvError}

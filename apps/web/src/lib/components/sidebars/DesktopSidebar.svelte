@@ -149,29 +149,51 @@
             {/if}
 
             {#each section.items.filter((item) => !item.domain || isDomainEnabled(item.domain)) as item (item.href)}
-              {@const active = item.match(page.url.pathname)}
+              {#if item.comingSoon}
+                <!-- Planned domain: non-clickable, with a "Bientôt" badge. -->
+                <div
+                  title={expanded ? undefined : `${item.label} — bientôt`}
+                  class="text-dim/70 flex shrink-0 cursor-default items-center overflow-hidden rounded-xl">
+                  <span class="grid h-10 w-10 shrink-0 place-items-center">
+                    <Icon name={item.icon} class="h-5 w-5" />
+                  </span>
+                  <span
+                    class="flex flex-1 items-center gap-2 pr-2 transition-opacity
+                  {expanded ? 'opacity-100' : 'opacity-0'}">
+                    <span class="text-sm font-semibold whitespace-nowrap">
+                      {item.label}
+                    </span>
+                    <span
+                      class="bg-surface-2 text-dim ml-auto rounded-full px-2 py-0.5 text-[0.6rem] font-bold whitespace-nowrap">
+                      Bientôt
+                    </span>
+                  </span>
+                </div>
+              {:else}
+                {@const active = item.match(page.url.pathname)}
 
-              <a
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                title={expanded ? undefined : item.label}
-                class="
-              flex shrink-0 items-center overflow-hidden rounded-xl
-              transition-colors
-              {active
-                  ? 'bg-accent/15 text-accent'
-                  : 'text-dim hover:bg-surface-2 hover:text-fg'}
-              ">
-                <span class="grid h-10 w-10 shrink-0 place-items-center">
-                  <Icon name={item.icon} class="h-5 w-5" />
-                </span>
+                <a
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  title={expanded ? undefined : item.label}
+                  class="
+                flex shrink-0 items-center overflow-hidden rounded-xl
+                transition-colors
+                {active
+                    ? 'bg-accent/15 text-accent'
+                    : 'text-dim hover:bg-surface-2 hover:text-fg'}
+                ">
+                  <span class="grid h-10 w-10 shrink-0 place-items-center">
+                    <Icon name={item.icon} class="h-5 w-5" />
+                  </span>
 
-                <span
-                  class="text-sm font-semibold whitespace-nowrap transition-opacity
-                {expanded ? 'opacity-100' : 'opacity-0'}">
-                  {item.label}
-                </span>
-              </a>
+                  <span
+                    class="text-sm font-semibold whitespace-nowrap transition-opacity
+                  {expanded ? 'opacity-100' : 'opacity-0'}">
+                    {item.label}
+                  </span>
+                </a>
+              {/if}
             {/each}
           {/each}
         {/if}

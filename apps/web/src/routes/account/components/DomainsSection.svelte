@@ -3,9 +3,15 @@
   import { auth } from "$lib/auth.svelte";
   import { Domain } from "@tracklore/shared";
 
-  // Content domains the user composes the app from. Games/Books are still
-  // placeholders (no screens yet), but the toggle already drives the nav.
-  const DOMAINS: { id: Domain; label: string; desc: string }[] = [
+  // Content domains the user composes the app from. Podcasts and board games
+  // have no screens yet (planned P3) — enabling them only reveals their
+  // "Bientôt" placeholders across the nav, search, stats and imports.
+  const DOMAINS: {
+    id: Domain;
+    label: string;
+    desc: string;
+    comingSoon?: boolean;
+  }[] = [
     {
       id: Domain.MEDIA,
       label: "Vidéo",
@@ -21,6 +27,18 @@
       id: Domain.MUSIC,
       label: "Musique",
       desc: "Albums.",
+    },
+    {
+      id: Domain.PODCASTS,
+      label: "Podcasts",
+      desc: "Émissions et épisodes.",
+      comingSoon: true,
+    },
+    {
+      id: Domain.BOARDGAMES,
+      label: "Jeux de société",
+      desc: "Jeux de plateau.",
+      comingSoon: true,
     },
   ];
 
@@ -59,8 +77,14 @@
         <div
           class="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
           <div>
-            <p class="font-semibold">
+            <p class="flex items-center gap-2 font-semibold">
               {d.label}
+              {#if d.comingSoon}
+                <span
+                  class="bg-surface-2 text-dim rounded-full px-2 py-0.5 text-[0.6rem] font-bold">
+                  Bientôt
+                </span>
+              {/if}
             </p>
             <p class="text-dim text-sm">{d.desc}</p>
           </div>

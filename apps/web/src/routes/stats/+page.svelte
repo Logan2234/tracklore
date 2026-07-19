@@ -42,6 +42,9 @@
   const gamesOn = $derived(isDomainEnabled(Domain.GAMES));
   const booksOn = $derived(isDomainEnabled(Domain.BOOKS));
   const musicOn = $derived(isDomainEnabled(Domain.MUSIC));
+  // Planned domains: no stats yet, just a placeholder section when enabled.
+  const podcastsOn = $derived(isDomainEnabled(Domain.PODCASTS));
+  const boardgamesOn = $derived(isDomainEnabled(Domain.BOARDGAMES));
 
   // Only query the domains the user keeps enabled — the API 403s the others.
   // Waits for the profile so a disabled domain is never fetched. Re-runs when a
@@ -220,8 +223,15 @@
   const musicEmpty = $derived(
     !musicOn || (!!musicStats && musicStats.totalAlbums === 0),
   );
+  // An enabled coming-soon domain keeps the page from reading as fully empty:
+  // its placeholder section is worth showing on its own.
   const allEmpty = $derived(
-    mediaEmpty && gamesEmpty && booksEmpty && musicEmpty,
+    mediaEmpty &&
+      gamesEmpty &&
+      booksEmpty &&
+      musicEmpty &&
+      !podcastsOn &&
+      !boardgamesOn,
   );
 </script>
 
@@ -530,6 +540,32 @@
               <p class="timecode text-sm">Pas encore d’artiste.</p>
             {/if}
           </section>
+        </div>
+      </section>
+    {/if}
+
+    {#if podcastsOn}
+      <!-- Podcasts — planned domain, no stats yet. -->
+      <section class="mt-10">
+        <p class="timecode mb-3 text-xs uppercase">Podcasts</p>
+        <div
+          class="card text-dim flex flex-col items-center gap-1 px-6 py-10 text-center">
+          <p class="text-fg font-semibold">Bientôt disponible</p>
+          <p class="text-sm">Les statistiques podcasts arriveront ici.</p>
+        </div>
+      </section>
+    {/if}
+
+    {#if boardgamesOn}
+      <!-- Jeux de société — planned domain, no stats yet. -->
+      <section class="mt-10">
+        <p class="timecode mb-3 text-xs uppercase">Jeux de société</p>
+        <div
+          class="card text-dim flex flex-col items-center gap-1 px-6 py-10 text-center">
+          <p class="text-fg font-semibold">Bientôt disponible</p>
+          <p class="text-sm">
+            Les statistiques jeux de société arriveront ici.
+          </p>
         </div>
       </section>
     {/if}
