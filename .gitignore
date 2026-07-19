@@ -12,7 +12,8 @@ build/
 !.env.example
 
 # Generated docs (prisma-erd-generator output; regenerated on prisma generate OR modules.md for NestJS modules)
-docs/
+docs/*
+!docs/.gitkeep
 
 # Logs & caches
 *.log

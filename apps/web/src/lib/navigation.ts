@@ -162,7 +162,7 @@ export interface MobileDestination {
   adminOnly?: boolean;
 }
 
-export const MOBILE_DESTINATIONS: Record<MobileNavId, MobileDestination> = {
+const MOBILE_DESTINATIONS: Record<MobileNavId, MobileDestination> = {
   home: {
     id: "home",
     href: "/",
@@ -275,7 +275,7 @@ export const MOBILE_DESTINATIONS: Record<MobileNavId, MobileDestination> = {
 };
 
 /** How the launcher sheet groups every destination. */
-export const MENU_GROUPS: { label: string; ids: MobileNavId[] }[] = [
+const MENU_GROUPS: { label: string; ids: MobileNavId[] }[] = [
   {
     label: "Bibliothèques",
     ids: ["media", "games", "books", "music", "podcasts", "boardgames"],
@@ -298,7 +298,7 @@ export const DEFAULT_BOTTOM_SHORTCUTS: MobileNavId[] = [
 
 // Destinations the user may pin to the bottom bar (Phase B config UI). Excludes
 //  `menu` (always present, not a free choice) and coming-soon placeholders.
-export const BOTTOM_SHORTCUT_CHOICES: MobileNavId[] = [
+const BOTTOM_SHORTCUT_CHOICES: MobileNavId[] = [
   "home",
   "search",
   "media",
