@@ -1,7 +1,11 @@
 import type {
   AdminBackupDto,
   AdminBackupRestoreRequestDto,
+  AdminCacheDeleteOrphansResultDto,
+  AdminCacheItemDetailDto,
   AdminCacheListResponseDto,
+  AdminCacheResyncStaleResultDto,
+  AdminCacheSort,
   AdminImportRunListResponseDto,
   AdminPushBroadcastResponseDto,
   AdminPushDeviceDto,
@@ -174,17 +178,29 @@ export function restoreAdminBackup(
   return request("/admin/backup/restore", { method: "POST", body });
 }
 
-/** Cached items for one domain, stalest first, filterable by title and paginated. */
+/** Cached items for one domain, ordered by `sort`, filterable by title/orphans and paginated. */
 export function getAdminCache(filters: {
   domain: Domain;
   search?: string;
+  sort?: AdminCacheSort;
+  orphans?: boolean;
   page?: number;
 }): Promise<AdminCacheListResponseDto> {
   const params = new URLSearchParams({ domain: filters.domain });
   if (filters.search) params.set("search", filters.search);
+  if (filters.sort) params.set("sort", filters.sort);
+  if (filters.orphans) params.set("orphans", "true");
   if (filters.page && filters.page > 1)
     params.set("page", String(filters.page));
   return request(`/admin/cache?${params}`);
+}
+
+/** Full detail of one cached item (external ids, metadata, media seasons). */
+export function getAdminCacheItem(
+  domain: Domain,
+  id: string,
+): Promise<AdminCacheItemDetailDto> {
+  return request(`/admin/cache/${domain}/${id}`);
 }
 
 /** Forces a re-sync of one cached item from its canonical source, bypassing the TTL. */
@@ -195,17 +211,41 @@ export function resyncAdminCacheItem(
   return request(`/admin/cache/${domain}/${id}/resync`, { method: "POST" });
 }
 
-/** Past import commits across every account, filterable by source/status, paginated. */
+/** Re-syncs every stale (>24h) item in a domain in one pass. */
+export function resyncAdminCacheStale(
+  domain: Domain,
+): Promise<AdminCacheResyncStaleResultDto> {
+  return request(`/admin/cache/${domain}/resync-stale`, { method: "POST" });
+}
+
+/** Deletes an orphaned cached item (no account references it). 409 if referenced. */
+export function deleteAdminCacheItem(
+  domain: Domain,
+  id: string,
+): Promise<void> {
+  return request(`/admin/cache/${domain}/${id}`, { method: "DELETE" });
+}
+
+/** Purges every orphaned (unreferenced) item in a domain in one pass. */
+export function deleteAdminCacheOrphans(
+  domain: Domain,
+): Promise<AdminCacheDeleteOrphansResultDto> {
+  return request(`/admin/cache/${domain}/orphans`, { method: "DELETE" });
+}
+
+/** Past import commits across every account, filterable by source/status/account, paginated. */
 export function getAdminImportRuns(
   filters: {
     source?: string;
     status?: JobStatus;
+    userId?: string;
     page?: number;
   } = {},
 ): Promise<AdminImportRunListResponseDto> {
   const params = new URLSearchParams();
   if (filters.source) params.set("source", filters.source);
   if (filters.status) params.set("status", filters.status);
+  if (filters.userId) params.set("userId", filters.userId);
   if (filters.page && filters.page > 1)
     params.set("page", String(filters.page));
   const suffix = params.size > 0 ? `?${params}` : "";

@@ -11,8 +11,10 @@
     updateAdminUserRole,
     ApiError,
   } from "$lib/api/client";
+  import { page } from "$app/state";
   import { auth } from "$lib/auth.svelte";
   import Banner from "$lib/components/Banner.svelte";
+  import Combobox from "$lib/components/Combobox.svelte";
   import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import PageHeader from "$lib/components/PageHeader.svelte";
@@ -25,7 +27,9 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
 
-  let query = $state("");
+  // Pre-filled from `?q=` so links like /admin/users?q=<email> land pre-filtered
+  // (used by the imports page's "Voir le compte →").
+  let query = $state(page.url.searchParams.get("q") ?? "");
   let filter = $state<Filter>("all");
 
   const filteredUsers = $derived.by(() => {
@@ -290,16 +294,11 @@
         bind:value={query}
         placeholder="Filtrer par email, identifiant ou nom…"
         class="w-full max-w-xs rounded-lg border border-border bg-surface px-3 py-2 text-sm" />
-      <div class="flex flex-wrap gap-1.5">
-        {#each FILTERS as f (f.value)}
-          <button
-            class="chip"
-            class:chip-on={filter === f.value}
-            onclick={() => (filter = f.value)}>
-            {f.label}
-          </button>
-        {/each}
-      </div>
+      <Combobox
+        label="Filtrer"
+        options={FILTERS}
+        values={[filter]}
+        onChange={(v) => (filter = (v[0] as Filter) ?? "all")} />
     </div>
 
     <div class="card overflow-x-auto">

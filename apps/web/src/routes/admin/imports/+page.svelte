@@ -2,20 +2,36 @@
   import { getAdminImportRuns, ApiError } from "$lib/api/client";
   import { IMPORT_SOURCES } from "$lib/import/sources";
   import Banner from "$lib/components/Banner.svelte";
+  import Combobox from "$lib/components/Combobox.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import PageHeader from "$lib/components/PageHeader.svelte";
+  import UserSelector from "$lib/components/UserSelector.svelte";
   import type { AdminImportRunDto, JobStatus } from "@tracklore/shared";
 
-  const SOURCE_IDS = Object.keys(IMPORT_SOURCES);
   const sourceLabel = (id: string) => IMPORT_SOURCES[id]?.label ?? id;
 
+  // Combobox options carry an empty-value "all" entry so a single-select clears
+  // back to unfiltered.
+  const SOURCE_OPTIONS = [
+    { label: "Toutes les sources", value: "" },
+    ...Object.keys(IMPORT_SOURCES).map((id) => ({
+      label: sourceLabel(id),
+      value: id,
+    })),
+  ];
+  const STATUS_OPTIONS = [
+    { label: "Tous les statuts", value: "" },
+    { label: "Réussi", value: "SUCCESS" },
+    { label: "Échec", value: "FAILURE" },
+  ];
   const STATUS_LABELS: Record<JobStatus, string> = {
     SUCCESS: "Réussi",
     FAILURE: "Échec",
   };
 
-  let activeSource = $state<string | null>(null);
-  let activeStatus = $state<JobStatus | null>(null);
+  let activeSource = $state("");
+  let activeStatus = $state("");
+  let accountId = $state<string | null>(null);
   let runs = $state<AdminImportRunDto[]>([]);
   let page = $state(1);
   let hasMore = $state(true);
@@ -33,8 +49,9 @@
     const targetPage = reset ? 1 : page + 1;
     try {
       const res = await getAdminImportRuns({
-        source: activeSource ?? undefined,
-        status: activeStatus ?? undefined,
+        source: activeSource || undefined,
+        status: (activeStatus || undefined) as JobStatus | undefined,
+        userId: accountId ?? undefined,
         page: targetPage,
       });
       runs = reset ? res.runs : [...runs, ...res.runs];
@@ -45,16 +62,6 @@
     } finally {
       loading = false;
     }
-  }
-
-  function selectSource(id: string | null) {
-    activeSource = id;
-    void load(true);
-  }
-
-  function selectStatus(status: JobStatus | null) {
-    activeStatus = status;
-    void load(true);
   }
 
   $effect(() => {
@@ -75,38 +82,29 @@
     title="Imports"
     subtitle="Journal des imports commis (TV Time, StoryGraph, Goodreads, Steam), tous comptes confondus. Les analyses non validées n'écrivent rien et n'apparaissent pas ici." />
 
-  <div class="mb-3 flex flex-wrap items-center gap-2">
-    <button
-      class="chip"
-      class:chip-on={activeSource === null}
-      onclick={() => selectSource(null)}>
-      Toutes les sources
-    </button>
-    {#each SOURCE_IDS as id (id)}
-      <button
-        class="chip"
-        class:chip-on={activeSource === id}
-        onclick={() => selectSource(id)}>
-        {sourceLabel(id)}
-      </button>
-    {/each}
-  </div>
-
   <div class="mb-5 flex flex-wrap items-center gap-2">
-    <button
-      class="chip"
-      class:chip-on={activeStatus === null}
-      onclick={() => selectStatus(null)}>
-      Tous statuts
-    </button>
-    {#each Object.entries(STATUS_LABELS) as [status, label] (status)}
-      <button
-        class="chip"
-        class:chip-on={activeStatus === status}
-        onclick={() => selectStatus(status as JobStatus)}>
-        {label}
-      </button>
-    {/each}
+    <Combobox
+      label="Toutes les sources"
+      options={SOURCE_OPTIONS}
+      values={activeSource ? [activeSource] : []}
+      onChange={(v) => {
+        activeSource = v[0] ?? "";
+        void load(true);
+      }} />
+    <Combobox
+      label="Tous les statuts"
+      options={STATUS_OPTIONS}
+      values={activeStatus ? [activeStatus] : []}
+      onChange={(v) => {
+        activeStatus = v[0] ?? "";
+        void load(true);
+      }} />
+    <UserSelector
+      value={accountId}
+      onChange={(id) => {
+        accountId = id;
+        void load(true);
+      }} />
   </div>
 
   {#if error}
@@ -134,8 +132,18 @@
               {STATUS_LABELS[run.status]}
             </span>
             <span class="font-semibold text-fg"
-              >{sourceLabel(run.sourceId)}</span>
-            <span class="text-sm text-dim">· {run.identifier}</span>
+              >{sourceLabel(run.sourceId)}</span
+            ><span class="text-sm text-dim">·&nbsp;</span>
+            {#if run.userId}
+              <a
+                href="/admin/users?q={encodeURIComponent(run.identifier)}"
+                class="text-sm text-dim underline decoration-dotted underline-offset-4 hover:text-fg"
+                title="Voir ce compte">
+                {run.identifier}
+              </a>
+            {:else}
+              <span class="text-sm text-dim">{run.identifier}</span>
+            {/if}
             {#if run.overwrite}
               <span
                 class="rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-xs font-bold text-accent">
