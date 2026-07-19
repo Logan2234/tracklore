@@ -9,6 +9,7 @@
     searchGames,
   } from "$lib/api/client";
   import Banner from "$lib/components/Banner.svelte";
+  import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import Poster from "$lib/components/Poster.svelte";
   import {
@@ -41,6 +42,7 @@
   type Phase = "input" | "analyzing" | "review" | "committing" | "done";
   let phase = $state<Phase>("input");
   let error = $state<string | null>(null);
+  let showOverwriteConfirm = $state(false);
 
   // --- Input step ---
   // The raw payload sent as-is to the source: CSV text, a base64 ZIP, or a Steam id.
@@ -293,15 +295,18 @@
     searchResults = [];
   }
 
-  async function commit() {
+  function commit() {
     if (!analyzeJobId || !plan || selectedCount === 0) return;
     if (overwrite) {
-      const ok = confirm(
-        "Écraser supprimera définitivement ta bibliothèque et ton historique " +
-          "de ce domaine avant l’import. Cette action est irréversible. Continuer ?",
-      );
-      if (!ok) return;
+      showOverwriteConfirm = true;
+      return;
     }
+    doCommit();
+  }
+
+  async function doCommit() {
+    showOverwriteConfirm = false;
+    if (!analyzeJobId || !plan || selectedCount === 0) return;
     error = null;
     phase = "committing";
 
@@ -555,6 +560,16 @@
     </section>
   {/if}
 </div>
+
+{#if showOverwriteConfirm}
+  <ConfirmationModal
+    title="Écraser tes données ?"
+    message="Écraser supprimera définitivement ta bibliothèque et ton historique de ce domaine avant l’import. Cette action est irréversible."
+    confirmLabel="Écraser et importer"
+    danger
+    onConfirm={doCommit}
+    onCancel={() => (showOverwriteConfirm = false)} />
+{/if}
 
 {#snippet groupBody(g: ImportPlanGroup)}
   <ul class="divide-border mt-3 flex flex-col divide-y">
