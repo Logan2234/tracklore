@@ -60,13 +60,13 @@
 
 <div class="flex min-h-screen">
   <aside
-    class="sticky top-0 hidden h-screen shrink-0 flex-col overflow-hidden border-r border-border bg-surface px-3 py-3 transition-[width] duration-200 md:flex
+    class="border-border bg-surface sticky top-0 hidden h-screen shrink-0 flex-col overflow-hidden border-r px-3 py-3 transition-[width] duration-200 md:flex
     {expanded ? 'w-60' : 'w-16'}"
     onmouseenter={() => toggleRail(true)}
     onmouseleave={() => toggleRail(false)}>
     <a href="/" class="mb-2 flex items-center overflow-hidden">
       <span
-        class="grid h-10 w-10 shrink-0 place-items-center font-display text-xl font-extrabold text-accent">
+        class="font-display text-accent grid h-10 w-10 shrink-0 place-items-center text-xl font-extrabold">
         T
       </span>
 
@@ -87,7 +87,7 @@
             href="/admin"
             aria-current={page.url.pathname === "/admin" ? "page" : undefined}
             title={expanded ? undefined : "Vue d’ensemble"}
-            class="flex w-full items-center overflow-hidden rounded-xl transition-colors shrink-0 {page
+            class="flex w-full shrink-0 items-center overflow-hidden rounded-xl transition-colors {page
               .url.pathname === '/admin'
               ? 'bg-accent/15 text-accent'
               : 'text-dim hover:bg-surface-2 hover:text-fg'}">
@@ -95,7 +95,7 @@
               <Icon name="home" class="h-5 w-5" />
             </span>
             <span
-              class="whitespace-nowrap text-sm font-semibold transition-opacity duration-150 {expanded
+              class="text-sm font-semibold whitespace-nowrap transition-opacity duration-150 {expanded
                 ? 'opacity-100'
                 : 'opacity-0'}">
               Vue d’ensemble
@@ -104,12 +104,12 @@
 
           {#if expanded}
             <div
-              class="px-3 pt-3 pb-2 text-[0.6rem] font-bold tracking-[0.13em] text-dim uppercase sticky top-0">
+              class="text-dim sticky top-0 px-3 pt-3 pb-2 text-[0.6rem] font-bold tracking-[0.13em] uppercase">
               Administration
             </div>
           {:else}
             <div
-              class="mx-3 mt-4.5 mb-4 border-t border-border"
+              class="border-border mx-3 mt-4.5 mb-4 border-t"
               aria-hidden="true">
             </div>
           {/if}
@@ -121,7 +121,7 @@
               aria-current={active ? "page" : undefined}
               aria-disabled={item.soon ? "true" : undefined}
               title={expanded ? undefined : item.label}
-              class="flex w-full items-center overflow-hidden rounded-xl transition-colors shrink-0 {active
+              class="flex w-full shrink-0 items-center overflow-hidden rounded-xl transition-colors {active
                 ? 'bg-accent/15 text-accent'
                 : 'text-dim hover:bg-surface-2 hover:text-fg'} {item.soon
                 ? 'pointer-events-none opacity-60'
@@ -130,14 +130,14 @@
                 <Icon name={item.icon} class="h-5 w-5" />
               </span>
               <span
-                class="whitespace-nowrap text-sm font-semibold transition-opacity duration-150 {expanded
+                class="text-sm font-semibold whitespace-nowrap transition-opacity duration-150 {expanded
                   ? 'opacity-100'
                   : 'opacity-0'}">
                 {item.label}
               </span>
               {#if item.soon}
                 <span
-                  class="mr-2 ml-auto rounded-full border border-border px-1.5 py-0.5 text-[0.55rem] font-bold whitespace-nowrap text-dim transition-opacity duration-150 {expanded
+                  class="border-border text-dim mr-2 ml-auto rounded-full border px-1.5 py-0.5 text-[0.55rem] font-bold whitespace-nowrap transition-opacity duration-150 {expanded
                     ? 'opacity-100'
                     : 'opacity-0'}">
                   Bientôt
@@ -149,12 +149,12 @@
           {#each NAVIGATION as section (section.label)}
             {#if section.label && expanded}
               <div
-                class="px-3 pt-3 pb-2 text-[0.6rem] font-bold tracking-widest text-dim uppercase whitespace-nowrap">
+                class="text-dim px-3 pt-3 pb-2 text-[0.6rem] font-bold tracking-widest whitespace-nowrap uppercase">
                 {section.label}
               </div>
             {:else if section.label}
               <div
-                class="mx-3 mt-4.5 mb-4 border-t border-border"
+                class="border-border mx-3 mt-4.5 mb-4 border-t"
                 aria-hidden="true">
               </div>
             {/if}
@@ -178,7 +178,7 @@
                 </span>
 
                 <span
-                  class="whitespace-nowrap text-sm font-semibold transition-opacity
+                  class="text-sm font-semibold whitespace-nowrap transition-opacity
                 {expanded ? 'opacity-100' : 'opacity-0'}">
                   {item.label}
                 </span>
@@ -189,20 +189,20 @@
       </nav>
 
       <div
-        class="pointer-events-none absolute inset-x-0 top-0 h-5 bg-linear-to-b from-surface to-transparent transition-opacity duration-150 {atTop
+        class="from-surface pointer-events-none absolute inset-x-0 top-0 h-5 bg-linear-to-b to-transparent transition-opacity duration-150 {atTop
           ? 'opacity-0'
           : 'opacity-100'}"
         aria-hidden="true">
       </div>
       <div
-        class="pointer-events-none absolute inset-x-0 bottom-0 h-5 bg-linear-to-t from-surface to-transparent transition-opacity duration-150 {atBottom
+        class="from-surface pointer-events-none absolute inset-x-0 bottom-0 h-5 bg-linear-to-t to-transparent transition-opacity duration-150 {atBottom
           ? 'opacity-0'
           : 'opacity-100'}"
         aria-hidden="true">
       </div>
     </div>
 
-    <div class="mt-2 flex flex-col gap-1 border-t border-border pt-2">
+    <div class="border-border mt-2 flex flex-col gap-1 border-t pt-2">
       {#if auth.isAdmin && !inAdmin}
         <a
           href="/admin"
@@ -219,7 +219,7 @@
             <Icon name="shield" class="h-5 w-5" />
           </span>
           <span
-            class="whitespace-nowrap text-sm font-semibold transition-opacity duration-150 {expanded
+            class="text-sm font-semibold whitespace-nowrap transition-opacity duration-150 {expanded
               ? 'opacity-100'
               : 'opacity-0'}">
             Admin
@@ -243,13 +243,13 @@
             <Icon name="bell" class="h-5 w-5" />
             {#if notifications.unread > 0}
               <span
-                class="absolute top-1.5 right-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[0.55rem] font-bold text-accent-fg">
+                class="bg-accent text-accent-fg absolute top-1.5 right-1.5 grid h-4 min-w-4 place-items-center rounded-full px-1 text-[0.55rem] font-bold">
                 {notifications.unread > 9 ? "9+" : notifications.unread}
               </span>
             {/if}
           </span>
           <span
-            class="whitespace-nowrap text-sm font-semibold transition-opacity duration-150 {expanded
+            class="text-sm font-semibold whitespace-nowrap transition-opacity duration-150 {expanded
               ? 'opacity-100'
               : 'opacity-0'}">
             Notifications
@@ -261,19 +261,19 @@
         <a
           href="/account"
           title={expanded ? undefined : auth.user?.displayName}
-          class="my-1 flex w-full items-center overflow-hidden rounded-xl transition-colors hover:bg-surface-2 {page.url.pathname.startsWith(
+          class="hover:bg-surface-2 my-1 flex w-full items-center overflow-hidden rounded-xl transition-colors {page.url.pathname.startsWith(
             '/account',
           )
             ? 'bg-surface-2'
             : ''}">
           <span class="grid h-10 w-10 shrink-0 place-items-center">
             <span
-              class="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface-2 font-display text-sm font-bold text-fg">
+              class="border-border bg-surface-2 font-display text-fg flex h-8 w-8 items-center justify-center rounded-full border text-sm font-bold">
               {initial}
             </span>
           </span>
           <span
-            class="truncate text-sm font-semibold text-fg transition-opacity duration-150 {expanded
+            class="text-fg truncate text-sm font-semibold transition-opacity duration-150 {expanded
               ? 'opacity-100'
               : 'opacity-0'}">
             {auth.user?.displayName}
@@ -283,12 +283,12 @@
         <a
           href="/"
           title={expanded ? undefined : "Retour à l’application"}
-          class="my-1 flex w-full items-center overflow-hidden rounded-xl transition-colors hover:bg-surface-2 hover:text-fg">
+          class="hover:bg-surface-2 hover:text-fg my-1 flex w-full items-center overflow-hidden rounded-xl transition-colors">
           <span class="grid h-10 w-10 shrink-0 place-items-center">
             <Icon name="chevron-left" class="h-5 w-5" />
           </span>
           <span
-            class="whitespace-nowrap text-sm font-semibold transition-opacity duration-150 {expanded
+            class="text-sm font-semibold whitespace-nowrap transition-opacity duration-150 {expanded
               ? 'opacity-100'
               : 'opacity-0'}">
             Application

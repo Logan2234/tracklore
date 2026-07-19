@@ -10,10 +10,10 @@
 
 <nav
   class="
-    fixed inset-x-0 bottom-0 z-30
-    flex
-    border-t border-border
-    bg-surface/95
+    border-border bg-surface/95 fixed inset-x-0
+    bottom-0
+    z-30 flex
+    border-t
     pb-[env(safe-area-inset-bottom)]
     backdrop-blur
     md:hidden
@@ -38,6 +38,8 @@
         {#if item.href === "/notifications" && notifications.unread > 0}
           <span
             class="
+              bg-accent
+              text-accent-fg
               absolute
               -top-1
               -right-1
@@ -46,11 +48,9 @@
               min-w-4
               place-items-center
               rounded-full
-              bg-accent
               px-1
               text-[0.55rem]
               font-bold
-              text-accent-fg
             ">
             {notifications.unread > 9 ? "9+" : notifications.unread}
           </span>
@@ -64,11 +64,11 @@
   <!-- Bouton plus : ouvre le drawer -->
   <button
     class="
-      flex flex-1 flex-col items-center gap-0.5
+      text-dim flex flex-1 flex-col items-center
+      gap-0.5
       py-2.5
       text-[0.62rem]
       font-semibold
-      text-dim
     "
     onclick={() => dispatchEvent(new CustomEvent("mobile-menu-toggle"))}>
     <Icon name="menu" class="h-6 w-6" />

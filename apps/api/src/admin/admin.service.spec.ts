@@ -1,15 +1,32 @@
 import type { ConfigService } from "@nestjs/config";
 import type { MailService } from "../mail/mail.service";
+import type { PrismaService } from "../prisma/prisma.service";
 import { AdminService } from "./admin.service";
 
-function makeService(env: Record<string, string>, smtpReachable = true) {
+function makeService(
+  env: Record<string, string>,
+  smtpReachable = true,
+  callRows: { provider: string; day: Date; count: number }[] = [],
+) {
   const config = {
     get: jest.fn((key: string) => env[key]),
   } as unknown as ConfigService;
   const mail = {
     verifyConnection: jest.fn().mockResolvedValue(smtpReachable),
   } as unknown as MailService;
-  return { service: new AdminService(config, mail), mail };
+  const prisma = {
+    apiCallCounter: { findMany: jest.fn().mockResolvedValue(callRows) },
+  } as unknown as PrismaService;
+  return { service: new AdminService(config, mail, prisma), mail };
+}
+
+function utcDay(daysAgo: number): Date {
+  const now = new Date();
+  const d = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
+  d.setUTCDate(d.getUTCDate() - daysAgo);
+  return d;
 }
 
 describe("AdminService.getServicesStatus", () => {
@@ -101,5 +118,63 @@ describe("AdminService.getServicesStatus", () => {
     const push = services.find((s) => s.key === "webPush");
 
     expect(push).toMatchObject({ configured: true, reachable: null });
+  });
+});
+
+describe("AdminService.getServicesStatus — quota aggregation", () => {
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+    jest.restoreAllMocks();
+  });
+
+  it("sums today/this-month for a service with a documented limit and computes percentUsed", async () => {
+    global.fetch = jest.fn() as unknown as typeof fetch;
+    const { service } = makeService({}, true, [
+      { provider: "omdb", day: utcDay(0), count: 800 },
+      { provider: "omdb", day: utcDay(3), count: 100 },
+    ]);
+
+    const { services } = await service.getServicesStatus();
+    const omdb = services.find((s) => s.key === "omdb");
+
+    expect(omdb).toMatchObject({
+      today: 800,
+      thisMonth: 900,
+      limit: { max: 1000, window: "day" },
+      percentUsed: 80,
+    });
+  });
+
+  it("reports today/thisMonth without a limit for a service with no documented quota", async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue({ ok: true, status: 200 }) as unknown as typeof fetch;
+    const { service } = makeService({ TMDB_API_TOKEN: "tok" }, true, [
+      { provider: "tmdb", day: utcDay(0), count: 5 },
+    ]);
+
+    const { services } = await service.getServicesStatus();
+    const tmdb = services.find((s) => s.key === "tmdb");
+
+    expect(tmdb).toMatchObject({ today: 5, thisMonth: 5 });
+    expect(tmdb?.limit).toBeUndefined();
+    expect(tmdb?.percentUsed).toBeUndefined();
+  });
+
+  it("never attaches quota fields to webPush (no outbound calls)", async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue({ ok: true, status: 200 }) as unknown as typeof fetch;
+    const { service } = makeService({
+      VAPID_PUBLIC_KEY: "pub",
+      VAPID_PRIVATE_KEY: "priv",
+    });
+
+    const { services } = await service.getServicesStatus();
+    const push = services.find((s) => s.key === "webPush");
+
+    expect(push?.today).toBeUndefined();
+    expect(push?.thisMonth).toBeUndefined();
   });
 });

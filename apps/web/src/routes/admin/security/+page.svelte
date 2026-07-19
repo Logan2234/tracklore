@@ -104,7 +104,7 @@
     bind:value={identifierInput}
     oninput={onIdentifierInput}
     placeholder="Filtrer par email ou identifiant…"
-    class="mb-5 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm" />
+    class="border-border bg-surface mb-5 w-full rounded-lg border px-3 py-2 text-sm" />
 
   {#if error}
     <Banner variant="error" class="mb-4">{error}</Banner>
@@ -129,20 +129,20 @@
               ]}">
               {TYPE_LABELS[e.type]}
             </span>
-            <span class="font-semibold text-fg">{e.identifier}</span>
-            <span class="ml-auto text-xs text-dim">
+            <span class="text-fg font-semibold">{e.identifier}</span>
+            <span class="text-dim ml-auto text-xs">
               {dateFmt.format(new Date(e.createdAt))}
             </span>
           </div>
           {#if e.detail || e.userAgent}
-            <p class="mt-1.5 truncate text-xs text-dim">
+            <p class="text-dim mt-1.5 truncate text-xs">
               {#if e.detail}{e.detail}{/if}
               {#if e.detail && e.userAgent}·{/if}
               {#if e.userAgent}{e.userAgent}{/if}
             </p>
           {/if}
           {#if !e.userId}
-            <p class="mt-1 text-xs text-dim italic">Compte supprimé depuis</p>
+            <p class="text-dim mt-1 text-xs italic">Compte supprimé depuis</p>
           {/if}
         </li>
       {/each}

@@ -87,7 +87,7 @@
       {#each days as day (day.key)}
         <section>
           <div
-            class="mb-3 flex items-baseline gap-3 border-b border-border pb-2">
+            class="border-border mb-3 flex items-baseline gap-3 border-b pb-2">
             <h2 class="font-display text-lg font-bold">{day.label}</h2>
             <span class="timecode text-sm">{day.date}</span>
           </div>
@@ -95,14 +95,14 @@
             {#each day.items as e (e.mediaItem.id + code(e))}
               <a
                 href={href(e)}
-                class="card flex items-center gap-4 p-3 transition-[border-color] hover:border-accent">
+                class="card hover:border-accent flex items-center gap-4 p-3 transition-[border-color]">
                 <div class="w-12 shrink-0 overflow-hidden rounded-md">
                   <Poster
                     src={e.mediaItem.posterUrl}
                     title={e.mediaItem.title} />
                 </div>
                 <div class="min-w-0 flex-1">
-                  <p class="truncate font-display font-semibold">
+                  <p class="font-display truncate font-semibold">
                     {e.mediaItem.title}
                   </p>
                   <p class="timecode text-sm">

@@ -1,4 +1,5 @@
 import { ConfigService } from "@nestjs/config";
+import type { QuotaTrackerService } from "../../common/quota-tracker.service";
 import { IgdbProvider } from "./igdb.provider";
 
 // Node defines global fetch lazily, which confuses jest.spyOn on restore;
@@ -34,7 +35,11 @@ describe("IgdbProvider", () => {
 
   beforeEach(() => {
     const config = { getOrThrow: jest.fn().mockReturnValue("test-credential") };
-    provider = new IgdbProvider(config as unknown as ConfigService);
+    const quota = { record: jest.fn() };
+    provider = new IgdbProvider(
+      config as unknown as ConfigService,
+      quota as unknown as QuotaTrackerService,
+    );
   });
 
   afterEach(() => {

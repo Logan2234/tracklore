@@ -14,7 +14,7 @@ export const JOB_REGISTRY: Record<JobKey, { label: string; schedule: string }> =
       schedule: "Toutes les heures",
     },
     [JOB_KEYS.MEDIA_REFRESH_STALE]: {
-      label: "Rafraîchissement du cache média",
+      label: "Rafraîchissement du cache",
       schedule: "Toutes les 6 heures",
     },
   };

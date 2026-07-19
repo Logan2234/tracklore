@@ -175,15 +175,15 @@
       </button>
     {:else}
       <div
-        class="h-44 w-full bg-linear-to-br from-surface-2 to-surface md:h-60">
+        class="from-surface-2 to-surface h-44 w-full bg-linear-to-br md:h-60">
       </div>
     {/if}
     <div
-      class="absolute inset-0 bg-linear-to-t from-bg via-bg/50 to-transparent">
+      class="from-bg via-bg/50 absolute inset-0 bg-linear-to-t to-transparent">
     </div>
     <a
       href="/games"
-      class="absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full border border-border bg-bg/60 px-3 py-1.5 text-sm font-semibold backdrop-blur hover:bg-bg">
+      class="border-border bg-bg/60 hover:bg-bg absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold backdrop-blur">
       ← Jeux
     </a>
   </div>
@@ -197,7 +197,7 @@
           class="-mt-24 flex flex-col gap-5 sm:flex-row sm:items-end md:-mt-28">
           <button
             type="button"
-            class="w-32 shrink-0 overflow-hidden rounded-xl border border-border shadow-lg md:w-44 {detail.coverUrl
+            class="border-border w-32 shrink-0 overflow-hidden rounded-xl border shadow-lg md:w-44 {detail.coverUrl
               ? 'cursor-zoom-in'
               : ''}"
             aria-label="Agrandir l'image"
@@ -208,12 +208,12 @@
           <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-2">
               <span
-                class="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-semibold text-dim">
+                class="bg-surface-2 text-dim rounded-full px-2.5 py-0.5 text-xs font-semibold">
                 Jeu
               </span>
               {#if detail.isAdult}
                 <span
-                  class="rounded-full bg-danger/15 px-2.5 py-0.5 text-xs font-bold text-danger">
+                  class="bg-danger/15 text-danger rounded-full px-2.5 py-0.5 text-xs font-bold">
                   18+
                 </span>
               {/if}
@@ -228,7 +228,7 @@
               {/if}
             </div>
             <h1
-              class="mt-2 font-display text-3xl font-extrabold tracking-tight text-balance md:text-4xl">
+              class="font-display mt-2 text-3xl font-extrabold tracking-tight text-balance md:text-4xl">
               {detail.title}
             </h1>
             <p class="timecode mt-1.5 text-sm">
@@ -255,7 +255,7 @@
               <div class="mt-2.5 flex flex-wrap gap-1.5">
                 {#each detail.platforms as platform (platform)}
                   <span
-                    class="rounded-md bg-surface-2 px-2 py-0.5 text-xs text-dim">
+                    class="bg-surface-2 text-dim rounded-md px-2 py-0.5 text-xs">
                     {platform}
                   </span>
                 {/each}
@@ -265,7 +265,7 @@
         </div>
 
         {#if detail.overview}
-          <p class="mt-6 max-w-2xl whitespace-pre-line text-dim">
+          <p class="text-dim mt-6 max-w-2xl whitespace-pre-line">
             {detail.overview}
           </p>
         {/if}
@@ -275,7 +275,7 @@
             href={detail.website}
             target="_blank"
             rel="noopener noreferrer"
-            class="mt-4 inline-flex items-center gap-1 text-sm link-accent">
+            class="link-accent mt-4 inline-flex items-center gap-1 text-sm">
             Site officiel ↗
           </a>
         {/if}
@@ -337,7 +337,7 @@
                       );
                     }
                   }} />
-                <span class="text-xs text-dim">h</span>
+                <span class="text-dim text-xs">h</span>
               </div>
             </div>
 
@@ -367,7 +367,7 @@
                   {#if entry.status === "COMPLETED"}
                     <button
                       type="button"
-                      class="text-xs link-accent disabled:opacity-50"
+                      class="link-accent text-xs disabled:opacity-50"
                       disabled={saving}
                       onclick={addReplay}>
                       + J'ai refait ce jeu
@@ -377,7 +377,7 @@
                 {#if entry.replays.length > 0}
                   <ul class="flex flex-col gap-1">
                     {#each entry.replays as replay (replay.id)}
-                      <li class="flex items-center gap-2 text-xs text-dim">
+                      <li class="text-dim flex items-center gap-2 text-xs">
                         <span class="flex-1">
                           {formatDate(replay.finishedAt)}
                         </span>

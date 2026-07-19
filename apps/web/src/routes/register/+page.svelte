@@ -30,7 +30,7 @@
       <p class="font-display text-3xl font-extrabold tracking-tight">
         TRACK<span class="text-accent">LORE</span>
       </p>
-      <p class="mt-2 text-sm text-dim">
+      <p class="text-dim mt-2 text-sm">
         Suis tout ce que tu regardes, au même endroit.
       </p>
     </div>
@@ -54,11 +54,11 @@
         bind:value={password}
         minlength={8}
         required />
-      {#if error}<p class="text-sm text-danger">{error}</p>{/if}
+      {#if error}<p class="text-danger text-sm">{error}</p>{/if}
       <button type="submit" class="btn btn-primary" disabled={loading}>
         {loading ? "Création…" : "Créer le compte"}
       </button>
-      <p class="text-center text-sm text-dim">
+      <p class="text-dim text-center text-sm">
         Déjà inscrit ?
         <a href="/login" class="link-accent">Se connecter</a>
       </p>

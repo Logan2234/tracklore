@@ -204,10 +204,10 @@
   <PosterGrid>
     {#each { length: 10 } as _, i (i)}
       <div class="card flex flex-col">
-        <div class="aspect-2/3 w-full skeleton"></div>
+        <div class="skeleton aspect-2/3 w-full"></div>
         <div class="flex flex-col gap-2 p-3">
-          <div class="h-3.5 w-4/5 skeleton rounded"></div>
-          <div class="h-3 w-1/2 skeleton rounded"></div>
+          <div class="skeleton h-3.5 w-4/5 rounded"></div>
+          <div class="skeleton h-3 w-1/2 rounded"></div>
         </div>
       </div>
     {/each}
@@ -218,7 +218,7 @@
       <a
         in:fly={{ y: 8, duration: reduced ? 0 : 220 }}
         href={`/media/${media.type.toLowerCase()}/${media.sourceId}`}
-        class="card group flex flex-col transition-[transform,border-color] duration-150 hover:-translate-y-0.5 hover:border-accent">
+        class="card group hover:border-accent flex flex-col transition-[transform,border-color] duration-150 hover:-translate-y-0.5">
         <div class="relative">
           <Poster
             src={media.posterUrl}
@@ -226,7 +226,7 @@
             adult={media.isAdult} />
           {#if trackedStatus(media)}
             <span
-              class="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[0.6rem] font-bold text-accent-fg shadow">
+              class="bg-accent text-accent-fg absolute top-2 left-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.6rem] font-bold shadow">
               <Icon name="check" class="h-3 w-3" />
               {STATUS_LABELS[trackedStatus(media)!]}
             </span>
@@ -252,10 +252,10 @@
     <PosterGrid>
       {#each { length: 5 } as _, i (i)}
         <div class="card flex flex-col">
-          <div class="aspect-2/3 w-full skeleton"></div>
+          <div class="skeleton aspect-2/3 w-full"></div>
           <div class="flex flex-col gap-2 p-3">
-            <div class="h-3.5 w-4/5 skeleton rounded"></div>
-            <div class="h-3 w-1/2 skeleton rounded"></div>
+            <div class="skeleton h-3.5 w-4/5 rounded"></div>
+            <div class="skeleton h-3 w-1/2 rounded"></div>
           </div>
         </div>
       {/each}

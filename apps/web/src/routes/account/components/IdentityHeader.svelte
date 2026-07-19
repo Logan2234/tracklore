@@ -33,13 +33,13 @@
   <section class="card mb-5 p-5 md:p-6">
     <div class="flex flex-wrap items-center gap-4">
       <div
-        class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-accent/15 font-display text-xl font-bold text-accent">
+        class="bg-accent/15 font-display text-accent flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-xl font-bold">
         {initials}
       </div>
       <div class="min-w-0 flex-1">
         <p class="truncate text-lg font-bold">{auth.user.displayName}</p>
         <p class="timecode truncate text-sm">{auth.user.email}</p>
-        <p class="mt-0.5 text-sm text-dim">Membre depuis {memberSince}</p>
+        <p class="text-dim mt-0.5 text-sm">Membre depuis {memberSince}</p>
       </div>
       <button class="btn btn-danger" onclick={signOut}>Se déconnecter</button>
     </div>

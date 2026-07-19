@@ -173,7 +173,7 @@
         }),
       update: updateLibraryEntry,
       remove: deleteLibraryEntry,
-      addErrorMessage: "Impossible d'ajouter ce média",
+      addErrorMessage: "Impossible d'ajouter cet élément à ta bibliothèque",
     },
   );
 
@@ -264,15 +264,15 @@
       </button>
     {:else}
       <div
-        class="h-44 w-full bg-linear-to-br from-surface-2 to-surface md:h-60">
+        class="from-surface-2 to-surface h-44 w-full bg-linear-to-br md:h-60">
       </div>
     {/if}
     <div
-      class="absolute inset-0 bg-linear-to-t from-bg via-bg/50 to-transparent">
+      class="from-bg via-bg/50 absolute inset-0 bg-linear-to-t to-transparent">
     </div>
     <a
       href="/media"
-      class="absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full border border-border bg-bg/60 px-3 py-1.5 text-sm font-semibold backdrop-blur hover:bg-bg">
+      class="border-border bg-bg/60 hover:bg-bg absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold backdrop-blur">
       ← Vidéo
     </a>
   </div>
@@ -283,7 +283,7 @@
     <div class="-mt-24 flex flex-col gap-5 sm:flex-row sm:items-end md:-mt-28">
       <button
         type="button"
-        class="w-32 shrink-0 overflow-hidden rounded-xl border border-border shadow-lg md:w-44 {detail.posterUrl
+        class="border-border w-32 shrink-0 overflow-hidden rounded-xl border shadow-lg md:w-44 {detail.posterUrl
           ? 'cursor-zoom-in'
           : ''}"
         aria-label="Agrandir l'image"
@@ -294,12 +294,12 @@
       <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-center gap-2">
           <span
-            class="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-semibold text-dim">
+            class="bg-surface-2 text-dim rounded-full px-2.5 py-0.5 text-xs font-semibold">
             {TYPE_LABELS[detail.type]}
           </span>
           {#if detail.isAdult}
             <span
-              class="rounded-full bg-danger/15 px-2.5 py-0.5 text-xs font-bold text-danger">
+              class="bg-danger/15 text-danger rounded-full px-2.5 py-0.5 text-xs font-bold">
               18+
             </span>
           {/if}
@@ -314,14 +314,14 @@
             {#if dormant}
               <span
                 title="Série en cours laissée de côté depuis plus de 30 jours."
-                class="rounded-full border border-border px-2.5 py-0.5 text-xs font-bold text-dim">
+                class="border-border text-dim rounded-full border px-2.5 py-0.5 text-xs font-bold">
                 ⏸ En pause
               </span>
             {/if}
           {/if}
         </div>
         <h1
-          class="mt-2 font-display text-3xl font-extrabold tracking-tight text-balance md:text-4xl">
+          class="font-display mt-2 text-3xl font-extrabold tracking-tight text-balance md:text-4xl">
           {detail.title}
         </h1>
         <p class="timecode mt-1.5 text-sm">
@@ -360,8 +360,8 @@
 
     {#if entry?.progress}
       <div class="mt-6 max-w-sm">
-        <div class="h-1.5 overflow-hidden rounded-full bg-surface-2">
-          <div class="h-full bg-accent" style={`width: ${pct}%`}></div>
+        <div class="bg-surface-2 h-1.5 overflow-hidden rounded-full">
+          <div class="bg-accent h-full" style={`width: ${pct}%`}></div>
         </div>
         <p class="timecode mt-1.5 text-sm">
           {entry.progress.watchedEpisodes} / {entry.progress.totalEpisodes} épisodes
@@ -382,7 +382,7 @@
     {/if}
 
     {#if detail.overview}
-      <p class="mt-6 max-w-2xl text-dim">{detail.overview}</p>
+      <p class="text-dim mt-6 max-w-2xl">{detail.overview}</p>
     {/if}
 
     <!-- Actions -->
@@ -470,11 +470,11 @@
         {#each [{ label: "Streaming", list: extras.watchProviders.flatrate }, { label: "Location", list: extras.watchProviders.rent }, { label: "Achat", list: extras.watchProviders.buy }] as group (group.label)}
           {#if group.list.length > 0}
             <div class="flex items-center gap-1.5">
-              <span class="text-[0.65rem] text-dim">{group.label}</span>
+              <span class="text-dim text-[0.65rem]">{group.label}</span>
               {#each group.list as p (p.name)}
                 <span
                   title={p.name}
-                  class="grid h-6 w-6 place-items-center overflow-hidden rounded bg-surface-2 opacity-80">
+                  class="bg-surface-2 grid h-6 w-6 place-items-center overflow-hidden rounded opacity-80">
                   {#if p.logoUrl}
                     <img
                       src={p.logoUrl}
@@ -482,7 +482,7 @@
                       loading="lazy"
                       class="h-full w-full object-cover" />
                   {:else}
-                    <span class="text-[0.55rem] font-bold text-dim"
+                    <span class="text-dim text-[0.55rem] font-bold"
                       >{p.name.slice(0, 2)}</span>
                   {/if}
                 </span>
@@ -490,7 +490,7 @@
             </div>
           {/if}
         {/each}
-        <span class="timecode w-full text-[0.6rem] text-dim"
+        <span class="timecode text-dim w-full text-[0.6rem]"
           >JustWatch · France</span>
       </section>
     {/if}

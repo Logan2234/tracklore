@@ -39,7 +39,7 @@
         >Prise de note</span>
       <button
         type="button"
-        class="ml-auto font-mono text-[0.68rem] text-dim transition-colors hover:text-danger"
+        class="text-dim hover:text-danger ml-auto font-mono text-[0.68rem] transition-colors"
         onclick={remove}>
         supprimer
       </button>
@@ -48,7 +48,7 @@
       bind:this={textarea}
       rows="3"
       {placeholder}
-      class="input min-h-[66px] rounded-l-sm border-l-[3px] border-l-accent/50 bg-surface-2"
+      class="input border-l-accent/50 bg-surface-2 min-h-[66px] rounded-l-sm border-l-[3px]"
       value={value ?? ""}
       onchange={(e) => {
         const raw = e.currentTarget.value.trim();
@@ -58,7 +58,7 @@
 {:else}
   <button
     type="button"
-    class="self-start rounded-lg border border-dashed border-border px-3.5 py-2 text-sm font-semibold text-dim transition-colors hover:border-accent/45 hover:text-fg"
+    class="border-border text-dim hover:border-accent/45 hover:text-fg self-start rounded-lg border border-dashed px-3.5 py-2 text-sm font-semibold transition-colors"
     onclick={reveal}>
     ＋ Ajouter une note
   </button>

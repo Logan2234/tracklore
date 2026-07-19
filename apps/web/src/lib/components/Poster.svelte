@@ -34,7 +34,7 @@
       alt={title}
       loading="lazy"
       onerror={() => (failed = true)}
-      class="aspect-2/3 w-full bg-surface-2 object-cover {cls}" />
+      class="bg-surface-2 aspect-2/3 w-full object-cover {cls}" />
   {:else}
     <div
       class="flex aspect-2/3 w-full items-end p-2 {cls}"
@@ -42,14 +42,14 @@
         40) %
         360} 34% 13%));">
       <span
-        class="line-clamp-3 font-display text-xs leading-tight font-bold text-white/90 [text-shadow:0_1px_3px_rgba(0,0,0,.6)]">
+        class="font-display line-clamp-3 text-xs leading-tight font-bold text-white/90 [text-shadow:0_1px_3px_rgba(0,0,0,.6)]">
         {title}
       </span>
     </div>
   {/if}
   {#if adult}
     <span
-      class="absolute top-2 right-2 rounded-full bg-danger px-1.5 py-0.5 text-[0.6rem] font-black text-white shadow">
+      class="bg-danger absolute top-2 right-2 rounded-full px-1.5 py-0.5 text-[0.6rem] font-black text-white shadow">
       18+
     </span>
   {/if}

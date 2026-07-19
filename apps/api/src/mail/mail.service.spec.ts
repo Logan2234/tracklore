@@ -1,7 +1,10 @@
 import nodemailer from "nodemailer";
+import type { QuotaTrackerService } from "../common/quota-tracker.service";
 import { MailService } from "./mail.service";
 
 jest.mock("nodemailer");
+
+const quota = { record: jest.fn() } as unknown as QuotaTrackerService;
 
 describe("MailService", () => {
   const ORIGINAL_ENV = process.env;
@@ -20,7 +23,7 @@ describe("MailService", () => {
     delete process.env.SMTP_USER;
     delete process.env.SMTP_PASS;
 
-    const service = new MailService();
+    const service = new MailService(quota);
     await service.sendWelcome("alice@example.com", "Alice");
 
     expect(nodemailer.createTransport).not.toHaveBeenCalled();
@@ -37,7 +40,7 @@ describe("MailService", () => {
     const sendMail = jest.fn().mockResolvedValue(undefined);
     (nodemailer.createTransport as jest.Mock).mockReturnValue({ sendMail });
 
-    const service = new MailService();
+    const service = new MailService(quota);
     await service.sendPasswordResetLink("alice@example.com", "tok123");
 
     expect(nodemailer.createTransport).toHaveBeenCalledWith(
@@ -67,7 +70,7 @@ describe("MailService", () => {
     const sendMail = jest.fn().mockResolvedValue(undefined);
     (nodemailer.createTransport as jest.Mock).mockReturnValue({ sendMail });
 
-    const service = new MailService();
+    const service = new MailService(quota);
     await service.sendEmailChangeCode("alice@example.com", "123456");
 
     expect(sendMail).toHaveBeenCalledWith(
@@ -90,7 +93,7 @@ describe("MailService", () => {
     const sendMail = jest.fn().mockRejectedValue(new Error("smtp down"));
     (nodemailer.createTransport as jest.Mock).mockReturnValue({ sendMail });
 
-    const service = new MailService();
+    const service = new MailService(quota);
     await expect(
       service.sendPasswordChanged("alice@example.com"),
     ).resolves.toBeUndefined();
@@ -110,7 +113,7 @@ describe("MailService template gallery", () => {
   });
 
   it("lists every known template key", () => {
-    const service = new MailService();
+    const service = new MailService(quota);
     const keys = service.listTemplates().map((t) => t.key);
 
     expect(keys).toEqual(
@@ -129,7 +132,7 @@ describe("MailService template gallery", () => {
 
   it("renders a preview without sending anything", async () => {
     delete process.env.SMTP_HOST;
-    const service = new MailService();
+    const service = new MailService(quota);
 
     const preview = service.renderTemplatePreview("welcome");
 
@@ -139,7 +142,7 @@ describe("MailService template gallery", () => {
   });
 
   it("returns null for an unknown template key", () => {
-    const service = new MailService();
+    const service = new MailService(quota);
     expect(service.renderTemplatePreview("does-not-exist")).toBeNull();
   });
 
@@ -151,7 +154,7 @@ describe("MailService template gallery", () => {
     const sendMail = jest.fn().mockResolvedValue(undefined);
     (nodemailer.createTransport as jest.Mock).mockReturnValue({ sendMail });
 
-    const service = new MailService();
+    const service = new MailService(quota);
     const sent = await service.sendTemplateTest("welcome", "test@example.com");
 
     expect(sent).toBe(true);
@@ -168,7 +171,7 @@ describe("MailService template gallery", () => {
       sendMail: jest.fn(),
     });
 
-    const service = new MailService();
+    const service = new MailService(quota);
     const sent = await service.sendTemplateTest(
       "does-not-exist",
       "test@example.com",

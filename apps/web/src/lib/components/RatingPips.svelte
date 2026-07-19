@@ -24,7 +24,7 @@
       >{label}</span>
     <button
       type="button"
-      class="ml-auto font-mono text-[0.7rem] text-dim transition-colors hover:text-danger {selected ===
+      class="text-dim hover:text-danger ml-auto font-mono text-[0.7rem] transition-colors {selected ===
       null
         ? 'invisible'
         : ''}"
@@ -41,7 +41,7 @@
         aria-pressed={on}
         aria-label={`${n} sur 10`}
         class="h-8 rounded-lg border font-mono text-sm font-bold transition-colors {on
-          ? 'border-transparent bg-accent text-accent-fg'
+          ? 'bg-accent text-accent-fg border-transparent'
           : lit
             ? 'border-accent/30 bg-accent/15 text-fg'
             : 'border-border bg-surface-2 text-dim hover:border-accent/55 hover:text-fg'}"

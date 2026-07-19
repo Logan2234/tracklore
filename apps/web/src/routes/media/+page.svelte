@@ -92,8 +92,8 @@
       favorite={entry.favorite}>
       {#snippet meta()}
         {#if entry.progress}
-          <div class="h-1.5 overflow-hidden rounded-full bg-surface-2">
-            <div class="h-full bg-accent" style={`width: ${pct(entry)}%`}></div>
+          <div class="bg-surface-2 h-1.5 overflow-hidden rounded-full">
+            <div class="bg-accent h-full" style={`width: ${pct(entry)}%`}></div>
           </div>
           <span class="timecode text-xs">
             {entry.progress.watchedEpisodes} / {entry.progress.totalEpisodes} ép.

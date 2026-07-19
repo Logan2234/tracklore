@@ -100,34 +100,34 @@
 </script>
 
 {#if error}
-  <p class="text-sm text-danger">{error}</p>
+  <p class="text-danger text-sm">{error}</p>
 {:else}
   <div class="mb-2 flex items-center justify-end gap-1.5">
     <button
       onclick={zoomOut}
       aria-label="Réduire"
-      class="grid h-7 w-7 place-items-center rounded-md border border-border text-sm text-dim hover:text-fg">
+      class="border-border text-dim hover:text-fg grid h-7 w-7 place-items-center rounded-md border text-sm">
       −
     </button>
-    <span class="w-10 text-center text-xs text-dim tabular-nums">
+    <span class="text-dim w-10 text-center text-xs tabular-nums">
       {Math.round(scale * 100)}%
     </span>
     <button
       onclick={zoomIn}
       aria-label="Agrandir"
-      class="grid h-7 w-7 place-items-center rounded-md border border-border text-sm text-dim hover:text-fg">
+      class="border-border text-dim hover:text-fg grid h-7 w-7 place-items-center rounded-md border text-sm">
       +
     </button>
     <button
       onclick={reset}
-      class="ml-1 rounded-md border border-border px-2 py-1 text-xs text-dim hover:text-fg">
+      class="border-border text-dim hover:text-fg ml-1 rounded-md border px-2 py-1 text-xs">
       Réinitialiser
     </button>
   </div>
   <div
     role="application"
     aria-label="Diagramme déplaçable au clic-glisser"
-    class="h-[75vh] touch-none overflow-hidden rounded-lg border border-border bg-surface {dragging
+    class="border-border bg-surface h-[75vh] touch-none overflow-hidden rounded-lg border {dragging
       ? 'cursor-grabbing'
       : 'cursor-grab'}"
     onpointerdown={startDrag}

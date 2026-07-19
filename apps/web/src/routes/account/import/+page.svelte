@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { Domain } from "@tracklore/shared";
   import Icon from "$lib/components/Icon.svelte";
   import { isDomainEnabled } from "$lib/domains";
+  import { Domain } from "@tracklore/shared";
 
   type ImportSource = {
     name: string;
@@ -21,7 +21,7 @@
   const GROUPS: ImportGroup[] = [
     {
       domain: Domain.MEDIA,
-      label: "Médias",
+      label: "Vidéo",
       icon: "library",
       sources: [
         {
@@ -82,7 +82,7 @@
       Import
     </h1>
   </div>
-  <p class="mb-8 max-w-xl text-sm text-dim">
+  <p class="text-dim mb-8 max-w-xl text-sm">
     Récupère ton historique depuis une autre appli, par domaine.
   </p>
 
@@ -96,24 +96,24 @@
               {#if source.href}
                 <a
                   href={source.href}
-                  class="flex items-center gap-3 rounded-lg border border-border bg-bg p-4 transition-colors hover:border-accent hover:bg-surface-2">
-                  <Icon name={group.icon} class="h-6 w-6 text-accent" />
+                  class="border-border bg-bg hover:border-accent hover:bg-surface-2 flex items-center gap-3 rounded-lg border p-4 transition-colors">
+                  <Icon name={group.icon} class="text-accent h-6 w-6" />
                   <span class="flex-1">
                     <span class="block font-semibold">{source.name}</span>
-                    <span class="text-sm text-dim">{source.description}</span>
+                    <span class="text-dim text-sm">{source.description}</span>
                   </span>
-                  <Icon name="chevron-right" class="h-5 w-5 text-dim" />
+                  <Icon name="chevron-right" class="text-dim h-5 w-5" />
                 </a>
               {:else}
                 <div
-                  class="flex items-center gap-3 rounded-lg border border-border bg-bg p-4 opacity-60">
-                  <Icon name={group.icon} class="h-6 w-6 text-dim" />
+                  class="border-border bg-bg flex items-center gap-3 rounded-lg border p-4 opacity-60">
+                  <Icon name={group.icon} class="text-dim h-6 w-6" />
                   <span class="flex-1">
                     <span class="block font-semibold">{source.name}</span>
-                    <span class="text-sm text-dim">{source.description}</span>
+                    <span class="text-dim text-sm">{source.description}</span>
                   </span>
                   <span
-                    class="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-semibold text-dim">
+                    class="bg-surface-2 text-dim rounded-full px-2.5 py-0.5 text-xs font-semibold">
                     Bientôt
                   </span>
                 </div>

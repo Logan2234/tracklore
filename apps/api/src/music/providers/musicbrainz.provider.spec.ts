@@ -1,4 +1,5 @@
 import { ConfigService } from "@nestjs/config";
+import type { QuotaTrackerService } from "../../common/quota-tracker.service";
 import { MusicBrainzProvider } from "./musicbrainz.provider";
 
 // Node defines global fetch lazily, which confuses jest.spyOn on restore;
@@ -60,7 +61,11 @@ function mockFetchSequence(
 
 function providerWith(contact?: string): MusicBrainzProvider {
   const config = { get: jest.fn().mockReturnValue(contact) };
-  return new MusicBrainzProvider(config as unknown as ConfigService);
+  const quota = { record: jest.fn() };
+  return new MusicBrainzProvider(
+    config as unknown as ConfigService,
+    quota as unknown as QuotaTrackerService,
+  );
 }
 
 describe("MusicBrainzProvider", () => {

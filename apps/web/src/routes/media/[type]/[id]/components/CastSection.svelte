@@ -36,8 +36,8 @@
 
 {#snippet castCard(c: CastMemberDto, clickable: boolean)}
   <div
-    class="aspect-2/3 w-full overflow-hidden rounded-lg border border-transparent bg-surface-2 {clickable
-      ? 'transition-colors group-hover/cast:border-accent'
+    class="bg-surface-2 aspect-2/3 w-full overflow-hidden rounded-lg border border-transparent {clickable
+      ? 'group-hover/cast:border-accent transition-colors'
       : ''}">
     {#if c.photoUrl}
       <img
@@ -54,13 +54,13 @@
     {c.name}
   </p>
   {#if c.role}
-    <p class="truncate text-[0.65rem] text-dim">{c.role}</p>
+    <p class="text-dim truncate text-[0.65rem]">{c.role}</p>
   {/if}
 {/snippet}
 
 {#if cast.length > 0}
   <section class="mt-10">
-    <h2 class="mb-3 font-display text-xl font-bold">Distribution</h2>
+    <h2 class="font-display mb-3 text-xl font-bold">Distribution</h2>
     <Carousel items={cast} keyOf={(c) => c.name + (c.role ?? "")} gap="gap-3">
       {#snippet card(c)}
         {#if c.id}
@@ -92,7 +92,7 @@
       aria-modal="true"
       class="card relative z-10 max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-t-2xl p-5 sm:rounded-2xl">
       <button
-        class="absolute top-3 right-3 rounded-full p-1.5 text-dim hover:bg-surface-2 hover:text-fg"
+        class="text-dim hover:bg-surface-2 hover:text-fg absolute top-3 right-3 rounded-full p-1.5"
         aria-label="Fermer"
         onclick={closeCast}>
         <Icon name="x" class="h-5 w-5" />
@@ -100,7 +100,7 @@
 
       <div class="flex gap-4">
         <div
-          class="aspect-2/3 w-24 shrink-0 overflow-hidden rounded-lg bg-surface-2">
+          class="bg-surface-2 aspect-2/3 w-24 shrink-0 overflow-hidden rounded-lg">
           {#if castDetail?.photoUrl ?? castMember.photoUrl}
             <img
               src={castDetail?.photoUrl ?? castMember.photoUrl}
@@ -113,7 +113,7 @@
             {castMember.name}
           </h3>
           {#if castMember.role}
-            <p class="text-sm text-dim">{castMember.role}</p>
+            <p class="text-dim text-sm">{castMember.role}</p>
           {/if}
           {#if castDetail?.subtitle}
             <p class="timecode mt-1 text-xs">{castDetail.subtitle}</p>
@@ -123,9 +123,9 @@
 
       {#if castLoading}
         <div class="mt-4 flex flex-col gap-2">
-          <div class="h-3 w-full skeleton rounded"></div>
-          <div class="h-3 w-full skeleton rounded"></div>
-          <div class="h-3 w-2/3 skeleton rounded"></div>
+          <div class="skeleton h-3 w-full rounded"></div>
+          <div class="skeleton h-3 w-full rounded"></div>
+          <div class="skeleton h-3 w-2/3 rounded"></div>
         </div>
       {:else if castDetail}
         {#if castDetail.imdbId || castDetail.wikidataId || castDetail.homepage}
@@ -135,7 +135,7 @@
                 href={castDetail.homepage}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="rounded-full border border-border px-2.5 py-0.5 text-xs font-semibold text-dim transition-colors hover:border-accent hover:text-accent"
+                class="border-border text-dim hover:border-accent hover:text-accent rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors"
                 >Site officiel ↗</a>
             {/if}
             {#if castDetail.imdbId}
@@ -143,7 +143,7 @@
                 href={`https://www.imdb.com/name/${castDetail.imdbId}/`}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="rounded-full border border-border px-2.5 py-0.5 text-xs font-semibold text-dim transition-colors hover:border-accent hover:text-accent"
+                class="border-border text-dim hover:border-accent hover:text-accent rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors"
                 >IMDb ↗</a>
             {/if}
             {#if castDetail.wikidataId}
@@ -151,19 +151,19 @@
                 href={`https://www.wikidata.org/wiki/${castDetail.wikidataId}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="rounded-full border border-border px-2.5 py-0.5 text-xs font-semibold text-dim transition-colors hover:border-accent hover:text-accent"
+                class="border-border text-dim hover:border-accent hover:text-accent rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors"
                 >Wikidata ↗</a>
             {/if}
           </div>
         {/if}
         {#if castDetail.description}
           <p
-            class="mt-4 text-sm leading-relaxed whitespace-pre-line text-fg/90">
+            class="text-fg/90 mt-4 text-sm leading-relaxed whitespace-pre-line">
             {castDetail.description}
           </p>
         {/if}
         {#if castDetail.knownFor.length > 0}
-          <h4 class="mt-5 mb-2 font-display text-sm font-bold">Connu pour</h4>
+          <h4 class="font-display mt-5 mb-2 text-sm font-bold">Connu pour</h4>
           <Carousel
             items={castDetail.knownFor}
             keyOf={(k) => `${k.source}:${k.sourceId}`}
@@ -176,7 +176,7 @@
                 onclick={closeCast}
                 class="w-20 shrink-0 snap-start">
                 <div
-                  class="card overflow-hidden transition-[border-color] hover:border-accent">
+                  class="card hover:border-accent overflow-hidden transition-[border-color]">
                   <Poster src={k.posterUrl} title={k.title} />
                 </div>
                 <p class="mt-1 truncate text-[0.65rem] font-semibold">

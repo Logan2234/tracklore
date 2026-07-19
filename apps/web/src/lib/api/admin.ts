@@ -34,7 +34,7 @@ import type {
 } from "@tracklore/shared";
 import { request } from "./core";
 
-/** Health of every external dependency (config presence + live probe). */
+/** Health and quota usage of every external dependency (config presence, live probe, call counters). */
 export function getAdminServices(): Promise<ServiceStatusResponseDto> {
   return request("/admin/services");
 }

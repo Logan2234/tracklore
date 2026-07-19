@@ -237,8 +237,8 @@
     <div class="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
       {#each { length: 4 } as _, i (i)}
         <div class="card p-4">
-          <div class="h-8 w-2/3 skeleton rounded"></div>
-          <div class="mt-2 h-3 w-4/5 skeleton rounded"></div>
+          <div class="skeleton h-8 w-2/3 rounded"></div>
+          <div class="skeleton mt-2 h-3 w-4/5 rounded"></div>
         </div>
       {/each}
     </div>
@@ -256,7 +256,7 @@
           {#each tiles as t (t.label)}
             <div class="card p-4">
               <p class="font-display text-3xl font-extrabold tabular-nums">
-                {t.value}<span class="text-lg text-dim">{t.unit}</span>
+                {t.value}<span class="text-dim text-lg">{t.unit}</span>
               </p>
               <p class="timecode mt-1 text-xs uppercase">{t.label}</p>
             </div>
@@ -266,7 +266,7 @@
         <div class="grid gap-5 md:grid-cols-2">
           <!-- Type split (share of watch time) -->
           <section class="card p-5">
-            <h2 class="mb-4 font-display text-lg font-bold">
+            <h2 class="font-display mb-4 text-lg font-bold">
               Répartition du temps
             </h2>
             {#if totalHours > 0}
@@ -296,7 +296,7 @@
 
           <!-- Top genres -->
           <section class="card p-5">
-            <h2 class="mb-4 font-display text-lg font-bold">Genres favoris</h2>
+            <h2 class="font-display mb-4 text-lg font-bold">Genres favoris</h2>
             {#if stats.topGenres.length > 0}
               <ul class="flex flex-col gap-3">
                 {#each stats.topGenres as g (g.genre)}
@@ -304,9 +304,9 @@
                     <div class="mb-1 flex justify-between text-sm">
                       <span>{g.genre}</span>
                     </div>
-                    <div class="h-2 overflow-hidden rounded-full bg-surface-2">
+                    <div class="bg-surface-2 h-2 overflow-hidden rounded-full">
                       <div
-                        class="h-full rounded-full bg-accent"
+                        class="bg-accent h-full rounded-full"
                         style={`width:${maxGenre > 0 ? (g.count / maxGenre) * 100 : 0}%`}>
                       </div>
                     </div>
@@ -339,8 +339,8 @@
         <div class="grid gap-5 md:grid-cols-2">
           <!-- Status funnel -->
           <section class="card p-5">
-            <h2 class="mb-4 font-display text-lg font-bold">Progression</h2>
-            <div class="flex h-3 overflow-hidden rounded-full bg-surface-2">
+            <h2 class="font-display mb-4 text-lg font-bold">Progression</h2>
+            <div class="bg-surface-2 flex h-3 overflow-hidden rounded-full">
               {#each GAME_STATUS_ORDER as status (status)}
                 {#if gameCount(status) > 0}
                   <div
@@ -366,7 +366,7 @@
 
           <!-- Top platforms -->
           <section class="card p-5">
-            <h2 class="mb-4 font-display text-lg font-bold">Plateformes</h2>
+            <h2 class="font-display mb-4 text-lg font-bold">Plateformes</h2>
             {#if gameStats.topPlatforms.length > 0}
               <ul class="flex flex-col gap-3">
                 {#each gameStats.topPlatforms as p (p.platform)}
@@ -375,9 +375,9 @@
                       <span class="truncate">{p.platform}</span>
                       <span class="timecode shrink-0">{p.count}</span>
                     </div>
-                    <div class="h-2 overflow-hidden rounded-full bg-surface-2">
+                    <div class="bg-surface-2 h-2 overflow-hidden rounded-full">
                       <div
-                        class="h-full rounded-full bg-accent"
+                        class="bg-accent h-full rounded-full"
                         style={`width:${maxPlatform > 0 ? (p.count / maxPlatform) * 100 : 0}%`}>
                       </div>
                     </div>
@@ -410,8 +410,8 @@
         <div class="grid gap-5 md:grid-cols-2">
           <!-- Status funnel -->
           <section class="card p-5">
-            <h2 class="mb-4 font-display text-lg font-bold">Progression</h2>
-            <div class="flex h-3 overflow-hidden rounded-full bg-surface-2">
+            <h2 class="font-display mb-4 text-lg font-bold">Progression</h2>
+            <div class="bg-surface-2 flex h-3 overflow-hidden rounded-full">
               {#each BOOK_STATUS_ORDER as status (status)}
                 {#if bookCount(status) > 0}
                   <div
@@ -437,7 +437,7 @@
 
           <!-- Top authors -->
           <section class="card p-5">
-            <h2 class="mb-4 font-display text-lg font-bold">Auteurs</h2>
+            <h2 class="font-display mb-4 text-lg font-bold">Auteurs</h2>
             {#if bookStats.topAuthors.length > 0}
               <ul class="flex flex-col gap-3">
                 {#each bookStats.topAuthors as a (a.author)}
@@ -446,9 +446,9 @@
                       <span class="truncate">{a.author}</span>
                       <span class="timecode shrink-0">{a.count}</span>
                     </div>
-                    <div class="h-2 overflow-hidden rounded-full bg-surface-2">
+                    <div class="bg-surface-2 h-2 overflow-hidden rounded-full">
                       <div
-                        class="h-full rounded-full bg-accent"
+                        class="bg-accent h-full rounded-full"
                         style={`width:${maxAuthor > 0 ? (a.count / maxAuthor) * 100 : 0}%`}>
                       </div>
                     </div>
@@ -481,8 +481,8 @@
         <div class="grid gap-5 md:grid-cols-2">
           <!-- Status funnel -->
           <section class="card p-5">
-            <h2 class="mb-4 font-display text-lg font-bold">Progression</h2>
-            <div class="flex h-3 overflow-hidden rounded-full bg-surface-2">
+            <h2 class="font-display mb-4 text-lg font-bold">Progression</h2>
+            <div class="bg-surface-2 flex h-3 overflow-hidden rounded-full">
               {#each MUSIC_STATUS_ORDER as status (status)}
                 {#if musicCount(status) > 0}
                   <div
@@ -508,7 +508,7 @@
 
           <!-- Top artists -->
           <section class="card p-5">
-            <h2 class="mb-4 font-display text-lg font-bold">Artistes</h2>
+            <h2 class="font-display mb-4 text-lg font-bold">Artistes</h2>
             {#if musicStats.topArtists.length > 0}
               <ul class="flex flex-col gap-3">
                 {#each musicStats.topArtists as a (a.artist)}
@@ -517,9 +517,9 @@
                       <span class="truncate">{a.artist}</span>
                       <span class="timecode shrink-0">{a.count}</span>
                     </div>
-                    <div class="h-2 overflow-hidden rounded-full bg-surface-2">
+                    <div class="bg-surface-2 h-2 overflow-hidden rounded-full">
                       <div
-                        class="h-full rounded-full bg-accent"
+                        class="bg-accent h-full rounded-full"
                         style={`width:${maxArtist > 0 ? (a.count / maxArtist) * 100 : 0}%`}>
                       </div>
                     </div>

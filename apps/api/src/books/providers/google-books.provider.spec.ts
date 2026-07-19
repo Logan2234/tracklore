@@ -1,4 +1,5 @@
 import { ConfigService } from "@nestjs/config";
+import type { QuotaTrackerService } from "../../common/quota-tracker.service";
 import { GoogleBooksProvider } from "./google-books.provider";
 
 // Node defines global fetch lazily, which confuses jest.spyOn on restore;
@@ -62,7 +63,11 @@ function providerWith(key: string): GoogleBooksProvider {
   const config = {
     getOrThrow: jest.fn().mockReturnValue(key),
   };
-  return new GoogleBooksProvider(config as unknown as ConfigService);
+  const quota = { record: jest.fn() };
+  return new GoogleBooksProvider(
+    config as unknown as ConfigService,
+    quota as unknown as QuotaTrackerService,
+  );
 }
 
 describe("GoogleBooksProvider", () => {

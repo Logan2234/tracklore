@@ -26,7 +26,7 @@
     {#snippet actions()}
       {#if notifications.unread > 0}
         <button
-          class="text-sm link-accent"
+          class="link-accent text-sm"
           onclick={() => notifications.markAllRead()}>
           Tout marquer comme lu
         </button>
@@ -47,11 +47,11 @@
         <a
           href={`/media/${n.mediaType.toLowerCase()}/${n.sourceId}`}
           onclick={() => notifications.markRead(n.id)}
-          class="card flex items-center gap-3 p-3 transition-[border-color] hover:border-accent {n.read
+          class="card hover:border-accent flex items-center gap-3 p-3 transition-[border-color] {n.read
             ? ''
             : 'border-accent/50'}">
           <span
-            class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-surface-2 text-accent">
+            class="bg-surface-2 text-accent grid h-9 w-9 shrink-0 place-items-center rounded-xl">
             <Icon name="bell" class="h-5 w-5" />
           </span>
           <div class="min-w-0 flex-1">
@@ -64,14 +64,14 @@
                 )}</span>
             </p>
             {#if n.episodeTitle}
-              <p class="truncate text-xs text-dim">{n.episodeTitle}</p>
+              <p class="text-dim truncate text-xs">{n.episodeTitle}</p>
             {/if}
           </div>
           <span class="timecode shrink-0 text-xs">
             {relFmt.format(new Date(n.airDate))}
           </span>
           {#if !n.read}
-            <span class="h-2 w-2 shrink-0 rounded-full bg-accent"></span>
+            <span class="bg-accent h-2 w-2 shrink-0 rounded-full"></span>
           {/if}
         </a>
       {/each}

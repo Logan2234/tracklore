@@ -12,6 +12,6 @@
 </script>
 
 <div
-  class="rounded-xl border border-dashed border-border px-6 py-16 text-center text-dim {cls}">
+  class="border-border text-dim rounded-xl border border-dashed px-6 py-16 text-center {cls}">
   {@render children()}
 </div>

@@ -9,7 +9,7 @@
     [
       {
         id: Domain.MEDIA,
-        label: "Médias",
+        label: "Vidéo",
         desc: "Films, séries et anime.",
         soon: false,
       },
@@ -51,12 +51,12 @@
 
 {#if auth.user}
   <section class="card mb-5 p-5 md:p-6">
-    <h2 class="mb-1 font-display text-lg font-bold">Domaines</h2>
-    <p class="mb-4 text-sm text-dim">
+    <h2 class="font-display mb-1 text-lg font-bold">Domaines</h2>
+    <p class="text-dim mb-4 text-sm">
       Choisis les univers présents dans ton app. Ce que tu masques disparaît de
       la navigation.
     </p>
-    <div class="divide-y divide-border">
+    <div class="divide-border divide-y">
       {#each DOMAINS as d (d.id)}
         {@const on = auth.user.enabledDomains.includes(d.id)}
         {@const isLast = on && auth.user.enabledDomains.length === 1}
@@ -67,12 +67,12 @@
               {d.label}
               {#if d.soon}
                 <span
-                  class="ml-1.5 rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-semibold text-dim">
+                  class="bg-surface-2 text-dim ml-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold">
                   Bientôt
                 </span>
               {/if}
             </p>
-            <p class="text-sm text-dim">{d.desc}</p>
+            <p class="text-dim text-sm">{d.desc}</p>
           </div>
           <button
             class="chip shrink-0 disabled:pointer-events-none disabled:opacity-40"
@@ -88,7 +88,7 @@
       {/each}
     </div>
     {#if domainsError}
-      <p class="mt-2 text-sm text-danger">{domainsError}</p>
+      <p class="text-danger mt-2 text-sm">{domainsError}</p>
     {/if}
   </section>
 {/if}

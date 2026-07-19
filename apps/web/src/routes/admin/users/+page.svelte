@@ -293,7 +293,7 @@
         type="text"
         bind:value={query}
         placeholder="Filtrer par email, identifiant ou nom…"
-        class="w-full max-w-xs rounded-lg border border-border bg-surface px-3 py-2 text-sm" />
+        class="border-border bg-surface w-full max-w-xs rounded-lg border px-3 py-2 text-sm" />
       <Combobox
         label="Filtrer"
         options={FILTERS}
@@ -305,7 +305,7 @@
       <table class="w-full border-collapse text-sm">
         <thead>
           <tr
-            class="border-b border-border text-left text-xs font-semibold text-dim uppercase">
+            class="border-border text-dim border-b text-left text-xs font-semibold uppercase">
             <th class="px-4 py-2.5">Compte</th>
             <th class="hidden px-4 py-2.5 sm:table-cell">Actif</th>
             <th class="hidden px-4 py-2.5 md:table-cell">Créé</th>
@@ -315,39 +315,39 @@
           {#each filteredUsers as u (u.id)}
             <tr
               onclick={() => openUser(u)}
-              class="cursor-pointer border-b border-border last:border-b-0 transition-colors hover:bg-surface-2 {selected?.id ===
+              class="border-border hover:bg-surface-2 cursor-pointer border-b transition-colors last:border-b-0 {selected?.id ===
               u.id
                 ? 'bg-accent/10'
                 : ''}">
               <td class="px-4 py-3">
                 <div class="flex items-center gap-3">
                   <span
-                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-surface-2 font-display text-sm font-bold text-fg">
+                    class="border-border bg-surface-2 font-display text-fg flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-bold">
                     {u.displayName.charAt(0).toUpperCase()}
                   </span>
                   <div class="min-w-0">
                     <div class="flex items-center gap-2">
-                      <span class="truncate font-semibold text-fg"
+                      <span class="text-fg truncate font-semibold"
                         >{u.displayName}</span>
                       {#if u.role === "ADMIN"}
                         <span
-                          class="rounded-full border border-accent/40 bg-accent/10 px-1.5 py-0.5 text-[0.55rem] font-bold text-accent uppercase">
+                          class="border-accent/40 bg-accent/10 text-accent rounded-full border px-1.5 py-0.5 text-[0.55rem] font-bold uppercase">
                           Admin
                         </span>
                       {/if}
                       {#if !u.emailVerified}
                         <span
-                          class="rounded-full border border-border px-1.5 py-0.5 text-[0.55rem] font-bold text-dim uppercase">
+                          class="border-border text-dim rounded-full border px-1.5 py-0.5 text-[0.55rem] font-bold uppercase">
                           Non vérifié
                         </span>
                       {/if}
                     </div>
-                    <p class="truncate text-xs text-dim">{u.email}</p>
+                    <p class="text-dim truncate text-xs">{u.email}</p>
                   </div>
                 </div>
               </td>
               <td class="hidden px-4 py-3 sm:table-cell">
-                <div class="flex items-center gap-2 text-xs text-dim">
+                <div class="text-dim flex items-center gap-2 text-xs">
                   <span
                     class="h-1.5 w-1.5 shrink-0 rounded-full {activityDotClass(
                       u,
@@ -355,7 +355,7 @@
                   {activityLabel(u)}
                 </div>
               </td>
-              <td class="hidden px-4 py-3 text-xs text-dim md:table-cell">
+              <td class="text-dim hidden px-4 py-3 text-xs md:table-cell">
                 {dateFmt.format(new Date(u.createdAt))}
               </td>
             </tr>
@@ -363,11 +363,11 @@
         </tbody>
       </table>
       {#if users.length === 0}
-        <p class="px-4 py-6 text-center text-sm text-dim">
+        <p class="text-dim px-4 py-6 text-center text-sm">
           Aucun compte enregistré.
         </p>
       {:else if filteredUsers.length === 0}
-        <p class="px-4 py-6 text-center text-sm text-dim">
+        <p class="text-dim px-4 py-6 text-center text-sm">
           Aucun compte ne correspond à ce filtre.
         </p>
       {/if}
@@ -388,13 +388,13 @@
       class="card relative z-10 flex h-full w-full max-w-sm flex-col overflow-y-auto rounded-none border-y-0 border-r-0 p-5">
       <div class="mb-4 flex items-start justify-between gap-2">
         <div class="min-w-0">
-          <h2 id="drawer-title" class="truncate font-display text-lg font-bold">
+          <h2 id="drawer-title" class="font-display truncate text-lg font-bold">
             {selected.displayName}
           </h2>
-          <p class="truncate text-xs text-dim">{selected.email}</p>
+          <p class="text-dim truncate text-xs">{selected.email}</p>
         </div>
         <button
-          class="shrink-0 rounded-full p-1.5 text-dim hover:bg-surface-2 hover:text-fg"
+          class="text-dim hover:bg-surface-2 hover:text-fg shrink-0 rounded-full p-1.5"
           aria-label="Fermer"
           onclick={closeDrawer}>
           <Icon name="x" class="h-5 w-5" />
@@ -404,56 +404,56 @@
       <!-- Identité -->
       <section class="mb-5">
         <h3
-          class="mb-2 flex items-center gap-2 text-[0.65rem] font-bold tracking-wider text-dim uppercase">
+          class="text-dim mb-2 flex items-center gap-2 text-[0.65rem] font-bold tracking-wider uppercase">
           Identité
-          <span class="h-px flex-1 bg-border"></span>
+          <span class="bg-border h-px flex-1"></span>
         </h3>
         <label
-          class="flex items-center justify-between gap-2 rounded-lg border border-border p-3 text-sm"
+          class="border-border flex items-center justify-between gap-2 rounded-lg border p-3 text-sm"
           for="role-admin">
-          <span class="font-semibold text-fg">Administrateur</span>
+          <span class="text-fg font-semibold">Administrateur</span>
           <input
             id="role-admin"
             type="checkbox"
-            class="h-4 w-4 shrink-0 accent-accent"
+            class="accent-accent h-4 w-4 shrink-0"
             checked={selected.role === "ADMIN"}
             disabled={roleSaving ||
               (selected.id === auth.user?.id && selected.role === "ADMIN")}
             onchange={(e) => toggleAdmin(e.currentTarget.checked)} />
         </label>
         {#if selected.id === auth.user?.id && selected.role === "ADMIN"}
-          <p class="mt-1.5 text-xs text-dim">
+          <p class="text-dim mt-1.5 text-xs">
             Tu ne peux pas retirer ton propre accès admin.
           </p>
         {/if}
         {#if roleError}
-          <p class="mt-1.5 text-xs text-danger">{roleError}</p>
+          <p class="text-danger mt-1.5 text-xs">{roleError}</p>
         {/if}
       </section>
 
       <!-- Accès -->
       <section class="mb-5">
         <h3
-          class="mb-2 flex items-center gap-2 text-[0.65rem] font-bold tracking-wider text-dim uppercase">
+          class="text-dim mb-2 flex items-center gap-2 text-[0.65rem] font-bold tracking-wider uppercase">
           Accès
-          <span class="h-px flex-1 bg-border"></span>
+          <span class="bg-border h-px flex-1"></span>
         </h3>
         {#if sessionsLoading}
           <div class="space-y-2">
             {#each { length: 2 } as _, i (i)}
-              <div class="h-12 skeleton rounded-lg"></div>
+              <div class="skeleton h-12 rounded-lg"></div>
             {/each}
           </div>
         {:else if sessions && sessions.length > 0}
           <ul class="mb-2 space-y-2">
             {#each sessions as s (s.id)}
               <li
-                class="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
+                class="border-border flex items-center gap-2 rounded-lg border px-3 py-2">
                 <div class="min-w-0 flex-1">
-                  <p class="truncate text-xs font-semibold text-fg">
+                  <p class="text-fg truncate text-xs font-semibold">
                     {s.userAgent ?? "Appareil inconnu"}
                   </p>
-                  <p class="text-[0.65rem] text-dim">
+                  <p class="text-dim text-[0.65rem]">
                     Actif {dateTimeFmt.format(new Date(s.lastUsedAt))}
                   </p>
                 </div>
@@ -461,7 +461,7 @@
                   onclick={() => revoke(s.id)}
                   disabled={revoking === s.id}
                   aria-label="Révoquer cette session"
-                  class="shrink-0 rounded-lg p-1.5 text-dim transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-50">
+                  class="text-dim hover:bg-danger/10 hover:text-danger shrink-0 rounded-lg p-1.5 transition-colors disabled:opacity-50">
                   <Icon name="trash" class="h-4 w-4" />
                 </button>
               </li>
@@ -475,16 +475,16 @@
             </button>
           {/if}
         {:else}
-          <p class="text-sm text-dim">Aucune session active.</p>
+          <p class="text-dim text-sm">Aucune session active.</p>
         {/if}
       </section>
 
       <!-- Données -->
       <section class="mb-5">
         <h3
-          class="mb-2 flex items-center gap-2 text-[0.65rem] font-bold tracking-wider text-dim uppercase">
+          class="text-dim mb-2 flex items-center gap-2 text-[0.65rem] font-bold tracking-wider uppercase">
           Données
-          <span class="h-px flex-1 bg-border"></span>
+          <span class="bg-border h-px flex-1"></span>
         </h3>
         <div class="flex gap-2">
           <button
@@ -502,17 +502,17 @@
           </a>
         </div>
         {#if exportError}
-          <p class="mt-1.5 text-xs text-danger">{exportError}</p>
+          <p class="text-danger mt-1.5 text-xs">{exportError}</p>
         {/if}
       </section>
 
       <!-- Zone sensible -->
       <section
-        class="mt-auto rounded-xl border border-danger/40 bg-danger/5 p-3">
+        class="border-danger/40 bg-danger/5 mt-auto rounded-xl border p-3">
         <h3
-          class="mb-2 flex items-center gap-2 text-[0.65rem] font-bold tracking-wider text-danger uppercase">
+          class="text-danger mb-2 flex items-center gap-2 text-[0.65rem] font-bold tracking-wider uppercase">
           Zone sensible
-          <span class="h-px flex-1 bg-danger/40"></span>
+          <span class="bg-danger/40 h-px flex-1"></span>
         </h3>
         <div class="flex flex-col gap-2">
           <button
@@ -528,13 +528,13 @@
             {resetSending ? "Envoi…" : "Envoyer un lien de réinitialisation"}
           </button>
           {#if verifyMessage}
-            <p class="text-xs text-dim">{verifyMessage}</p>
+            <p class="text-dim text-xs">{verifyMessage}</p>
           {/if}
           {#if resetMessage}
-            <p class="text-xs text-dim">{resetMessage}</p>
+            <p class="text-dim text-xs">{resetMessage}</p>
           {/if}
           {#if selected.id === auth.user?.id}
-            <p class="text-xs text-dim">
+            <p class="text-dim text-xs">
               Utilise la suppression de compte depuis /account pour ton propre
               compte.
             </p>
@@ -573,18 +573,18 @@
       role="dialog"
       aria-modal="true"
       class="card relative z-10 w-full max-w-md rounded-t-2xl p-5 sm:rounded-2xl">
-      <h3 class="mb-3 font-display text-lg font-bold text-danger">
+      <h3 class="font-display text-danger mb-3 text-lg font-bold">
         Supprimer le compte
       </h3>
-      <p class="text-sm text-dim">
+      <p class="text-dim text-sm">
         Le compte de <strong class="text-fg">{selected.displayName}</strong> et toutes
         ses données (bibliothèques, historique, notifications) seront définitivement
         supprimés. Cette action est irréversible.
       </p>
-      <p class="mt-3 text-sm text-dim">
+      <p class="text-dim mt-3 text-sm">
         Pour confirmer, tape
         <code
-          class="rounded bg-surface-2 px-1.5 py-0.5 text-xs font-bold text-fg"
+          class="bg-surface-2 text-fg rounded px-1.5 py-0.5 text-xs font-bold"
           >{selected.username}</code>
         ci-dessous.
       </p>
@@ -593,7 +593,7 @@
         bind:value={deleteConfirmText}
         disabled={deleting}
         placeholder={selected.username}
-        class="mt-3 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm" />
+        class="border-border bg-surface mt-3 w-full rounded-lg border px-3 py-2 text-sm" />
       {#if deleteError}
         <Banner variant="error" class="mt-3">{deleteError}</Banner>
       {/if}

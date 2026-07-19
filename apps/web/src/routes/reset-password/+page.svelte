@@ -45,7 +45,7 @@
       <h1 class="font-display text-xl font-bold">Nouveau mot de passe</h1>
 
       {#if !token}
-        <p class="text-sm text-danger">
+        <p class="text-danger text-sm">
           Lien invalide : aucun token trouvé dans l'URL.
         </p>
       {:else}
@@ -60,14 +60,14 @@
             bind:value={confirmPassword}
             minlength={8}
             required />
-          {#if error}<p class="text-sm text-danger">{error}</p>{/if}
+          {#if error}<p class="text-danger text-sm">{error}</p>{/if}
           <button type="submit" class="btn btn-primary" disabled={loading}>
             {loading ? "Enregistrement…" : "Réinitialiser"}
           </button>
         </form>
       {/if}
 
-      <p class="text-center text-sm text-dim">
+      <p class="text-dim text-center text-sm">
         <a href="/login" class="link-accent">Retour à la connexion</a>
       </p>
     </div>

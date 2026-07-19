@@ -86,8 +86,8 @@
         <section>
           <div class="mb-2 flex items-center justify-between gap-3">
             <div>
-              <h2 class="font-semibold text-fg">{job.label}</h2>
-              <p class="text-xs text-dim">{job.schedule}</p>
+              <h2 class="text-fg font-semibold">{job.label}</h2>
+              <p class="text-dim text-xs">{job.schedule}</p>
             </div>
             <button
               onclick={() => runJob(job.key)}
@@ -99,7 +99,7 @@
 
           {#if last}
             <div
-              class="mb-2 flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-dim">
+              class="border-border bg-surface text-dim mb-2 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs">
               <span
                 class="rounded-full border px-2 py-0.5 font-semibold {last.status ===
                 'SUCCESS'
@@ -115,24 +115,24 @@
 
           {#if job.runs.length === 0}
             <p
-              class="rounded-lg border border-border bg-surface p-4 text-sm text-dim">
+              class="border-border bg-surface text-dim rounded-lg border p-4 text-sm">
               Aucun run enregistré pour l'instant.
             </p>
           {:else}
             <details class="card group">
               <summary
-                class="flex cursor-pointer list-none items-center gap-2 rounded-[inherit] bg-surface-2 px-4 py-2.5 text-sm font-semibold group-open:rounded-b-none group-open:border-b group-open:border-border [&::-webkit-details-marker]:hidden">
+                class="bg-surface-2 group-open:border-border flex cursor-pointer list-none items-center gap-2 rounded-[inherit] px-4 py-2.5 text-sm font-semibold group-open:rounded-b-none group-open:border-b [&::-webkit-details-marker]:hidden">
                 <Icon
                   name="chevron-right"
-                  class="h-4 w-4 shrink-0 text-dim transition-transform group-open:rotate-90" />
+                  class="text-dim h-4 w-4 shrink-0 transition-transform group-open:rotate-90" />
                 Historique ({job.runs.length})
               </summary>
               <div class="overflow-hidden rounded-b-[inherit]">
                 {#each job.runs as run, i (run.id)}
                   <div
-                    class="flex items-center gap-3 bg-surface px-4 py-2.5 text-sm {i >
+                    class="bg-surface flex items-center gap-3 px-4 py-2.5 text-sm {i >
                     0
-                      ? 'border-t border-border'
+                      ? 'border-border border-t'
                       : ''}">
                     <span
                       class="h-2 w-2 shrink-0 rounded-full {run.status ===
@@ -140,13 +140,13 @@
                         ? 'bg-success'
                         : 'bg-danger'}"
                       aria-hidden="true"></span>
-                    <span class="w-32 shrink-0 tabular-nums text-dim">
+                    <span class="text-dim w-32 shrink-0 tabular-nums">
                       {dateFmt.format(new Date(run.startedAt))}
                     </span>
-                    <span class="min-w-0 flex-1 truncate text-fg">
+                    <span class="text-fg min-w-0 flex-1 truncate">
                       {run.status === "FAILURE" ? run.error : run.summary}
                     </span>
-                    <span class="shrink-0 text-xs text-dim tabular-nums">
+                    <span class="text-dim shrink-0 text-xs tabular-nums">
                       {durationMs(run)} ms
                     </span>
                   </div>

@@ -1,7 +1,10 @@
 import type { Domain, MediaType, Role, SecurityEventType } from "../enums";
 
-/** Which app area a dependency powers, for grouping in the admin status page. */
-export type ServiceArea = "Écrans" | "Jeux" | "Livres" | "Musique" | "Système";
+/** Which app area a dependency powers, for grouping in the admin services page. */
+export type ServiceArea = "Vidéo" | "Jeux" | "Livres" | "Musique" | "Système";
+
+/** Billing window a documented provider quota resets on. */
+export type QuotaWindow = "day" | "month";
 
 /** Health of one external dependency, as surfaced by the admin services page. */
 export interface ServiceStatusDto {
@@ -28,6 +31,14 @@ export interface ServiceStatusDto {
   latencyMs?: number;
   /** Where to obtain the missing key/credentials, shown when `!configured`. */
   keyUrl?: string;
+  /** Calls recorded today (UTC). Absent for services with no call-based quota (e.g. webPush). */
+  today?: number;
+  /** Calls recorded this calendar month (UTC). Absent alongside `today`. */
+  thisMonth?: number;
+  /** Documented free-tier quota, when publicly known; absent otherwise. */
+  limit?: { max: number; window: QuotaWindow };
+  /** `today` or `thisMonth` (matching `limit.window`) relative to `limit.max`, as a percentage. Present only when `limit` is set. */
+  percentUsed?: number;
 }
 
 export interface ServiceStatusResponseDto {

@@ -18,7 +18,7 @@
 
   <a
     href="/admin"
-    class="fixed right-4 bottom-20 z-30 flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/15 px-3 py-1.5 text-xs font-bold text-accent shadow-sm backdrop-blur md:bottom-4">
+    class="border-accent/40 bg-accent/15 text-accent fixed right-4 bottom-20 z-30 flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold shadow-sm backdrop-blur md:bottom-4">
     <Icon name="shield" class="h-3.5 w-3.5" />
     Admin
   </a>

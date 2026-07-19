@@ -1,6 +1,7 @@
 import { MediaSource, MediaType } from "@tracklore/shared";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { QuotaTrackerService } from "../../common/quota-tracker.service";
 import { AnilistProvider } from "./anilist.provider";
 
 const FIXTURES = join(__dirname, "..", "..", "..", "test", "fixtures");
@@ -26,7 +27,8 @@ function mockFetch(body: unknown): void {
 }
 
 describe("AnilistProvider", () => {
-  const provider = new AnilistProvider();
+  const quota = { record: jest.fn() };
+  const provider = new AnilistProvider(quota as unknown as QuotaTrackerService);
 
   afterEach(() => {
     global.fetch = originalFetch;

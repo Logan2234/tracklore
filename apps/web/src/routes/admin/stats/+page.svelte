@@ -133,7 +133,7 @@
     <div class="flex flex-col gap-9">
       <section>
         <h2
-          class="mb-3 text-xs font-semibold uppercase tracking-wider text-dim">
+          class="text-dim mb-3 text-xs font-semibold tracking-wider uppercase">
           Comptes
         </h2>
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -152,7 +152,7 @@
 
       <section>
         <h2
-          class="mb-3 text-xs font-semibold uppercase tracking-wider text-dim">
+          class="text-dim mb-3 text-xs font-semibold tracking-wider uppercase">
           Catalogue en cache
         </h2>
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -176,7 +176,7 @@
           <StatCard
             value={nf.format(stats.cache.staleMediaCount)}
             label="Cache à rafraîchir"
-            hint="Média non synchronisé > 24 h" />
+            hint="Vidéo non synchronisée > 24 h" />
           <StatCard
             value={formatBytes(stats.databaseBytes)}
             label="Taille de la base" />
@@ -185,7 +185,7 @@
 
       <section>
         <h2
-          class="mb-3 text-xs font-semibold uppercase tracking-wider text-dim">
+          class="text-dim mb-3 text-xs font-semibold tracking-wider uppercase">
           Activité
         </h2>
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -204,7 +204,7 @@
 
       <section>
         <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h2 class="text-xs font-semibold uppercase tracking-wider text-dim">
+          <h2 class="text-dim text-xs font-semibold tracking-wider uppercase">
             Évolution
           </h2>
           <div class="flex gap-1.5">
@@ -225,7 +225,7 @@
           class:opacity-50={trendsBusy}>
           <div class="card p-4">
             <div class="mb-1 flex items-baseline justify-between gap-2">
-              <span class="text-sm text-dim">Titres en cache</span>
+              <span class="text-dim text-sm">Titres en cache</span>
               <span class="font-display text-xl font-bold tabular-nums">
                 {nf.format(latest(trends.catalogGrowth))}
               </span>
@@ -234,7 +234,7 @@
           </div>
           <div class="card p-4">
             <div class="mb-1 flex items-baseline justify-between gap-2">
-              <span class="text-sm text-dim">Visionnages</span>
+              <span class="text-dim text-sm">Visionnages</span>
               <span class="font-display text-xl font-bold tabular-nums">
                 {nf.format(latest(trends.watchActivity))}
               </span>
@@ -243,7 +243,7 @@
           </div>
           <div class="card p-4">
             <div class="mb-1 flex items-baseline justify-between gap-2">
-              <span class="text-sm text-dim">Nouveaux comptes</span>
+              <span class="text-dim text-sm">Nouveaux comptes</span>
               <span class="font-display text-xl font-bold tabular-nums">
                 {nf.format(latest(trends.newAccounts))}
               </span>
@@ -252,7 +252,7 @@
           </div>
           <div class="card p-4">
             <div class="mb-1 flex items-baseline justify-between gap-2">
-              <span class="text-sm text-dim">Notifications</span>
+              <span class="text-dim text-sm">Notifications</span>
               <span class="font-display text-xl font-bold tabular-nums">
                 {nf.format(latest(trends.notifications))}
               </span>
@@ -263,7 +263,7 @@
       </section>
     </div>
 
-    <p class="mt-10 text-xs text-dim">
+    <p class="text-dim mt-10 text-xs">
       Dernier rafraîchissement : {dateTimeFmt.format(
         new Date(stats.generatedAt),
       )}

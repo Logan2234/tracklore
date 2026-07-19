@@ -130,7 +130,7 @@
       <button
         type="button"
         aria-label="Précédent"
-        class="absolute top-1/2 left-2 -translate-y-1/2 rounded-full border border-border bg-bg/90 p-1.5 opacity-0 shadow-md backdrop-blur transition-opacity group-hover:opacity-100 hover:bg-surface-2"
+        class="border-border bg-bg/90 hover:bg-surface-2 absolute top-1/2 left-2 -translate-y-1/2 rounded-full border p-1.5 opacity-0 shadow-md backdrop-blur transition-opacity group-hover:opacity-100"
         onclick={() => scrollByPage(-1)}>
         <Icon name="chevron-left" class="h-4 w-4" />
       </button>
@@ -139,7 +139,7 @@
       <button
         type="button"
         aria-label="Suivant"
-        class="absolute top-1/2 right-2 -translate-y-1/2 rounded-full border border-border bg-bg/90 p-1.5 opacity-0 shadow-md backdrop-blur transition-opacity group-hover:opacity-100 hover:bg-surface-2"
+        class="border-border bg-bg/90 hover:bg-surface-2 absolute top-1/2 right-2 -translate-y-1/2 rounded-full border p-1.5 opacity-0 shadow-md backdrop-blur transition-opacity group-hover:opacity-100"
         onclick={() => scrollByPage(1)}>
         <Icon name="chevron-right" class="h-4 w-4" />
       </button>

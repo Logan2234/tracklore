@@ -40,6 +40,6 @@
   {/if}
 
   {#if version}
-    <p class="mt-6 text-center text-xs text-dim">Tracklore v{version}</p>
+    <p class="text-dim mt-6 text-center text-xs">Tracklore v{version}</p>
   {/if}
 </div>

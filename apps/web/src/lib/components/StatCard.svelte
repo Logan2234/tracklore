@@ -12,8 +12,8 @@
   <p class="font-display text-2xl leading-none font-bold tabular-nums">
     {value}
   </p>
-  <p class="mt-1.5 text-sm text-dim">{label}</p>
+  <p class="text-dim mt-1.5 text-sm">{label}</p>
   {#if hint}
-    <p class="mt-0.5 text-xs text-dim/70">{hint}</p>
+    <p class="text-dim/70 mt-0.5 text-xs">{hint}</p>
   {/if}
 </div>

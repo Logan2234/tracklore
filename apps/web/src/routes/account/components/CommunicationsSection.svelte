@@ -58,12 +58,12 @@
 
 {#if auth.user}
   <section class="card mb-5 p-5 md:p-6">
-    <h2 class="mb-4 font-display text-lg font-bold">Communications</h2>
-    <div class="divide-y divide-border">
+    <h2 class="font-display mb-4 text-lg font-bold">Communications</h2>
+    <div class="divide-border divide-y">
       <div class="flex items-center justify-between gap-4 py-3 first:pt-0">
         <div>
           <p class="font-semibold">Notifications dans l'app</p>
-          <p class="text-sm text-dim">Alerte quand un épisode suivi sort.</p>
+          <p class="text-dim text-sm">Alerte quand un épisode suivi sort.</p>
         </div>
         <button
           class="chip shrink-0"
@@ -75,7 +75,7 @@
       <div class="flex items-center justify-between gap-4 py-3">
         <div>
           <p class="font-semibold">Email</p>
-          <p class="text-sm text-dim">
+          <p class="text-dim text-sm">
             Alerte par email quand un épisode suivi sort.
           </p>
         </div>
@@ -89,7 +89,7 @@
       <div class="flex items-center justify-between gap-4 py-3 last:pb-0">
         <div>
           <p class="font-semibold">Notifications push</p>
-          <p class="text-sm text-dim">
+          <p class="text-dim text-sm">
             {#if pushSupported}
               Pour être alerté d’un nouvel épisode même appli fermée.
             {:else}
@@ -107,7 +107,7 @@
       </div>
     </div>
     {#if notifyError}
-      <p class="mt-2 text-sm text-danger">{notifyError}</p>
+      <p class="text-danger mt-2 text-sm">{notifyError}</p>
     {/if}
   </section>
 {/if}

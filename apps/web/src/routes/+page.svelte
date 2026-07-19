@@ -172,13 +172,13 @@
     <div class="mb-10 flex flex-col gap-10">
       {#each { length: 2 } as _, i (i)}
         <div>
-          <div class="mb-4 h-3 w-20 skeleton rounded"></div>
-          <div class="mb-3 h-6 w-32 skeleton rounded"></div>
+          <div class="skeleton mb-4 h-3 w-20 rounded"></div>
+          <div class="skeleton mb-3 h-6 w-32 rounded"></div>
           <div class="flex gap-4 overflow-hidden">
             {#each { length: 4 } as _, j (j)}
               <div class="w-32 shrink-0 sm:w-36">
-                <div class="aspect-2/3 w-full skeleton rounded-xl"></div>
-                <div class="mt-2 h-3 w-4/5 skeleton rounded"></div>
+                <div class="skeleton aspect-2/3 w-full rounded-xl"></div>
+                <div class="skeleton mt-2 h-3 w-4/5 rounded"></div>
               </div>
             {/each}
           </div>
@@ -197,12 +197,12 @@
     <section class="mb-10">
       <div class="mb-4 flex items-baseline justify-between">
         <p class="timecode text-xs uppercase">Vidéo</p>
-        <a href="/media" class="text-sm font-semibold text-dim hover:text-fg"
+        <a href="/media" class="text-dim hover:text-fg text-sm font-semibold"
           >Voir plus →</a>
       </div>
 
       {#if watching.length > 0}
-        <h2 class="mb-3 font-display text-lg font-bold">À reprendre</h2>
+        <h2 class="font-display mb-3 text-lg font-bold">À reprendre</h2>
         <div class="mb-6">
           <Carousel items={watchingRecent} keyOf={(e) => e.id}>
             {#snippet card(e)}
@@ -211,19 +211,19 @@
                   href={`/media/${e.mediaItem.type.toLowerCase()}/${e.mediaItem.sourceId}`}
                   class="block">
                   <div
-                    class="card overflow-hidden transition-[border-color] hover:border-accent">
+                    class="card hover:border-accent overflow-hidden transition-[border-color]">
                     <Poster
                       src={e.mediaItem.posterUrl}
                       title={e.mediaItem.title} />
                   </div>
-                  <p class="mt-2 truncate font-display text-sm font-semibold">
+                  <p class="font-display mt-2 truncate text-sm font-semibold">
                     {e.mediaItem.title}
                   </p>
                 </a>
                 {#if e.progress}
                   <div
-                    class="mt-1 h-1 overflow-hidden rounded-full bg-surface-2">
-                    <div class="h-full bg-accent" style={`width: ${pct(e)}%`}>
+                    class="bg-surface-2 mt-1 h-1 overflow-hidden rounded-full">
+                    <div class="bg-accent h-full" style={`width: ${pct(e)}%`}>
                     </div>
                   </div>
                   <p class="timecode mt-1 text-xs">
@@ -249,19 +249,19 @@
           <h2 class="font-display text-lg font-bold">À venir</h2>
           <a
             href="/calendar"
-            class="text-sm font-semibold text-dim hover:text-fg"
+            class="text-dim hover:text-fg text-sm font-semibold"
             >Calendrier →</a>
         </div>
         <div class="grid gap-3 sm:grid-cols-3">
           {#each week as e (e.mediaItem.id + epCode(e))}
             <a
               href={mediaHref(e)}
-              class="card flex items-center gap-3 p-3 transition-[border-color] hover:border-accent">
+              class="card hover:border-accent flex items-center gap-3 p-3 transition-[border-color]">
               <div class="w-10 shrink-0 overflow-hidden rounded-md">
                 <Poster src={e.mediaItem.posterUrl} title={e.mediaItem.title} />
               </div>
               <div class="min-w-0">
-                <p class="truncate font-display text-sm font-semibold">
+                <p class="font-display truncate text-sm font-semibold">
                   {e.mediaItem.title}
                 </p>
                 <p class="timecode text-xs">
@@ -280,20 +280,20 @@
     <section class="mb-10">
       <div class="mb-4 flex items-baseline justify-between">
         <p class="timecode text-xs uppercase">Jeux</p>
-        <a href="/games" class="text-sm font-semibold text-dim hover:text-fg"
+        <a href="/games" class="text-dim hover:text-fg text-sm font-semibold"
           >Voir →</a>
       </div>
-      <h2 class="mb-3 font-display text-lg font-bold">En cours</h2>
+      <h2 class="font-display mb-3 text-lg font-bold">En cours</h2>
       <Carousel items={playingGames} keyOf={(e) => e.id}>
         {#snippet card(e)}
           <a
             href={`/games/${e.game.sourceId}`}
             class="w-32 shrink-0 snap-start sm:w-36">
             <div
-              class="card overflow-hidden transition-[border-color] hover:border-accent">
+              class="card hover:border-accent overflow-hidden transition-[border-color]">
               <Poster src={e.game.coverUrl} title={e.game.title} />
             </div>
-            <p class="mt-2 truncate font-display text-sm font-semibold">
+            <p class="font-display mt-2 truncate text-sm font-semibold">
               {e.game.title}
             </p>
           </a>
@@ -307,20 +307,20 @@
     <section class="mb-10">
       <div class="mb-4 flex items-baseline justify-between">
         <p class="timecode text-xs uppercase">Livres</p>
-        <a href="/books" class="text-sm font-semibold text-dim hover:text-fg"
+        <a href="/books" class="text-dim hover:text-fg text-sm font-semibold"
           >Voir →</a>
       </div>
-      <h2 class="mb-3 font-display text-lg font-bold">En lecture</h2>
+      <h2 class="font-display mb-3 text-lg font-bold">En lecture</h2>
       <Carousel items={readingBooks} keyOf={(e) => e.id}>
         {#snippet card(e)}
           <a
             href={`/books/${e.book.sourceId}`}
             class="w-32 shrink-0 snap-start sm:w-36">
             <div
-              class="card overflow-hidden transition-[border-color] hover:border-accent">
+              class="card hover:border-accent overflow-hidden transition-[border-color]">
               <Poster src={e.book.coverUrl} title={e.book.title} />
             </div>
-            <p class="mt-2 truncate font-display text-sm font-semibold">
+            <p class="font-display mt-2 truncate text-sm font-semibold">
               {e.book.title}
             </p>
           </a>
@@ -334,20 +334,20 @@
     <section class="mb-10">
       <div class="mb-4 flex items-baseline justify-between">
         <p class="timecode text-xs uppercase">Musique</p>
-        <a href="/music" class="text-sm font-semibold text-dim hover:text-fg"
+        <a href="/music" class="text-dim hover:text-fg text-sm font-semibold"
           >Voir →</a>
       </div>
-      <h2 class="mb-3 font-display text-lg font-bold">À écouter</h2>
+      <h2 class="font-display mb-3 text-lg font-bold">À écouter</h2>
       <Carousel items={toListenAlbums} keyOf={(e) => e.id}>
         {#snippet card(e)}
           <a
             href={`/music/${e.album.sourceId}`}
             class="w-32 shrink-0 snap-start sm:w-36">
             <div
-              class="card overflow-hidden transition-[border-color] hover:border-accent">
+              class="card hover:border-accent overflow-hidden transition-[border-color]">
               <Poster src={e.album.coverUrl} title={e.album.title} />
             </div>
-            <p class="mt-2 truncate font-display text-sm font-semibold">
+            <p class="font-display mt-2 truncate text-sm font-semibold">
               {e.album.title}
             </p>
           </a>
@@ -360,12 +360,12 @@
   <div class="grid gap-3 sm:grid-cols-2">
     <a
       href="/stats"
-      class="card flex items-center justify-between p-5 transition-[border-color] hover:border-accent">
+      class="card hover:border-accent flex items-center justify-between p-5 transition-[border-color]">
       <div class="flex items-center gap-3">
-        <Icon name="stats" class="h-6 w-6 text-accent" />
+        <Icon name="stats" class="text-accent h-6 w-6" />
         <div>
           <p class="font-display font-bold">Tes statistiques</p>
-          <p class="text-sm text-dim">
+          <p class="text-dim text-sm">
             Vidéo, jeux et livres en un coup d’œil.
           </p>
         </div>
@@ -375,12 +375,12 @@
 
     <a
       href="/account"
-      class="card flex items-center justify-between p-5 transition-[border-color] hover:border-accent">
+      class="card hover:border-accent flex items-center justify-between p-5 transition-[border-color]">
       <div class="flex items-center gap-3">
-        <Icon name="user" class="h-6 w-6 text-accent" />
+        <Icon name="user" class="text-accent h-6 w-6" />
         <div>
           <p class="font-display font-bold">Mon compte</p>
-          <p class="text-sm text-dim">Profil, préférences et notifications.</p>
+          <p class="text-dim text-sm">Profil, préférences et notifications.</p>
         </div>
       </div>
       <span class="text-dim">→</span>

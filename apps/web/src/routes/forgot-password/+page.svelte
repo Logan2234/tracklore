@@ -28,7 +28,7 @@
       <p class="font-display text-3xl font-extrabold tracking-tight">
         TRACK<span class="text-accent">LORE</span>
       </p>
-      <p class="mt-2 text-sm text-dim">Mot de passe oublié.</p>
+      <p class="text-dim mt-2 text-sm">Mot de passe oublié.</p>
     </div>
 
     <div class="card flex flex-col gap-4 p-7">
@@ -37,7 +37,7 @@
       </h1>
 
       {#if !submitted}
-        <p class="text-sm text-dim">
+        <p class="text-dim text-sm">
           Indique l'email de ton compte. Si un compte existe, un lien de
           réinitialisation (valable 1h) va t'être envoyé par email.
         </p>
@@ -48,19 +48,19 @@
             bind:value={email}
             required
             class="input" />
-          {#if error}<p class="text-sm text-danger">{error}</p>{/if}
+          {#if error}<p class="text-danger text-sm">{error}</p>{/if}
           <button type="submit" class="btn btn-primary" disabled={loading}>
             {loading ? "Envoi…" : "Envoyer le lien"}
           </button>
         </form>
       {:else}
-        <p class="text-sm text-dim">
+        <p class="text-dim text-sm">
           Si un compte existe avec cet email, un lien de réinitialisation vient
           d'être envoyé.
         </p>
       {/if}
 
-      <p class="text-center text-sm text-dim">
+      <p class="text-dim text-center text-sm">
         <a href="/login" class="link-accent">Retour à la connexion</a>
       </p>
     </div>

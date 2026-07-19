@@ -25,12 +25,12 @@
 <header class="flex items-start justify-between gap-4 {cls}">
   <div>
     <h1
-      class="flex items-center gap-2 font-display text-3xl font-extrabold tracking-tight md:text-4xl">
-      {#if icon}<Icon name={icon} class="h-7 w-7 text-accent" />{/if}
+      class="font-display flex items-center gap-2 text-3xl font-extrabold tracking-tight md:text-4xl">
+      {#if icon}<Icon name={icon} class="text-accent h-7 w-7" />{/if}
       {title}
     </h1>
     {#if subtitle}
-      <p class="mt-1 text-dim">{subtitle}</p>
+      <p class="text-dim mt-1">{subtitle}</p>
     {/if}
   </div>
   {#if actions}

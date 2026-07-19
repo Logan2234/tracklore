@@ -46,6 +46,8 @@
   <!-- Drawer -->
   <aside
     class="
+      border-border
+      bg-surface
       fixed
       right-0
       bottom-0
@@ -57,8 +59,6 @@
       flex-col
       rounded-t-3xl
       border
-      border-border
-      bg-surface
       shadow-xl
       md:hidden
     ">
@@ -66,11 +66,11 @@
 
     <div
       class="
+        border-border
         flex
         items-center
         justify-between
         border-b
-        border-border
         px-5
         py-4
       ">
@@ -86,12 +86,12 @@
       <button
         onclick={close}
         class="
+          hover:bg-surface-2
           grid
           h-9
           w-9
           place-items-center
           rounded-full
-          hover:bg-surface-2
         ">
         <Icon name="x" class="h-5 w-5" />
       </button>
@@ -107,12 +107,12 @@
       {#if inAdmin}
         <div
           class="
+            text-dim
             mb-2
             text-xs
             font-bold
-            uppercase
             tracking-wider
-            text-dim
+            uppercase
           ">
           Administration
         </div>
@@ -177,14 +177,15 @@
 
     <div
       class="
-        border-t
         border-border
+        border-t
         p-4
       ">
       <a
         href="/account"
         onclick={close}
         class="
+          hover:bg-surface-2
           mt-2
           flex
           items-center
@@ -194,7 +195,6 @@
           py-3
           text-sm
           font-semibold
-          hover:bg-surface-2
         ">
         <Icon name="user" class="h-5 w-5" />
 

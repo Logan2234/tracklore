@@ -5,6 +5,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { MusicSource, MusicSummaryDto } from "@tracklore/shared";
+import { QuotaTrackerService } from "../../common/quota-tracker.service";
 import type {
   MusicCatalogProvider,
   ProviderMusicDetails,
@@ -104,7 +105,10 @@ export class MusicBrainzProvider implements MusicCatalogProvider {
 
   private lastRequestAt = 0;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly quota: QuotaTrackerService,
+  ) {}
 
   async search(query: string): Promise<MusicSummaryDto[]> {
     const params = new URLSearchParams({ query, fmt: "json", limit: "20" });
@@ -276,6 +280,7 @@ export class MusicBrainzProvider implements MusicCatalogProvider {
     for (let attempt = 1; attempt <= GET_MAX_ATTEMPTS; attempt++) {
       await this.throttle();
 
+      this.quota.record("musicbrainz");
       const response = await fetch(url, {
         headers: {
           Accept: "application/json",

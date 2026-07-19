@@ -25,7 +25,7 @@
   type DomainIcon = "tv" | "gamepad" | "book" | "music";
 
   const DOMAINS: { id: Domain; label: string; icon: DomainIcon }[] = [
-    { id: "MEDIA", label: "Écrans", icon: "tv" },
+    { id: "MEDIA", label: "Vidéo", icon: "tv" },
     { id: "GAMES", label: "Jeux", icon: "gamepad" },
     { id: "BOOKS", label: "Livres", icon: "book" },
     { id: "MUSIC", label: "Musique", icon: "music" },
@@ -295,7 +295,7 @@
       class="input sm:flex-1" />
     <div class="flex items-center gap-2">
       <span
-        class="hidden text-[0.65rem] font-bold tracking-wider text-dim uppercase sm:inline">
+        class="text-dim hidden text-[0.65rem] font-bold tracking-wider uppercase sm:inline">
         Tri
       </span>
       <Combobox
@@ -348,16 +348,16 @@
         : "Aucun titre en cache pour ce domaine."}
     </EmptyState>
   {:else}
-    <p class="mb-2 text-xs text-dim">
+    <p class="text-dim mb-2 text-xs">
       {total} titre(s){orphansOnly ? " orphelin(s)" : ""} · {staleTotal} obsolète(s)
       · {orphanTotal} orphelin(s).
     </p>
     <ul class="space-y-2">
       {#each items as item (item.id)}
         <li
-          class="card flex items-center gap-3 p-3 transition-colors hover:bg-surface-2 {selectedId ===
+          class="card hover:bg-surface-2 flex items-center gap-3 p-3 transition-colors {selectedId ===
           item.id
-            ? 'ring-1 ring-accent'
+            ? 'ring-accent ring-1'
             : ''}">
           <button
             type="button"
@@ -370,27 +370,27 @@
                 class="h-14 w-10 shrink-0 rounded object-cover" />
             {:else}
               <div
-                class="flex h-14 w-10 shrink-0 items-center justify-center rounded bg-surface-2 text-dim">
+                class="bg-surface-2 text-dim flex h-14 w-10 shrink-0 items-center justify-center rounded">
                 <Icon name={domainIcon(item.domain)} class="h-4 w-4" />
               </div>
             {/if}
             <div class="min-w-0 flex-1">
               <div class="flex flex-wrap items-center gap-2">
-                <span class="truncate font-semibold text-fg">{item.title}</span>
+                <span class="text-fg truncate font-semibold">{item.title}</span>
                 <span
-                  class="rounded-full border border-border px-2 py-0.5 text-[10px] font-bold text-dim">
+                  class="border-border text-dim rounded-full border px-2 py-0.5 text-[10px] font-bold">
                   {item.canonicalSource}
                 </span>
                 {#if item.stale}
                   <span
-                    class="flex items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-[10px] font-bold text-accent">
-                    <span class="h-1.5 w-1.5 rounded-full bg-accent"></span>
+                    class="border-accent/40 bg-accent/10 text-accent flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold">
+                    <span class="bg-accent h-1.5 w-1.5 rounded-full"></span>
                     Obsolète
                   </span>
                 {/if}
                 {#if item.referenceCount === 0}
                   <span
-                    class="rounded-full border border-border px-2 py-0.5 text-[10px] font-bold text-dim">
+                    class="border-border text-dim rounded-full border px-2 py-0.5 text-[10px] font-bold">
                     Orphelin
                   </span>
                 {/if}
@@ -442,15 +442,15 @@
       class="card relative z-10 flex h-full w-full max-w-sm flex-col overflow-y-auto rounded-none border-y-0 border-r-0 p-5">
       {#if detailLoading}
         <div class="space-y-4">
-          <div class="h-40 skeleton rounded-lg"></div>
-          <div class="h-4 w-2/3 skeleton rounded"></div>
-          <div class="h-24 skeleton rounded-lg"></div>
+          <div class="skeleton h-40 rounded-lg"></div>
+          <div class="skeleton h-4 w-2/3 rounded"></div>
+          <div class="skeleton h-24 rounded-lg"></div>
         </div>
       {:else if detailError}
         <div class="mb-4 flex items-center justify-between">
           <span class="font-display font-bold">Détail</span>
           <button
-            class="rounded-full p-1.5 text-dim hover:bg-surface-2 hover:text-fg"
+            class="text-dim hover:bg-surface-2 hover:text-fg rounded-full p-1.5"
             aria-label="Fermer"
             onclick={closeDrawer}>
             <Icon name="x" class="h-5 w-5" />
@@ -467,7 +467,7 @@
                 class="h-24 w-16 shrink-0 rounded object-cover shadow-sm" />
             {:else}
               <div
-                class="flex h-24 w-16 shrink-0 items-center justify-center rounded bg-surface-2 text-dim">
+                class="bg-surface-2 text-dim flex h-24 w-16 shrink-0 items-center justify-center rounded">
                 <Icon name={domainIcon(detail.domain)} class="h-6 w-6" />
               </div>
             {/if}
@@ -477,23 +477,23 @@
                 class="font-display text-lg leading-tight font-bold">
                 {detail.title}
               </h2>
-              <p class="mt-1 text-xs text-dim">{detail.canonicalSource}</p>
+              <p class="text-dim mt-1 text-xs">{detail.canonicalSource}</p>
               <div class="mt-1.5 flex flex-wrap gap-1.5">
                 {#if detail.stale}
                   <span
-                    class="rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-[10px] font-bold text-accent">
+                    class="border-accent/40 bg-accent/10 text-accent rounded-full border px-2 py-0.5 text-[10px] font-bold">
                     Obsolète
                   </span>
                 {/if}
                 <span
-                  class="rounded-full border border-border px-2 py-0.5 text-[10px] font-bold text-dim">
+                  class="border-border text-dim rounded-full border px-2 py-0.5 text-[10px] font-bold">
                   {detail.referenceCount} compte(s)
                 </span>
               </div>
             </div>
           </div>
           <button
-            class="shrink-0 rounded-full p-1.5 text-dim hover:bg-surface-2 hover:text-fg"
+            class="text-dim hover:bg-surface-2 hover:text-fg shrink-0 rounded-full p-1.5"
             aria-label="Fermer"
             onclick={closeDrawer}>
             <Icon name="x" class="h-5 w-5" />
@@ -503,14 +503,14 @@
         <!-- Informations du cache -->
         <section class="mb-5">
           <h3
-            class="mb-2 flex items-center gap-2 text-[0.65rem] font-bold tracking-wider text-dim uppercase">
+            class="text-dim mb-2 flex items-center gap-2 text-[0.65rem] font-bold tracking-wider uppercase">
             Informations du cache
-            <span class="h-px flex-1 bg-border"></span>
+            <span class="bg-border h-px flex-1"></span>
           </h3>
           <dl class="space-y-1.5 text-sm">
             <div class="flex justify-between gap-3">
               <dt class="text-dim">Dernière sync</dt>
-              <dd class="timecode text-right text-fg">
+              <dd class="timecode text-fg text-right">
                 {dateFmt.format(new Date(detail.lastSyncedAt))}
               </dd>
             </div>
@@ -533,15 +533,15 @@
         {#if detail.seasons.length > 0}
           <section class="mb-5">
             <h3
-              class="mb-2 flex items-center gap-2 text-[0.65rem] font-bold tracking-wider text-dim uppercase">
+              class="text-dim mb-2 flex items-center gap-2 text-[0.65rem] font-bold tracking-wider uppercase">
               Saisons ({detail.seasons.length})
-              <span class="h-px flex-1 bg-border"></span>
+              <span class="bg-border h-px flex-1"></span>
             </h3>
             <ul class="space-y-1 text-sm">
               {#each detail.seasons as s (s.number)}
                 <li
-                  class="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-1.5">
-                  <span class="truncate text-fg">
+                  class="border-border flex items-center justify-between gap-3 rounded-lg border px-3 py-1.5">
+                  <span class="text-fg truncate">
                     {s.title ?? `Saison ${s.number}`}
                   </span>
                   <span class="timecode shrink-0 text-xs">
@@ -556,9 +556,9 @@
         <!-- Identifiants externes -->
         <section class="mb-5">
           <h3
-            class="mb-2 flex items-center gap-2 text-[0.65rem] font-bold tracking-wider text-dim uppercase">
+            class="text-dim mb-2 flex items-center gap-2 text-[0.65rem] font-bold tracking-wider uppercase">
             Identifiants externes
-            <span class="h-px flex-1 bg-border"></span>
+            <span class="bg-border h-px flex-1"></span>
           </h3>
           <ul class="space-y-1">
             {#each detail.externalIds as ext (ext.source + ext.externalId)}
@@ -593,7 +593,7 @@
               Supprimer du cache
             </button>
           {:else}
-            <p class="text-center text-xs text-dim">
+            <p class="text-dim text-center text-xs">
               Référencé par {detail.referenceCount} compte(s) — non supprimable.
             </p>
           {/if}

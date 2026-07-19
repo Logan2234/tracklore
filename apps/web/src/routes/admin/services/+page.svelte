@@ -29,8 +29,8 @@
   });
 
   // Ordered areas so groups render in a stable, sensible order. Must match the
-  // ServiceArea values the API emits (see admin.service.ts) — "Écrans", not "Vidéo".
-  const AREAS = ["Écrans", "Jeux", "Livres", "Musique", "Système"] as const;
+  // ServiceArea values the API emits (see admin.service.ts).
+  const AREAS = ["Vidéo", "Jeux", "Livres", "Musique", "Système"] as const;
 
   const grouped = $derived(
     AREAS.map((area) => ({
@@ -44,6 +44,8 @@
     minute: "2-digit",
     second: "2-digit",
   });
+
+  const nf = new Intl.NumberFormat("fr-FR");
 
   type Health = { label: string; cls: string };
 
@@ -78,13 +80,18 @@
       cls: "border-accent/40 bg-accent/10 text-accent",
     };
   }
+
+  /** Hairline gauge fill color once a documented quota is approached or exceeded. */
+  function gaugeCls(percentUsed: number): string {
+    return percentUsed >= 80 ? "bg-danger" : "bg-accent";
+  }
 </script>
 
 <div class="mx-auto max-w-4xl px-4 py-6 md:px-8 md:py-10">
   <PageHeader
     icon="monitor"
     title="Services"
-    subtitle="État des services externes dont dépend l’application.">
+    subtitle="Santé et usage des dépendances externes dont dépend l’application.">
     {#snippet actions()}
       <button
         onclick={load}
@@ -107,51 +114,76 @@
     <div class="space-y-8">
       {#each grouped as group (group.area)}
         <section>
-          <h2
-            class="mb-2 text-xs font-bold tracking-[0.13em] text-dim uppercase">
+          <h2 class="timecode mb-2 text-xs uppercase">
             {group.area}
           </h2>
-          <div class="overflow-hidden rounded-xl border border-border">
+          <div class="border-border overflow-hidden rounded-xl border">
             {#each group.items as s, i (s.key)}
               {@const h = health(s)}
               <div
-                class="flex items-center gap-3 bg-surface px-4 py-3 {i > 0
-                  ? 'border-t border-border'
+                class="bg-surface px-4 py-3 {i > 0
+                  ? 'border-border border-t'
                   : ''}">
-                <div class="min-w-0 flex-1">
-                  <div class="flex items-center gap-2">
-                    <span class="font-semibold text-fg">{s.label}</span>
-                    {#if s.required}
-                      <span
-                        class="rounded-full border border-border px-1.5 py-0.5 text-[0.55rem] font-bold text-dim uppercase">
-                        Requis
-                      </span>
+                <div class="flex items-center gap-3">
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-2">
+                      <span class="text-fg font-semibold">{s.label}</span>
+                      {#if s.required}
+                        <span
+                          class="border-border text-dim rounded-full border px-1.5 py-0.5 text-[0.55rem] font-bold uppercase">
+                          Requis
+                        </span>
+                      {/if}
+                    </div>
+                    {#if s.detail}
+                      <p class="text-dim mt-0.5 text-xs">
+                        {s.detail}
+                        {#if !s.configured && s.keyUrl}
+                          · <a
+                            href={s.keyUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="text-accent decoration-accent/40 hover:decoration-accent underline underline-offset-2">
+                            Obtenir une clé
+                          </a>
+                        {/if}
+                      </p>
                     {/if}
                   </div>
-                  {#if s.detail}
-                    <p class="mt-0.5 text-xs text-dim">
-                      {s.detail}
-                      {#if !s.configured && s.keyUrl}
-                        · <a
-                          href={s.keyUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          class="text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent">
-                          Obtenir une clé
-                        </a>
-                      {/if}
-                    </p>
+                  {#if s.latencyMs !== undefined}
+                    <span class="timecode shrink-0 text-xs">
+                      {s.latencyMs} ms
+                    </span>
                   {/if}
-                </div>
-                {#if s.latencyMs !== undefined}
-                  <span class="shrink-0 text-xs text-dim tabular-nums">
-                    {s.latencyMs} ms
+                  <span
+                    class="shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold {h.cls}">
+                    {h.label}
                   </span>
+                </div>
+                {#if s.today !== undefined}
+                  <div class="mt-2">
+                    {#if s.limit && s.percentUsed !== undefined}
+                      <div class="bg-border/60 h-px w-full">
+                        <div
+                          class="h-px {gaugeCls(s.percentUsed)}"
+                          style="width: {Math.min(s.percentUsed, 100)}%">
+                        </div>
+                      </div>
+                      <p class="timecode mt-1.5 text-xs">
+                        {nf.format(s.today)} / {nf.format(s.limit.max)}
+                        {s.limit.window === "day" ? "auj." : "ce mois-ci"}
+                        ({s.percentUsed}%)
+                      </p>
+                    {:else}
+                      <p class="timecode text-xs">
+                        {nf.format(s.today)} auj. · {nf.format(
+                          s.thisMonth ?? 0,
+                        )}
+                        ce mois-ci
+                      </p>
+                    {/if}
+                  </div>
                 {/if}
-                <span
-                  class="shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold {h.cls}">
-                  {h.label}
-                </span>
               </div>
             {/each}
           </div>
@@ -160,7 +192,7 @@
     </div>
 
     {#if checkedAt}
-      <p class="mt-6 text-xs text-dim">
+      <p class="text-dim mt-6 text-xs">
         Vérifié à {timeFmt.format(new Date(checkedAt))}.
       </p>
     {/if}

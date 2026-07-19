@@ -4,6 +4,7 @@ import type { RatingDto } from "@tracklore/shared";
 import { GameSource, GameSummaryDto } from "@tracklore/shared";
 import { chunk } from "../../common/array.util";
 import { fetchJson } from "../../common/http.util";
+import { QuotaTrackerService } from "../../common/quota-tracker.service";
 import type {
   GameCatalogProvider,
   ProviderGameDetails,
@@ -95,7 +96,10 @@ export class IgdbProvider implements GameCatalogProvider {
 
   private token: { value: string; expiresAt: number } | null = null;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly quota: QuotaTrackerService,
+  ) {}
 
   async search(query: string): Promise<GameSummaryDto[]> {
     // Apicalypse strings are double-quoted; drop quotes from user input so they
@@ -246,6 +250,7 @@ export class IgdbProvider implements GameCatalogProvider {
 
   /** POST an Apicalypse query to an IGDB endpoint with a valid access token. */
   private async query<T>(path: string, body: string): Promise<T> {
+    this.quota.record("igdb");
     return fetchJson<T>(
       `${API_URL}${path}`,
       {

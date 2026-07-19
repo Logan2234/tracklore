@@ -131,22 +131,22 @@
                 : 'border-danger/40 bg-danger/10 text-danger'}">
               {STATUS_LABELS[run.status]}
             </span>
-            <span class="font-semibold text-fg"
+            <span class="text-fg font-semibold"
               >{sourceLabel(run.sourceId)}</span
-            ><span class="text-sm text-dim">·&nbsp;</span>
+            ><span class="text-dim text-sm">·&nbsp;</span>
             {#if run.userId}
               <a
                 href="/admin/users?q={encodeURIComponent(run.identifier)}"
-                class="text-sm text-dim underline decoration-dotted underline-offset-4 hover:text-fg"
+                class="text-dim hover:text-fg text-sm underline decoration-dotted underline-offset-4"
                 title="Voir ce compte">
                 {run.identifier}
               </a>
             {:else}
-              <span class="text-sm text-dim">{run.identifier}</span>
+              <span class="text-dim text-sm">{run.identifier}</span>
             {/if}
             {#if run.overwrite}
               <span
-                class="rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-xs font-bold text-accent">
+                class="border-accent/40 bg-accent/10 text-accent rounded-full border px-2 py-0.5 text-xs font-bold">
                 Écrasement
               </span>
             {/if}
@@ -154,7 +154,7 @@
               {dateFmt.format(new Date(run.startedAt))}
             </span>
           </div>
-          <p class="mt-1.5 text-sm text-dim">
+          <p class="text-dim mt-1.5 text-sm">
             {#if run.status === "FAILURE"}
               {run.error}
             {:else if run.summary}
@@ -165,7 +165,7 @@
             <span class="timecode">· {durationLabel(run)}</span>
           </p>
           {#if !run.userId}
-            <p class="mt-1 text-xs text-dim italic">Compte supprimé depuis</p>
+            <p class="text-dim mt-1 text-xs italic">Compte supprimé depuis</p>
           {/if}
         </li>
       {/each}

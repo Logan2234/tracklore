@@ -176,14 +176,14 @@
 {#if detail}
   <!-- Hero: albums have no wide artwork, so a gradient fades into the page. -->
   <div class="relative">
-    <div class="h-44 w-full bg-linear-to-br from-surface-2 to-surface md:h-60">
+    <div class="from-surface-2 to-surface h-44 w-full bg-linear-to-br md:h-60">
     </div>
     <div
-      class="absolute inset-0 bg-linear-to-t from-bg via-bg/50 to-transparent">
+      class="from-bg via-bg/50 absolute inset-0 bg-linear-to-t to-transparent">
     </div>
     <a
       href="/music"
-      class="absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full border border-border bg-bg/60 px-3 py-1.5 text-sm font-semibold backdrop-blur hover:bg-bg">
+      class="border-border bg-bg/60 hover:bg-bg absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold backdrop-blur">
       ← Musique
     </a>
   </div>
@@ -197,7 +197,7 @@
           class="-mt-24 flex flex-col gap-5 sm:flex-row sm:items-end md:-mt-28">
           <button
             type="button"
-            class="w-32 shrink-0 overflow-hidden rounded-xl border border-border shadow-lg md:w-44 {detail.coverUrl
+            class="border-border w-32 shrink-0 overflow-hidden rounded-xl border shadow-lg md:w-44 {detail.coverUrl
               ? 'cursor-zoom-in'
               : ''}"
             aria-label="Agrandir l'image"
@@ -208,7 +208,7 @@
           <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-2">
               <span
-                class="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-semibold text-dim">
+                class="bg-surface-2 text-dim rounded-full px-2.5 py-0.5 text-xs font-semibold">
                 {detail.albumType ?? "Album"}
               </span>
               {#if entry}
@@ -222,16 +222,16 @@
               {/if}
             </div>
             <h1
-              class="mt-2 font-display text-3xl font-extrabold tracking-tight text-balance md:text-4xl">
+              class="font-display mt-2 text-3xl font-extrabold tracking-tight text-balance md:text-4xl">
               {detail.title}
             </h1>
             {#if detail.artists.length > 0}
-              <p class="mt-1.5 font-display text-lg font-semibold text-dim">
+              <p class="font-display text-dim mt-1.5 text-lg font-semibold">
                 {detail.artists.join(", ")}
               </p>
             {/if}
             {#if detail.disambiguation}
-              <p class="mt-0.5 text-sm text-dim italic">
+              <p class="text-dim mt-0.5 text-sm italic">
                 {detail.disambiguation}
               </p>
             {/if}
@@ -305,10 +305,10 @@
                 </span>
               {/if}
             </div>
-            <ol class="card divide-y divide-border">
+            <ol class="card divide-border divide-y">
               {#each detail.tracks as track (track.position)}
                 <li class="flex items-center gap-3 px-4 py-2.5 text-sm">
-                  <span class="timecode w-6 shrink-0 text-right text-dim">
+                  <span class="timecode text-dim w-6 shrink-0 text-right">
                     {track.position}
                   </span>
                   <span class="min-w-0 flex-1 truncate">{track.title}</span>
@@ -325,12 +325,12 @@
 
         {#if detail.extraCoverImages.length > 0}
           <div class="mt-8">
-            <h2 class="mb-3 font-display text-lg font-bold">Pochettes</h2>
+            <h2 class="font-display mb-3 text-lg font-bold">Pochettes</h2>
             <div class="flex flex-wrap gap-3">
               {#each detail.extraCoverImages as img (img.url)}
                 <button
                   type="button"
-                  class="w-20 shrink-0 overflow-hidden rounded-lg border border-border shadow-sm transition-colors hover:border-accent"
+                  class="border-border hover:border-accent w-20 shrink-0 overflow-hidden rounded-lg border shadow-sm transition-colors"
                   aria-label={`Agrandir : ${img.type}`}
                   onclick={() => openLightbox(img.url)}>
                   <Poster
@@ -377,7 +377,7 @@
                 <dd class="mt-1.5 flex flex-wrap gap-1.5">
                   {#each detail.tags as tag (tag)}
                     <span
-                      class="rounded-md bg-surface-2 px-2 py-0.5 text-xs text-dim">
+                      class="bg-surface-2 text-dim rounded-md px-2 py-0.5 text-xs">
                       {tag}
                     </span>
                   {/each}
@@ -393,7 +393,7 @@
                       href={link.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      class="rounded-full border border-border px-2.5 py-0.5 text-xs font-semibold text-dim transition-colors hover:border-accent hover:text-accent">
+                      class="border-border text-dim hover:border-accent hover:text-accent rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors">
                       {link.label} ↗
                     </a>
                   {/each}

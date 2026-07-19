@@ -4,8 +4,8 @@
 </script>
 
 <section class="card mb-5 p-5 md:p-6">
-  <h2 class="mb-1 font-display text-lg font-bold">Apparence</h2>
-  <p class="mb-4 text-sm text-dim">Thème de l’interface.</p>
+  <h2 class="font-display mb-1 text-lg font-bold">Apparence</h2>
+  <p class="text-dim mb-4 text-sm">Thème de l’interface.</p>
   <div class="flex gap-2">
     <button
       class="chip inline-flex items-center gap-2"
