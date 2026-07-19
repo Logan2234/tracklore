@@ -23,4 +23,7 @@ coverage/
 .DS_Store
 Thumbs.db
 
+# Claude Code worktrees (created/removed by the harness, not repo content)
+.claude/worktrees/
+
 ngrok.yml

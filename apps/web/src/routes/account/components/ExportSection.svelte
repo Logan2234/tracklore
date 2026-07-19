@@ -39,6 +39,7 @@
     { domain: Domain.MEDIA, label: "Films, séries et animés", slug: "media" },
     { domain: Domain.BOOKS, label: "Livres", slug: "books" },
     { domain: Domain.GAMES, label: "Jeux", slug: "games" },
+    { domain: Domain.MUSIC, label: "Musique", slug: "music" },
   ];
 
   let csvExporting = $state<Domain | null>(null);
