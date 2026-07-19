@@ -115,9 +115,9 @@ self-contained adapter-node `build/` output.
   where the app stands. Bump the minor version whenever a roadmap phase above
   advances or a domain/module ships (e.g. 0.1.0 → P1, 0.2.0 → P1.5, 0.3.0 →
   P2, 0.4.0 → P3 under way with media/games/books/music built); patch for
-  smaller fixes/polish once past 1.0. Reserve 1.0.0 for when the roadmap
-  reaches P4+ and the app is stable enough to call finished, not a specific
-  commit.
+  smaller fixes/polish once past 1.0. Add an entry to `CHANGELOG.md` for
+  each version bump. Reserve 1.0.0 for when the roadmap reaches P4+ and the
+  app is stable enough to call finished, not a specific commit.
 - Mobile: the app installs as a PWA. `docker-compose.ngrok.yml` + `Caddyfile`
   put web+api behind one origin and expose it via ngrok for phone access (set
   `NGROK_DOMAIN` in `.env`); see README "Mobile access". Single-user; a 2nd
