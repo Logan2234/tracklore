@@ -73,7 +73,6 @@ export const ADMIN_NAV: AdminNavItem[] = [
     description: "Journal des imports (Steam, StoryGraph, TV Time…).",
     icon: "download",
     match: (p) => p.startsWith("/admin/imports"),
-    soon: true,
   },
   {
     href: "/admin/quotas",
@@ -89,7 +88,6 @@ export const ADMIN_NAV: AdminNavItem[] = [
     description: "Explorateur du cache DB, re-sync manuel par item.",
     icon: "database",
     match: (p) => p.startsWith("/admin/cache"),
-    soon: true,
   },
   {
     href: "/admin/schema",

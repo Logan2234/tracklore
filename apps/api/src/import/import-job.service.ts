@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import type {
@@ -13,6 +14,7 @@ import type {
   ImportReport,
 } from "@tracklore/shared";
 import { randomUUID } from "node:crypto";
+import { PrismaService } from "../prisma/prisma.service";
 import {
   IMPORT_SOURCES,
   type CommitDecisions,
@@ -27,11 +29,13 @@ interface JobRecord {
   id: string;
   userId: string;
   sourceId: string;
+  kind: "analyze" | "commit";
   status: "running" | "completed" | "failed";
   progress: { done: number; total: number };
   plan: ImportPlan | null;
   report: ImportReport | null;
   error: string | null;
+  startedAt: number;
   finishedAt: number | null;
   /** The source's parse model, kept between an analysis and its later commit. */
   parsed: unknown;
@@ -46,10 +50,14 @@ interface JobRecord {
  */
 @Injectable()
 export class ImportJobService {
+  private readonly logger = new Logger(ImportJobService.name);
   private readonly jobs = new Map<string, JobRecord>();
   private readonly sources: Map<string, ImportSource>;
 
-  constructor(@Inject(IMPORT_SOURCES) sources: ImportSource[]) {
+  constructor(
+    @Inject(IMPORT_SOURCES) sources: ImportSource[],
+    private readonly prisma: PrismaService,
+  ) {
     this.sources = new Map(sources.map((s) => [s.id, s]));
   }
 
@@ -76,7 +84,7 @@ export class ImportJobService {
       );
     }
 
-    const job = this.newJob(userId, sourceId, parsed);
+    const job = this.newJob(userId, sourceId, "analyze", parsed);
     this.jobs.set(job.id, job);
 
     const progress = this.progressFor(job);
@@ -124,7 +132,7 @@ export class ImportJobService {
     };
 
     const { parsed, plan } = analyzed;
-    const job = this.newJob(userId, sourceId, null);
+    const job = this.newJob(userId, sourceId, "commit", null);
     job.progress.total = decisions.include.size;
     this.jobs.set(job.id, job);
 
@@ -137,7 +145,12 @@ export class ImportJobService {
         decisions,
         progress,
       );
-    });
+    }).then(() =>
+      this.recordRun(userId, job, decisions.overwrite).catch((err) => {
+        // Audit logging must never take the request path down with it.
+        this.logger.error(`Failed to record import run ${job.id}`, err);
+      }),
+    );
 
     return toDto(job);
   }
@@ -160,19 +173,55 @@ export class ImportJobService {
     return source;
   }
 
-  private newJob(userId: string, sourceId: string, parsed: unknown): JobRecord {
+  private newJob(
+    userId: string,
+    sourceId: string,
+    kind: "analyze" | "commit",
+    parsed: unknown,
+  ): JobRecord {
     return {
       id: randomUUID(),
       userId,
       sourceId,
+      kind,
       status: "running",
       progress: { done: 0, total: 0 },
       plan: null,
       report: null,
       error: null,
+      startedAt: Date.now(),
       finishedAt: null,
       parsed,
     };
+  }
+
+  /** Logs a finished commit to the admin "Imports" audit log (analyze runs write nothing). */
+  private async recordRun(
+    userId: string,
+    job: JobRecord,
+    overwrite: boolean,
+  ): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    });
+
+    await this.prisma.importRun.create({
+      data: {
+        userId,
+        identifier: user?.email ?? "compte inconnu",
+        sourceId: job.sourceId,
+        status: job.status === "failed" ? "FAILURE" : "SUCCESS",
+        itemCount: job.progress.total,
+        overwrite,
+        summary: job.report
+          ? job.report.tiles.map((t) => `${t.value} ${t.label}`).join(" · ")
+          : null,
+        error: job.error,
+        startedAt: new Date(job.startedAt),
+        finishedAt: new Date(job.finishedAt ?? Date.now()),
+      },
+    });
   }
 
   private progressFor(job: JobRecord): ProgressReporter {

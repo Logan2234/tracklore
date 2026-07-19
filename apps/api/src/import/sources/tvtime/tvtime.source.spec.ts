@@ -63,6 +63,10 @@ function makeService() {
       upsert: jest.fn(),
       deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
     },
+    user: {
+      findUnique: jest.fn().mockResolvedValue({ email: "test@example.com" }),
+    },
+    importRun: { create: jest.fn() },
     $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
   };
   const mediaItemService = {
@@ -77,7 +81,7 @@ function makeService() {
     mediaItemService as never,
     tmdb as never,
   );
-  const service = new ImportJobService([source]);
+  const service = new ImportJobService([source], prisma as never);
   return { prisma, mediaItemService, tmdb, service };
 }
 

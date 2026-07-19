@@ -106,6 +106,24 @@ export class MusicItemService {
       : this.createFresh(source, details);
   }
 
+  /** Admin-triggered re-sync: refetches from the canonical source, bypassing the TTL. */
+  async forceRefresh(musicItemId: string): Promise<MusicItem> {
+    const item = await this.prisma.musicItem.findUniqueOrThrow({
+      where: { id: musicItemId },
+      include: { externalIds: true },
+    });
+    const sourceId = item.externalIds.find(
+      (ext) => ext.source === item.canonicalSource,
+    )?.externalId;
+
+    if (!sourceId) {
+      throw new Error(`Album ${musicItemId} has no ${item.canonicalSource} id`);
+    }
+
+    const details = await this.providerFor().getDetails(sourceId);
+    return this.persistDetails(item.canonicalSource as MusicSource, details);
+  }
+
   private async createFresh(
     source: MusicSource,
     details: ProviderMusicDetails,

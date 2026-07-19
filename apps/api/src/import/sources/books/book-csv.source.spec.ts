@@ -63,6 +63,10 @@ function setup(
       deleteMany,
     },
     bookReplay: { createMany },
+    user: {
+      findUnique: jest.fn().mockResolvedValue({ email: "test@example.com" }),
+    },
+    importRun: { create: jest.fn() },
   };
   const ageGate = {
     allowsAdultContent: jest
@@ -75,7 +79,10 @@ function setup(
     bookItemService as unknown as BookItemService,
     ageGate as unknown as AgeGateService,
   );
-  const service = new ImportJobService([source]);
+  const service = new ImportJobService(
+    [source],
+    prisma as unknown as PrismaService,
+  );
   return { service, bookItemService, upsert, createMany, deleteMany };
 }
 

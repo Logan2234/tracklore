@@ -85,6 +85,12 @@ function build(over: Partial<Mocks> = {}): {
       ...over.prisma,
     },
   };
+  const prismaExtras = {
+    user: {
+      findUnique: jest.fn().mockResolvedValue({ email: "test@example.com" }),
+    },
+    importRun: { create: jest.fn() },
+  };
   const config = { getOrThrow: jest.fn().mockReturnValue("steam-key") };
   const source = new SteamImportSource(
     config as unknown as ConfigService,
@@ -93,7 +99,11 @@ function build(over: Partial<Mocks> = {}): {
     mocks.gameItemService as unknown as GameItemService,
     mocks.ageGate as unknown as AgeGateService,
   );
-  return { service: new ImportJobService([source]), mocks };
+  const service = new ImportJobService([source], {
+    ...mocks.prisma,
+    ...prismaExtras,
+  } as unknown as PrismaService);
+  return { service, mocks };
 }
 
 async function runToEnd(

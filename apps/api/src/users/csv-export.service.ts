@@ -23,6 +23,8 @@ export class CsvExportService {
         return this.buildGamesCsv(userId);
       case Domain.BOOKS:
         return this.buildBooksCsv(userId);
+      case Domain.MUSIC:
+        return this.buildMusicCsv(userId);
     }
   }
 
@@ -149,6 +151,45 @@ export class CsvExportService {
         e.bookItem.pageCount,
         e.bookItem.genres.join("; "),
         e.replays.length,
+      ]),
+    ]);
+  }
+
+  private async buildMusicCsv(userId: string): Promise<string> {
+    const entries = await this.prisma.musicEntry.findMany({
+      where: { userId },
+      include: { musicItem: true },
+      orderBy: { createdAt: "asc" },
+    });
+
+    return toCsv([
+      [
+        "Title",
+        "Artists",
+        "Status",
+        "Rating",
+        "Notes",
+        "Favorite",
+        "Started At",
+        "Finished At",
+        "Ownership Status",
+        "Ownership Source",
+        "Release Date",
+        "Genres",
+      ],
+      ...entries.map((e) => [
+        e.musicItem.title,
+        e.musicItem.artists.join("; "),
+        e.status,
+        e.rating,
+        e.notes,
+        e.favorite ? "true" : "false",
+        isoDate(e.startedAt),
+        isoDate(e.finishedAt),
+        e.ownershipStatus,
+        e.ownershipSource,
+        isoDate(e.musicItem.releaseDate),
+        e.musicItem.genres.join("; "),
       ]),
     ]);
   }

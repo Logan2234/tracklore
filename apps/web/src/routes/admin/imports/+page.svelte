@@ -1,0 +1,175 @@
+<script lang="ts">
+  import { getAdminImportRuns, ApiError } from "$lib/api/client";
+  import { IMPORT_SOURCES } from "$lib/import/sources";
+  import Banner from "$lib/components/Banner.svelte";
+  import EmptyState from "$lib/components/EmptyState.svelte";
+  import PageHeader from "$lib/components/PageHeader.svelte";
+  import type { AdminImportRunDto, JobStatus } from "@tracklore/shared";
+
+  const SOURCE_IDS = Object.keys(IMPORT_SOURCES);
+  const sourceLabel = (id: string) => IMPORT_SOURCES[id]?.label ?? id;
+
+  const STATUS_LABELS: Record<JobStatus, string> = {
+    SUCCESS: "Réussi",
+    FAILURE: "Échec",
+  };
+
+  let activeSource = $state<string | null>(null);
+  let activeStatus = $state<JobStatus | null>(null);
+  let runs = $state<AdminImportRunDto[]>([]);
+  let page = $state(1);
+  let hasMore = $state(true);
+  let loading = $state(false);
+  let error = $state("");
+
+  const dateFmt = new Intl.DateTimeFormat("fr-FR", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+
+  async function load(reset: boolean) {
+    loading = true;
+    error = "";
+    const targetPage = reset ? 1 : page + 1;
+    try {
+      const res = await getAdminImportRuns({
+        source: activeSource ?? undefined,
+        status: activeStatus ?? undefined,
+        page: targetPage,
+      });
+      runs = reset ? res.runs : [...runs, ...res.runs];
+      page = targetPage;
+      hasMore = res.runs.length === 50;
+    } catch (err) {
+      error = err instanceof ApiError ? err.message : "Journal indisponible";
+    } finally {
+      loading = false;
+    }
+  }
+
+  function selectSource(id: string | null) {
+    activeSource = id;
+    void load(true);
+  }
+
+  function selectStatus(status: JobStatus | null) {
+    activeStatus = status;
+    void load(true);
+  }
+
+  $effect(() => {
+    void load(true);
+  });
+
+  function durationLabel(run: AdminImportRunDto): string {
+    const ms =
+      new Date(run.finishedAt).getTime() - new Date(run.startedAt).getTime();
+    if (ms < 1000) return `${ms} ms`;
+    return `${(ms / 1000).toFixed(1)} s`;
+  }
+</script>
+
+<div class="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
+  <PageHeader
+    icon="download"
+    title="Imports"
+    subtitle="Journal des imports commis (TV Time, StoryGraph, Goodreads, Steam), tous comptes confondus. Les analyses non validées n'écrivent rien et n'apparaissent pas ici." />
+
+  <div class="mb-3 flex flex-wrap items-center gap-2">
+    <button
+      class="chip"
+      class:chip-on={activeSource === null}
+      onclick={() => selectSource(null)}>
+      Toutes les sources
+    </button>
+    {#each SOURCE_IDS as id (id)}
+      <button
+        class="chip"
+        class:chip-on={activeSource === id}
+        onclick={() => selectSource(id)}>
+        {sourceLabel(id)}
+      </button>
+    {/each}
+  </div>
+
+  <div class="mb-5 flex flex-wrap items-center gap-2">
+    <button
+      class="chip"
+      class:chip-on={activeStatus === null}
+      onclick={() => selectStatus(null)}>
+      Tous statuts
+    </button>
+    {#each Object.entries(STATUS_LABELS) as [status, label] (status)}
+      <button
+        class="chip"
+        class:chip-on={activeStatus === status}
+        onclick={() => selectStatus(status as JobStatus)}>
+        {label}
+      </button>
+    {/each}
+  </div>
+
+  {#if error}
+    <Banner variant="error" class="mb-4">{error}</Banner>
+  {/if}
+
+  {#if loading && runs.length === 0}
+    <div class="space-y-2">
+      {#each { length: 6 } as _, i (i)}
+        <div class="card h-20 animate-pulse"></div>
+      {/each}
+    </div>
+  {:else if runs.length === 0}
+    <EmptyState>Aucun import ne correspond à ce filtre.</EmptyState>
+  {:else}
+    <ul class="space-y-2">
+      {#each runs as run (run.id)}
+        <li class="card p-3.5">
+          <div class="flex flex-wrap items-center gap-2">
+            <span
+              class="rounded-full border px-2 py-0.5 text-xs font-bold {run.status ===
+              'SUCCESS'
+                ? 'border-success/40 bg-success/10 text-success'
+                : 'border-danger/40 bg-danger/10 text-danger'}">
+              {STATUS_LABELS[run.status]}
+            </span>
+            <span class="font-semibold text-fg"
+              >{sourceLabel(run.sourceId)}</span>
+            <span class="text-sm text-dim">· {run.identifier}</span>
+            {#if run.overwrite}
+              <span
+                class="rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-xs font-bold text-accent">
+                Écrasement
+              </span>
+            {/if}
+            <span class="timecode ml-auto text-xs">
+              {dateFmt.format(new Date(run.startedAt))}
+            </span>
+          </div>
+          <p class="mt-1.5 text-sm text-dim">
+            {#if run.status === "FAILURE"}
+              {run.error}
+            {:else if run.summary}
+              {run.summary}
+            {:else}
+              {run.itemCount} élément(s) importé(s)
+            {/if}
+            <span class="timecode">· {durationLabel(run)}</span>
+          </p>
+          {#if !run.userId}
+            <p class="mt-1 text-xs text-dim italic">Compte supprimé depuis</p>
+          {/if}
+        </li>
+      {/each}
+    </ul>
+
+    {#if hasMore}
+      <button
+        class="btn btn-ghost mt-4 w-full"
+        disabled={loading}
+        onclick={() => load(false)}>
+        {loading ? "Chargement…" : "Charger plus"}
+      </button>
+    {/if}
+  {/if}
+</div>

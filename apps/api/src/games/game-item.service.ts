@@ -99,6 +99,24 @@ export class GameItemService {
       : this.createFresh(source, details);
   }
 
+  /** Admin-triggered re-sync: refetches from the canonical source, bypassing the TTL. */
+  async forceRefresh(gameItemId: string): Promise<GameItem> {
+    const item = await this.prisma.gameItem.findUniqueOrThrow({
+      where: { id: gameItemId },
+      include: { externalIds: true },
+    });
+    const sourceId = item.externalIds.find(
+      (ext) => ext.source === item.canonicalSource,
+    )?.externalId;
+
+    if (!sourceId) {
+      throw new Error(`Game ${gameItemId} has no ${item.canonicalSource} id`);
+    }
+
+    const details = await this.providerFor().getDetails(sourceId);
+    return this.persistDetails(item.canonicalSource as GameSource, details);
+  }
+
   private async createFresh(
     source: GameSource,
     details: ProviderGameDetails,

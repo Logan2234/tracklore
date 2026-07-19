@@ -86,6 +86,26 @@ export class MediaItemService {
     return refreshed;
   }
 
+  /** Admin-triggered re-sync: refetches from the canonical source, bypassing the TTL. */
+  async forceRefresh(mediaItemId: string): Promise<MediaItem> {
+    const item = await this.prisma.mediaItem.findUniqueOrThrow({
+      where: { id: mediaItemId },
+      include: { externalIds: true },
+    });
+    const sourceId = item.externalIds.find(
+      (ext) => ext.source === item.canonicalSource,
+    )?.externalId;
+
+    if (!sourceId) {
+      throw new Error(`Media ${mediaItemId} has no ${item.canonicalSource} id`);
+    }
+
+    const details = await this.providerFor(
+      item.canonicalSource as CatalogSource,
+    ).getDetails(sourceId, item.type as MediaType);
+    return this.refresh(mediaItemId, item.type as MediaType, details);
+  }
+
   providerFor(source: CatalogSource): CatalogProvider {
     return source === "TMDB" ? this.tmdbProvider : this.anilistProvider;
   }

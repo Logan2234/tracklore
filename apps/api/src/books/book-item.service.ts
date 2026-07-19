@@ -132,6 +132,24 @@ export class BookItemService {
       : this.createFresh(source, details);
   }
 
+  /** Admin-triggered re-sync: refetches from the canonical source, bypassing the TTL. */
+  async forceRefresh(bookItemId: string): Promise<BookItem> {
+    const item = await this.prisma.bookItem.findUniqueOrThrow({
+      where: { id: bookItemId },
+      include: { externalIds: true },
+    });
+    const sourceId = item.externalIds.find(
+      (ext) => ext.source === item.canonicalSource,
+    )?.externalId;
+
+    if (!sourceId) {
+      throw new Error(`Book ${bookItemId} has no ${item.canonicalSource} id`);
+    }
+
+    const details = await this.providerFor().getDetails(sourceId);
+    return this.persistDetails(item.canonicalSource as BookSource, details);
+  }
+
   private async createFresh(
     source: BookSource,
     details: ProviderBookDetails,

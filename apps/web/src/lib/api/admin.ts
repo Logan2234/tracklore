@@ -1,6 +1,8 @@
 import type {
   AdminBackupDto,
   AdminBackupRestoreRequestDto,
+  AdminCacheListResponseDto,
+  AdminImportRunListResponseDto,
   AdminPushBroadcastResponseDto,
   AdminPushDeviceDto,
   AdminPushSendResponseDto,
@@ -9,7 +11,9 @@ import type {
   AdminUserDto,
   AdminUserRoleDto,
   AdminVersionDto,
+  Domain,
   JobListResponseDto,
+  JobStatus,
   MailTemplateListResponseDto,
   MailTemplatePreviewDto,
   Role,
@@ -168,6 +172,44 @@ export function restoreAdminBackup(
   body: AdminBackupRestoreRequestDto,
 ): Promise<void> {
   return request("/admin/backup/restore", { method: "POST", body });
+}
+
+/** Cached items for one domain, stalest first, filterable by title and paginated. */
+export function getAdminCache(filters: {
+  domain: Domain;
+  search?: string;
+  page?: number;
+}): Promise<AdminCacheListResponseDto> {
+  const params = new URLSearchParams({ domain: filters.domain });
+  if (filters.search) params.set("search", filters.search);
+  if (filters.page && filters.page > 1)
+    params.set("page", String(filters.page));
+  return request(`/admin/cache?${params}`);
+}
+
+/** Forces a re-sync of one cached item from its canonical source, bypassing the TTL. */
+export function resyncAdminCacheItem(
+  domain: Domain,
+  id: string,
+): Promise<void> {
+  return request(`/admin/cache/${domain}/${id}/resync`, { method: "POST" });
+}
+
+/** Past import commits across every account, filterable by source/status, paginated. */
+export function getAdminImportRuns(
+  filters: {
+    source?: string;
+    status?: JobStatus;
+    page?: number;
+  } = {},
+): Promise<AdminImportRunListResponseDto> {
+  const params = new URLSearchParams();
+  if (filters.source) params.set("source", filters.source);
+  if (filters.status) params.set("status", filters.status);
+  if (filters.page && filters.page > 1)
+    params.set("page", String(filters.page));
+  const suffix = params.size > 0 ? `?${params}` : "";
+  return request(`/admin/imports${suffix}`);
 }
 
 /** Sensitive account actions, filterable by type and identifier, paginated. */

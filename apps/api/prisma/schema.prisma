@@ -193,6 +193,7 @@ model User {
   tokens              UserToken[]
   emailChangeRequests EmailChangeRequest[]
   securityEvents      SecurityEvent[]
+  importRuns          ImportRun[]
 }
 
 // One row per browser/device push subscription (Web Push). endpoint is the
@@ -328,6 +329,32 @@ model SecurityEvent {
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([type, createdAt])
+  @@index([userId])
+}
+
+// One committed import (tvtime/storygraph/goodreads/steam), for the admin
+// "Imports" audit log. Analyze-only runs write nothing and aren't logged.
+// userId is nullable + onDelete: SetNull and identifier is denormalised —
+// mirrors SecurityEvent, so the trail survives account deletion.
+model ImportRun {
+  id         String   @id @default(cuid())
+  userId     String?
+  identifier String
+  sourceId   String
+  status     String
+  // Items actually written (the user's kept selection), regardless of outcome.
+  itemCount  Int
+  overwrite  Boolean  @default(false)
+  // Human summary joined from the report's tiles; null on failure.
+  summary    String?
+  // Present only when status is "FAILURE".
+  error      String?
+  startedAt  DateTime
+  finishedAt DateTime
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([sourceId, startedAt])
   @@index([userId])
 }
 

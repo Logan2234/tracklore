@@ -227,6 +227,27 @@ export interface AdminStatsDto {
   trends: AdminTrendsSeriesDto;
 }
 
+/** One cached catalogue item (media/game/book/album), as browsed on the admin cache page. */
+export interface AdminCacheItemDto {
+  id: string;
+  domain: Domain;
+  title: string;
+  coverUrl: string | null;
+  canonicalSource: string;
+  lastSyncedAt: string;
+  createdAt: string;
+  /** Distinct library/game/book/music entries pointing at this item, across every account. */
+  referenceCount: number;
+  /** Past the 24h refresh TTL. */
+  stale: boolean;
+}
+
+export interface AdminCacheListResponseDto {
+  items: AdminCacheItemDto[];
+  /** Total items matching the current filters, across all pages. */
+  total: number;
+}
+
 /** One registered account, as listed in the admin users page. */
 export interface AdminUserDto {
   id: string;
@@ -281,5 +302,31 @@ export interface SecurityEventDto {
 
 export interface SecurityEventListResponseDto {
   events: SecurityEventDto[];
+  page: number;
+}
+
+/** One committed import (analyze-only runs write nothing and aren't logged here). */
+export interface AdminImportRunDto {
+  id: string;
+  /** Null once the account has since been deleted — identifier below is kept. */
+  userId: string | null;
+  identifier: string;
+  /** Import source id ("tvtime", "storygraph", "goodreads", "steam"). */
+  sourceId: string;
+  status: JobStatus;
+  /** Items actually written, regardless of outcome. */
+  itemCount: number;
+  /** Whether the commit wiped the domain's library first (destructive replace). */
+  overwrite: boolean;
+  /** Human summary joined from the report's tiles; null on failure. */
+  summary: string | null;
+  /** Present only when `status` is "FAILURE". */
+  error: string | null;
+  startedAt: string;
+  finishedAt: string;
+}
+
+export interface AdminImportRunListResponseDto {
+  runs: AdminImportRunDto[];
   page: number;
 }
