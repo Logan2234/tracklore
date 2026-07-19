@@ -215,3 +215,53 @@ export const SecurityEventType = {
 } as const;
 export type SecurityEventType =
   (typeof SecurityEventType)[keyof typeof SecurityEventType];
+
+// ---------------------------------------------------------------------------
+// Social (P4). All of it is gated behind the runtime `SOCIAL_ENABLED` flag.
+// ---------------------------------------------------------------------------
+
+/**
+ * How reachable a user's profile is — the "authentication" layer of visibility.
+ * Acts as a cap over the per-facet audience settings (see VisibilityAudience):
+ * a PRIVATE profile can never expose anything as PUBLIC.
+ * - PUBLIC:  anyone can reach the profile and follow it (asymmetric).
+ * - PRIVATE: content is reachable only through an accepted (reciprocal) follow.
+ * - GHOST ("Figurant"): unfindable, unfollowable, activity private. The user can
+ *   still consume/participate anonymously (follow public profiles, comment,
+ *   react, review under a per-thread pseudonym) but is never exposed.
+ */
+export const ProfileAccess = {
+  PUBLIC: "PUBLIC",
+  PRIVATE: "PRIVATE",
+  GHOST: "GHOST",
+} as const;
+export type ProfileAccess = (typeof ProfileAccess)[keyof typeof ProfileAccess];
+
+/**
+ * Who may see a given passive-content facet — the "authorization" layer.
+ * Ordered NONE < FRIENDS < PUBLIC; the effective audience is capped by
+ * ProfileAccess (a PRIVATE profile tops out at FRIENDS).
+ */
+export const VisibilityAudience = {
+  PUBLIC: "PUBLIC",
+  FRIENDS: "FRIENDS",
+  NONE: "NONE",
+} as const;
+export type VisibilityAudience =
+  (typeof VisibilityAudience)[keyof typeof VisibilityAudience];
+
+/**
+ * The passive-content facets whose visibility a user tunes per domain. Kept
+ * deliberately coarse (2 facets) to keep the privacy screen legible; can be
+ * split later without breaking the model.
+ * - LIBRARY:  presence + status + progress + favorites for that domain.
+ * - ACTIVITY: appearance in the activity feed for that domain.
+ * Published content (reviews, comments) is NOT a facet — reviews carry their
+ * own explicit scope, comments are public by nature.
+ */
+export const VisibilityFacet = {
+  LIBRARY: "LIBRARY",
+  ACTIVITY: "ACTIVITY",
+} as const;
+export type VisibilityFacet =
+  (typeof VisibilityFacet)[keyof typeof VisibilityFacet];

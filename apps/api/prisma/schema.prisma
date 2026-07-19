@@ -42,6 +42,29 @@ enum Role {
   ADMIN
 }
 
+// --- Social (P4) — all gated behind the runtime SOCIAL_ENABLED flag. ---
+// Mirror of packages/shared/src/enums.ts; see there for the full rationale.
+
+// How reachable a profile is (the authN layer). Caps the per-facet audience.
+enum ProfileAccess {
+  PUBLIC
+  PRIVATE
+  GHOST // "Figurant": invisible but can participate anonymously.
+}
+
+// Who may see a passive-content facet (the authZ layer). NONE < FRIENDS < PUBLIC.
+enum VisibilityAudience {
+  PUBLIC
+  FRIENDS
+  NONE
+}
+
+// Passive-content facets tuned per domain. Coarse on purpose (splittable later).
+enum VisibilityFacet {
+  LIBRARY // presence + status + progress + favorites
+  ACTIVITY // appearance in the activity feed
+}
+
 // Sources we actually fetch from (canonical).
 enum CatalogSource {
   TMDB
@@ -174,6 +197,12 @@ model User {
   // Set once the verification email's link has been opened. Informational only
   // in self-host (no feature is gated on it) — see UserToken.
   emailVerified     Boolean   @default(false)
+  // Free-form public bio shown on the social profile (P4). Null until set.
+  bio               String?
+  // Social (P4): how reachable this profile is. Default PRIVATE — the safe
+  // default (nothing exposed to the public without an accepted follow). The
+  // per-domain/facet audiences live in VisibilitySetting.
+  profileAccess     ProfileAccess @default(PRIVATE)
   // Open-core seam: feature flags granted to this user (empty in self-host MVP).
   // NOT used for admin permission — see `role` below.
   entitlements      Json      @default("[]")
@@ -203,6 +232,23 @@ model User {
   emailChangeRequests EmailChangeRequest[]
   securityEvents      SecurityEvent[]
   importRuns          ImportRun[]
+  visibilitySettings  VisibilitySetting[]
+}
+
+// Social (P4): per-user, per-domain, per-facet audience. One row overrides the
+// coded default (FRIENDS) for a (domain, facet) pair; absence = default. Only
+// the two passive-content facets are stored here — reviews carry their own
+// scope and comments are public by nature. Effective visibility is still capped
+// by User.profileAccess at read time.
+model VisibilitySetting {
+  id       String             @id @default(cuid())
+  userId   String
+  domain   Domain
+  facet    VisibilityFacet
+  audience VisibilityAudience
+  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, domain, facet])
 }
 
 // One row per browser/device push subscription (Web Push). endpoint is the

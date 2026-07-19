@@ -1,5 +1,6 @@
 export * from "./enums";
 export * from "./dto/admin";
+export * from "./dto/config";
 export * from "./dto/auth";
 export * from "./dto/book";
 export * from "./dto/catalog";

@@ -4,6 +4,7 @@
 
 export * from "./core";
 export * from "./auth";
+export * from "./config";
 export * from "./admin";
 export * from "./catalog";
 export * from "./library";
