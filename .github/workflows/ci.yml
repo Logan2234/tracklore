@@ -61,7 +61,7 @@ jobs:
         run: pnpm --filter @tracklore/api test:cov
       - name: upload coverage to Codecov
         if: needs.changes.outputs.api == 'true'
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: apps/api/coverage/lcov.info
