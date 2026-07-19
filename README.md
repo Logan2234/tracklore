@@ -1,5 +1,8 @@
 # Tracklore
 
+[![CI](https://github.com/Logan2234/tracklore/actions/workflows/ci.yml/badge.svg)](https://github.com/Logan2234/tracklore/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/Logan2234/tracklore/graph/badge.svg)](https://codecov.io/gh/Logan2234/tracklore)
+
 Self-hosted tracker for **series, movies and anime** — with games, books and
 more planned. Built as a TV Time replacement you fully own: your data lives in
 your own PostgreSQL, catalogues come live from [TMDB](https://www.themoviedb.org/)
