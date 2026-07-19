@@ -7,6 +7,7 @@ import { ConfigService } from "@nestjs/config";
 import type { RatingDto } from "@tracklore/shared";
 import { BookSource, BookSummaryDto } from "@tracklore/shared";
 import { chunk } from "../../common/array.util";
+import { QuotaTrackerService } from "../../common/quota-tracker.service";
 import type {
   BookCatalogProvider,
   ProviderBookDetails,
@@ -72,7 +73,10 @@ interface GoogleVolumeList {
 export class GoogleBooksProvider implements BookCatalogProvider {
   readonly source = BookSource.GOOGLE_BOOKS;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly quota: QuotaTrackerService,
+  ) {}
 
   async search(query: string): Promise<BookSummaryDto[]> {
     const params = new URLSearchParams({
@@ -207,6 +211,7 @@ export class GoogleBooksProvider implements BookCatalogProvider {
     let lastStatus = 0;
 
     for (let attempt = 1; attempt <= GET_MAX_ATTEMPTS; attempt++) {
+      this.quota.record("googleBooks");
       const response = await fetch(url, {
         headers: { Accept: "application/json" },
       });

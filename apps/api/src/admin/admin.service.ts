@@ -3,12 +3,14 @@ import { join } from "node:path";
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type {
+  QuotaWindow,
   SchemaGraphResponseDto,
   ServiceArea,
   ServiceStatusDto,
   ServiceStatusResponseDto,
 } from "@tracklore/shared";
 import { MailService } from "../mail/mail.service";
+import { PrismaService } from "../prisma/prisma.service";
 
 // docs/ is gitignored and regenerated locally (`prisma generate` for the ERD,
 // `pnpm --filter @tracklore/api run graph` for the module graph). process.cwd()
@@ -36,11 +38,31 @@ interface ServiceSpec {
   /** Where to obtain the missing key/credentials, shown when unconfigured. */
   keyUrl?: string;
   /**
+   * Planned-but-unbuilt provider (podcasts, board games): listed so its area
+   * appears on the services page, but never probed and reported as "coming soon".
+   */
+  comingSoon?: boolean;
+  /**
    * Live probe. Resolves to `true`/`false` when it ran, or `null` when there's
    * nothing cheap to ping (only the config presence is reported). Receives the
    * abort signal so the request is bounded by {@link PROBE_TIMEOUT_MS}.
    */
   probe?: (signal: AbortSignal) => Promise<boolean>;
+  /**
+   * Documented free-tier quota, when publicly known; absent otherwise (and for
+   * `webPush`, which makes no outbound calls at all — see {@link QuotaTrackerService}).
+   */
+  quotaLimit?: { max: number; window: QuotaWindow };
+}
+
+function startOfUtcDay(date: Date): Date {
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
+}
+
+function startOfUtcMonth(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
 }
 
 @Injectable()
@@ -48,6 +70,7 @@ export class AdminService {
   constructor(
     private readonly config: ConfigService,
     private readonly mail: MailService,
+    private readonly prisma: PrismaService,
   ) {}
 
   private get specs(): ServiceSpec[] {
@@ -55,7 +78,7 @@ export class AdminService {
       {
         key: "tmdb",
         label: "TMDB",
-        area: "Écrans",
+        area: "Vidéo",
         required: true,
         envKeys: ["TMDB_API_TOKEN"],
         keyUrl: "https://www.themoviedb.org/settings/api",
@@ -71,7 +94,7 @@ export class AdminService {
         // Keyless fallback: search still works for anime without any credentials.
         key: "anilist",
         label: "AniList",
-        area: "Écrans",
+        area: "Vidéo",
         required: false,
         envKeys: [],
         probe: (signal) =>
@@ -85,7 +108,7 @@ export class AdminService {
       {
         key: "omdb",
         label: "OMDb (notes)",
-        area: "Écrans",
+        area: "Vidéo",
         required: false,
         envKeys: ["OMDB_API_KEY"],
         keyUrl: "https://www.omdbapi.com/apikey.aspx",
@@ -94,6 +117,8 @@ export class AdminService {
             `https://www.omdbapi.com/?apikey=${this.env("OMDB_API_KEY")}&i=tt0111161`,
             { signal },
           ),
+        // https://www.omdbapi.com/apikey.aspx — free tier: 1,000 requests/day.
+        quotaLimit: { max: 1000, window: "day" },
       },
       {
         key: "igdb",
@@ -127,6 +152,8 @@ export class AdminService {
             "https://api.steampowered.com/ISteamWebAPIUtil/GetServerInfo/v1/",
             { signal },
           ),
+        // https://steamcommunity.com/dev/apiterms §2 — 100,000 calls/day.
+        quotaLimit: { max: 100_000, window: "day" },
       },
       {
         key: "googleBooks",
@@ -142,6 +169,8 @@ export class AdminService {
               `&key=${this.env("GOOGLE_BOOKS_API_KEY")}`,
             { signal },
           ),
+        // https://developers.google.com/books/pricing — free tier: 1,000 requests/day.
+        quotaLimit: { max: 1000, window: "day" },
       },
       {
         // Keyless (like AniList), but the sole music source — so it's required
@@ -170,6 +199,8 @@ export class AdminService {
         envKeys: ["SMTP_HOST", "SMTP_USER", "SMTP_PASS"],
         keyUrl: "https://www.brevo.com",
         probe: () => this.mail.verifyConnection(),
+        // https://www.brevo.com free plan: 300 emails/day (see README "Email").
+        quotaLimit: { max: 300, window: "day" },
       },
       {
         // No external to ping: presence of the VAPID key pair is the signal.
@@ -178,6 +209,34 @@ export class AdminService {
         area: "Système",
         required: false,
         envKeys: ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY"],
+      },
+      // Planned P3 providers — no integration yet, surfaced as "coming soon" so
+      // their areas already show on the page. Keep to sources we'd build against.
+      {
+        key: "podcastindex",
+        label: "Podcast Index",
+        area: "Podcasts",
+        required: false,
+        envKeys: [],
+        keyUrl: "https://podcastindex.org/",
+        comingSoon: true,
+      },
+      {
+        key: "applePodcasts",
+        label: "Apple Podcasts (iTunes Search)",
+        area: "Podcasts",
+        required: false,
+        envKeys: [],
+        comingSoon: true,
+      },
+      {
+        key: "boardgamegeek",
+        label: "BoardGameGeek",
+        area: "Jeux de société",
+        required: false,
+        envKeys: [],
+        keyUrl: "https://boardgamegeek.com/wiki/page/BGG_XML_API2",
+        comingSoon: true,
       },
     ];
   }
@@ -201,14 +260,40 @@ export class AdminService {
   }
 
   async getServicesStatus(): Promise<ServiceStatusResponseDto> {
+    const now = new Date();
+    const monthStart = startOfUtcMonth(now);
+    const callRows = await this.prisma.apiCallCounter.findMany({
+      where: { day: { gte: monthStart } },
+    });
+
     const services = await Promise.all(
-      this.specs.map((spec) => this.evaluate(spec)),
+      this.specs.map((spec) => this.evaluate(spec, now, callRows)),
     );
-    return { services, checkedAt: new Date().toISOString() };
+    return { services, checkedAt: now.toISOString() };
   }
 
-  private async evaluate(spec: ServiceSpec): Promise<ServiceStatusDto> {
+  private async evaluate(
+    spec: ServiceSpec,
+    now: Date,
+    callRows: { provider: string; day: Date; count: number }[],
+  ): Promise<ServiceStatusDto> {
+    // A planned provider has no integration to configure or probe — report it
+    // as such and skip everything below (quota rows never exist for it).
+    if (spec.comingSoon) {
+      return {
+        key: spec.key,
+        label: spec.label,
+        area: spec.area,
+        required: false,
+        configured: false,
+        reachable: null,
+        comingSoon: true,
+        keyUrl: spec.keyUrl,
+      };
+    }
+
     const configured = spec.envKeys.every((k) => Boolean(this.env(k)));
+    const quota = this.quotaFieldsFor(spec, now, callRows);
 
     // Don't probe a service we know isn't configured — a required key/secret is
     // missing, so a live call would only ever confirm the obvious failure.
@@ -222,6 +307,7 @@ export class AdminService {
         reachable: null,
         detail: "Clé absente",
         keyUrl: spec.keyUrl,
+        ...quota,
       };
     }
 
@@ -252,6 +338,38 @@ export class AdminService {
       reachable,
       detail,
       latencyMs,
+      ...quota,
+    };
+  }
+
+  /**
+   * `today`/`thisMonth`/`limit`/`percentUsed` for one spec, or `{}` for
+   * `webPush` — it makes no outbound calls, so a call-based quota is
+   * meaningless for it (see {@link QuotaTrackerService}).
+   */
+  private quotaFieldsFor(
+    spec: ServiceSpec,
+    now: Date,
+    callRows: { provider: string; day: Date; count: number }[],
+  ): Partial<ServiceStatusDto> {
+    if (spec.key === "webPush") return {};
+
+    const today = startOfUtcDay(now);
+    const providerRows = callRows.filter((r) => r.provider === spec.key);
+    const todayCount =
+      providerRows.find((r) => r.day.getTime() === today.getTime())?.count ?? 0;
+    const monthCount = providerRows.reduce((sum, r) => sum + r.count, 0);
+
+    if (!spec.quotaLimit) {
+      return { today: todayCount, thisMonth: monthCount };
+    }
+
+    const used = spec.quotaLimit.window === "day" ? todayCount : monthCount;
+    return {
+      today: todayCount,
+      thisMonth: monthCount,
+      limit: spec.quotaLimit,
+      percentUsed: Math.round((used / spec.quotaLimit.max) * 100),
     };
   }
 

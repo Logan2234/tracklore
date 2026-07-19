@@ -46,6 +46,8 @@
   <!-- Drawer -->
   <aside
     class="
+      border-border
+      bg-surface
       fixed
       right-0
       bottom-0
@@ -57,8 +59,6 @@
       flex-col
       rounded-t-3xl
       border
-      border-border
-      bg-surface
       shadow-xl
       md:hidden
     ">
@@ -66,11 +66,11 @@
 
     <div
       class="
+        border-border
         flex
         items-center
         justify-between
         border-b
-        border-border
         px-5
         py-4
       ">
@@ -86,12 +86,12 @@
       <button
         onclick={close}
         class="
+          hover:bg-surface-2
           grid
           h-9
           w-9
           place-items-center
           rounded-full
-          hover:bg-surface-2
         ">
         <Icon name="x" class="h-5 w-5" />
       </button>
@@ -107,12 +107,12 @@
       {#if inAdmin}
         <div
           class="
+            text-dim
             mb-2
             text-xs
             font-bold
-            uppercase
             tracking-wider
-            text-dim
+            uppercase
           ">
           Administration
         </div>
@@ -145,29 +145,42 @@
       {:else}
         {#each items as item (item.href)}
           {#if !item.domain || isDomainEnabled(item.domain)}
-            {@const active = item.match(page.url.pathname)}
+            {#if item.comingSoon}
+              <!-- Planned domain: non-clickable, with a "Bientôt" badge. -->
+              <div
+                class="text-dim/70 flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold">
+                <Icon name={item.icon} class="h-5 w-5" />
+                <span class="flex-1">{item.label}</span>
+                <span
+                  class="bg-surface-2 text-dim rounded-full px-2 py-0.5 text-[0.65rem] font-bold">
+                  Bientôt
+                </span>
+              </div>
+            {:else}
+              {@const active = item.match(page.url.pathname)}
 
-            <a
-              href={item.href}
-              onclick={close}
-              class="
-                flex
-                items-center
-                gap-3
-                rounded-xl
-                px-3
-                py-3
-                text-sm
-                font-semibold
+              <a
+                href={item.href}
+                onclick={close}
+                class="
+                  flex
+                  items-center
+                  gap-3
+                  rounded-xl
+                  px-3
+                  py-3
+                  text-sm
+                  font-semibold
 
-                {active
-                ? 'bg-accent/15 text-accent'
-                : 'text-dim hover:bg-surface-2'}
-              ">
-              <Icon name={item.icon} class="h-5 w-5" />
+                  {active
+                  ? 'bg-accent/15 text-accent'
+                  : 'text-dim hover:bg-surface-2'}
+                ">
+                <Icon name={item.icon} class="h-5 w-5" />
 
-              {item.label}
-            </a>
+                {item.label}
+              </a>
+            {/if}
           {/if}
         {/each}
       {/if}
@@ -177,14 +190,15 @@
 
     <div
       class="
-        border-t
         border-border
+        border-t
         p-4
       ">
       <a
         href="/account"
         onclick={close}
         class="
+          hover:bg-surface-2
           mt-2
           flex
           items-center
@@ -194,7 +208,6 @@
           py-3
           text-sm
           font-semibold
-          hover:bg-surface-2
         ">
         <Icon name="user" class="h-5 w-5" />
 

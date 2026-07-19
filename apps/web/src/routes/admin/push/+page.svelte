@@ -152,7 +152,7 @@
   <section class="card mb-6 space-y-4 p-4 md:p-5">
     <h2 class="font-display text-lg font-bold">Test individuel</h2>
     <div>
-      <span class="mb-1 block text-xs font-semibold text-dim">Compte</span>
+      <span class="text-dim mb-1 block text-xs font-semibold">Compte</span>
       <Combobox
         label="Choisir un compte"
         options={userOptions}
@@ -165,7 +165,7 @@
     <div>
       <label
         for="admin-push-title"
-        class="mb-1 block text-xs font-semibold text-dim">
+        class="text-dim mb-1 block text-xs font-semibold">
         Titre (optionnel)
       </label>
       <input
@@ -174,13 +174,13 @@
         bind:value={title}
         placeholder="Tracklore (admin)"
         maxlength="100"
-        class="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm" />
+        class="border-border bg-surface w-full rounded-lg border px-3 py-2 text-sm" />
     </div>
 
     <div>
       <label
         for="admin-push-body"
-        class="mb-1 block text-xs font-semibold text-dim">
+        class="text-dim mb-1 block text-xs font-semibold">
         Message (optionnel)
       </label>
       <textarea
@@ -189,7 +189,7 @@
         placeholder="Ceci est une notification de test envoyée depuis le panel admin."
         maxlength="500"
         rows="2"
-        class="w-full resize-none rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+        class="border-border bg-surface w-full resize-none rounded-lg border px-3 py-2 text-sm"
       ></textarea>
     </div>
 
@@ -199,7 +199,7 @@
       </Banner>
     {:else if devices && devices.length > 0}
       <div>
-        <p class="mb-1.5 text-xs font-semibold text-dim">
+        <p class="text-dim mb-1.5 text-xs font-semibold">
           {devices.length} appareil{devices.length > 1 ? "s" : ""} abonné{devices.length >
           1
             ? "s"
@@ -208,7 +208,7 @@
         <ul class="space-y-1">
           {#each devices as d (d.id)}
             <li
-              class="truncate rounded-lg border border-border px-3 py-1.5 text-xs text-dim">
+              class="border-border text-dim truncate rounded-lg border px-3 py-1.5 text-xs">
               {d.userAgent ?? "Appareil inconnu"}
             </li>
           {/each}
@@ -249,7 +249,7 @@
   <section class="card border-accent/40 space-y-4 p-4 md:p-5">
     <div>
       <h2 class="font-display text-lg font-bold">Diffusion générale</h2>
-      <p class="mt-1 text-sm text-dim">
+      <p class="text-dim mt-1 text-sm">
         Envoie le même message à tous les appareils abonnés, tous comptes
         confondus.
         {#if accountCount !== null && deviceCount !== null}
@@ -264,7 +264,7 @@
     <div>
       <label
         for="admin-broadcast-title"
-        class="mb-1 block text-xs font-semibold text-dim">
+        class="text-dim mb-1 block text-xs font-semibold">
         Titre (optionnel)
       </label>
       <input
@@ -273,13 +273,13 @@
         bind:value={broadcastTitle}
         placeholder="Tracklore (admin)"
         maxlength="100"
-        class="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm" />
+        class="border-border bg-surface w-full rounded-lg border px-3 py-2 text-sm" />
     </div>
 
     <div>
       <label
         for="admin-broadcast-body"
-        class="mb-1 block text-xs font-semibold text-dim">
+        class="text-dim mb-1 block text-xs font-semibold">
         Message (optionnel)
       </label>
       <textarea
@@ -288,7 +288,7 @@
         placeholder="Message envoyé à tous les comptes depuis le panel admin."
         maxlength="500"
         rows="2"
-        class="w-full resize-none rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+        class="border-border bg-surface w-full resize-none rounded-lg border px-3 py-2 text-sm"
       ></textarea>
     </div>
 

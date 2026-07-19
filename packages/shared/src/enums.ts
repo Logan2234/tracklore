@@ -7,12 +7,19 @@
  * library, stats, imports). `User.enabledDomains` records which ones the user
  * keeps visible — the nav filters on it today (see web `isDomainEnabled`);
  * search and notification filtering still follow.
+ *
+ * PODCASTS and BOARDGAMES (board games — distinct from GAMES, i.e. video games)
+ * are placeholders for a planned P3 extension: no screens or catalogue tables
+ * back them yet, they surface everywhere as "coming soon" and are off by
+ * default (never in the `enabledDomains` default), opt-in from /account.
  */
 export const Domain = {
   MEDIA: "MEDIA",
   BOOKS: "BOOKS",
   GAMES: "GAMES",
   MUSIC: "MUSIC",
+  PODCASTS: "PODCASTS",
+  BOARDGAMES: "BOARDGAMES",
 } as const;
 export type Domain = (typeof Domain)[keyof typeof Domain];
 

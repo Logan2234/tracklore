@@ -1,11 +1,16 @@
 import { ConfigService } from "@nestjs/config";
+import type { QuotaTrackerService } from "../common/quota-tracker.service";
 import { OmdbService } from "./omdb.service";
 
 const originalFetch = global.fetch;
 
 function service(apiKey: string | undefined): OmdbService {
   const config = { get: jest.fn().mockReturnValue(apiKey) };
-  return new OmdbService(config as unknown as ConfigService);
+  const quota = { record: jest.fn() };
+  return new OmdbService(
+    config as unknown as ConfigService,
+    quota as unknown as QuotaTrackerService,
+  );
 }
 
 describe("OmdbService", () => {

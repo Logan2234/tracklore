@@ -175,16 +175,16 @@
   }
 </script>
 
-<h2 class="mt-10 mb-4 font-display text-xl font-bold">Épisodes</h2>
+<h2 class="font-display mt-10 mb-4 text-xl font-bold">Épisodes</h2>
 <div class="flex flex-col gap-4 pb-4">
   {#each seasons as season (season.number)}
     <!-- Seasons are collapsible and collapsed by default. -->
     <details class="card group">
       <summary
-        class="flex cursor-pointer list-none items-center gap-3 rounded-[inherit] bg-surface-2 px-4 py-2.5 font-display font-semibold group-open:rounded-b-none group-open:border-b group-open:border-border [&::-webkit-details-marker]:hidden">
+        class="bg-surface-2 font-display group-open:border-border flex cursor-pointer list-none items-center gap-3 rounded-[inherit] px-4 py-2.5 font-semibold group-open:rounded-b-none group-open:border-b [&::-webkit-details-marker]:hidden">
         <Icon
           name="chevron-right"
-          class="h-4 w-4 shrink-0 text-dim transition-transform group-open:rotate-90" />
+          class="text-dim h-4 w-4 shrink-0 transition-transform group-open:rotate-90" />
         <span class="min-w-0 flex-1 truncate">
           {season.title ?? `Saison ${season.number}`}
         </span>
@@ -194,7 +194,7 @@
         {#if entry && season.id}
           {#if seasonWatched(season)}
             <span
-              class="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-success">
+              class="text-success inline-flex shrink-0 items-center gap-1 text-xs font-semibold">
               <Icon name="check" class="h-4 w-4" /> Vue
             </span>
           {:else}
@@ -213,7 +213,7 @@
       <ul>
         {#each season.episodes as episode (episode.number)}
           {@const watched = episode.watchCount > 0}
-          <li class="border-b border-border last:border-b-0">
+          <li class="border-border border-b last:border-b-0">
             <div class="flex items-center gap-3 px-4 py-2.5">
               <span class="timecode w-14 shrink-0 text-sm">
                 S{String(season.number).padStart(2, "0")}E{String(
@@ -228,7 +228,7 @@
               </span>
               {#if watched && episode.id}
                 <span
-                  class="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-success">
+                  class="text-success inline-flex shrink-0 items-center gap-1 text-xs font-semibold">
                   <Icon name="check" class="h-4 w-4" />
                   {dateFmt.format(new Date(episode.watches[0].watchedAt))}
                 </span>
@@ -237,7 +237,7 @@
                 {@const upcoming = !watched && upcomingLabel(episode.airDate)}
                 {#if upcoming}
                   <span
-                    class="shrink-0 rounded-lg border border-border px-2.5 py-1 text-xs text-dim"
+                    class="border-border text-dim shrink-0 rounded-lg border px-2.5 py-1 text-xs"
                     title="Pas encore diffusé">
                     {upcoming}
                   </span>
@@ -249,7 +249,7 @@
                        chevron opens a dropdown (e.g. "mark through here"). -->
                   <div
                     class="inline-flex shrink-0 items-stretch overflow-hidden rounded-lg text-xs font-semibold {watched
-                      ? 'border border-border text-dim'
+                      ? 'border-border text-dim border'
                       : 'bg-btn text-btn-fg'}">
                     <button
                       class="px-2.5 py-1 transition-[filter,background-color,color] disabled:opacity-50 {watched
@@ -294,19 +294,19 @@
     onclick={() => (menu = null)}></button>
   <div
     role="menu"
-    class="fixed z-40 min-w-44 overflow-hidden rounded-lg border border-border bg-surface shadow-lg"
+    class="border-border bg-surface fixed z-40 min-w-44 overflow-hidden rounded-lg border shadow-lg"
     style={`top: ${active.top}px; right: ${active.right}px`}>
     {#if showThrough}
       <button
-        class="block w-full px-3 py-2 text-left text-sm hover:bg-surface-2"
+        class="hover:bg-surface-2 block w-full px-3 py-2 text-left text-sm"
         onclick={() => markThrough(active.episodeId)}>
         Marquer vu jusqu'ici
       </button>
     {/if}
     {#if showUnwatch}
       <button
-        class="block w-full px-3 py-2 text-left text-sm hover:bg-surface-2 {showThrough
-          ? 'border-t border-border'
+        class="hover:bg-surface-2 block w-full px-3 py-2 text-left text-sm {showThrough
+          ? 'border-border border-t'
           : ''}"
         onclick={() => markUnwatch(active.episodeId)}>
         {menuCtx.episode.watchCount > 1

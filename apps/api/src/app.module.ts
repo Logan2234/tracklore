@@ -8,6 +8,7 @@ import { AuthModule } from "./auth/auth.module";
 import { JwtAuthGuard } from "./auth/guards/jwt-auth.guard";
 import { BooksModule } from "./books/books.module";
 import { CatalogModule } from "./catalog/catalog.module";
+import { CommonModule } from "./common/common.module";
 import { GamesModule } from "./games/games.module";
 import { HealthModule } from "./health/health.module";
 import { ImportModule } from "./import/import.module";
@@ -26,6 +27,7 @@ import { UsersModule } from "./users/users.module";
     // (login, register, forgot/reset password) apply a tighter @Throttle().
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]),
     PrismaModule,
+    CommonModule,
     MailModule,
     AuthModule,
     AdminModule,

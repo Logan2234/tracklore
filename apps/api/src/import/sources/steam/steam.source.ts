@@ -15,6 +15,7 @@ import type {
   ImportReportTile,
 } from "@tracklore/shared";
 import { PrismaService } from "../../../prisma/prisma.service";
+import { QuotaTrackerService } from "../../../common/quota-tracker.service";
 import { AgeGateService } from "../../../users/age-gate.service";
 import { GameItemService } from "../../../games/game-item.service";
 import { IgdbProvider } from "../../../games/providers/igdb.provider";
@@ -65,6 +66,7 @@ export class SteamImportSource implements ImportSource<SteamParsed> {
     private readonly igdb: IgdbProvider,
     private readonly gameItemService: GameItemService,
     private readonly ageGate: AgeGateService,
+    private readonly quota: QuotaTrackerService,
   ) {}
 
   parseInput(input: string): SteamParsed {
@@ -355,6 +357,7 @@ export class SteamImportSource implements ImportSource<SteamParsed> {
       target.searchParams.set(key, value);
     }
 
+    this.quota.record("steam");
     const response = await fetch(target);
 
     if (!response.ok) {

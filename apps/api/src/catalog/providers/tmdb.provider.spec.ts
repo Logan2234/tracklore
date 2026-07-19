@@ -2,6 +2,7 @@ import { ConfigService } from "@nestjs/config";
 import { MediaSource, MediaType } from "@tracklore/shared";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { QuotaTrackerService } from "../../common/quota-tracker.service";
 import { OmdbService } from "../omdb.service";
 import { TmdbProvider } from "./tmdb.provider";
 
@@ -41,9 +42,11 @@ describe("TmdbProvider", () => {
   beforeEach(() => {
     const config = { getOrThrow: jest.fn().mockReturnValue("test-token") };
     const omdb = { getRatings: jest.fn().mockResolvedValue([]) };
+    const quota = { record: jest.fn() };
     provider = new TmdbProvider(
       config as unknown as ConfigService,
       omdb as unknown as OmdbService,
+      quota as unknown as QuotaTrackerService,
     );
   });
 

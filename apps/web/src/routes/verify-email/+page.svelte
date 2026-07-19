@@ -38,14 +38,14 @@
       <h1 class="font-display text-xl font-bold">Vérification de l'email</h1>
 
       {#if status === "pending"}
-        <p class="text-sm text-dim">Vérification en cours…</p>
+        <p class="text-dim text-sm">Vérification en cours…</p>
       {:else if status === "done"}
-        <p class="text-sm text-dim">Ton adresse email est confirmée.</p>
+        <p class="text-dim text-sm">Ton adresse email est confirmée.</p>
       {:else}
-        <p class="text-sm text-danger">{error}</p>
+        <p class="text-danger text-sm">{error}</p>
       {/if}
 
-      <p class="text-center text-sm text-dim">
+      <p class="text-dim text-center text-sm">
         <a href="/login" class="link-accent">Retour à la connexion</a>
       </p>
     </div>

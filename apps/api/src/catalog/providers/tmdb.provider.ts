@@ -12,6 +12,7 @@ import {
   MediaType,
 } from "@tracklore/shared";
 import { fetchJson } from "../../common/http.util";
+import { QuotaTrackerService } from "../../common/quota-tracker.service";
 import { OmdbService } from "../omdb.service";
 import type {
   CatalogProvider,
@@ -136,6 +137,7 @@ export class TmdbProvider implements CatalogProvider {
   constructor(
     private readonly configService: ConfigService,
     private readonly omdb: OmdbService,
+    private readonly quota: QuotaTrackerService,
   ) {}
 
   async search(
@@ -383,6 +385,7 @@ export class TmdbProvider implements CatalogProvider {
       url.searchParams.set(key, value);
     }
 
+    this.quota.record("tmdb");
     return fetchJson<T>(
       url,
       {

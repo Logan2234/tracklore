@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import nodemailer, { Transporter } from "nodemailer";
+import { QuotaTrackerService } from "../common/quota-tracker.service";
 
 interface SendArgs {
   to: string;
@@ -108,7 +109,7 @@ export class MailService {
     newEpisode: {
       label: "Nouvel épisode",
       fields: [
-        { key: "mediaTitle", label: "Titre média", default: "One Piece" },
+        { key: "mediaTitle", label: "Titre", default: "One Piece" },
         {
           key: "body",
           label: "Message",
@@ -120,7 +121,7 @@ export class MailService {
     },
   };
 
-  constructor() {
+  constructor(private readonly quota: QuotaTrackerService) {
     const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } =
       process.env;
     this.webOrigin = process.env.WEB_ORIGIN ?? "http://localhost:5173";
@@ -398,6 +399,7 @@ export class MailService {
     if (!this.transporter) return;
 
     try {
+      this.quota.record("smtp");
       await this.transporter.sendMail({
         from: this.from,
         to,

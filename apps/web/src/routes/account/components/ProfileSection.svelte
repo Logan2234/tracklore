@@ -78,7 +78,7 @@
 
 {#if auth.user}
   <section class="card mb-5 p-5 md:p-6">
-    <h2 class="mb-4 font-display text-lg font-bold">Profil</h2>
+    <h2 class="font-display mb-4 text-lg font-bold">Profil</h2>
 
     <label class="block max-w-xs">
       <span class="mb-1.5 block text-sm font-semibold">Nom affiché</span>
@@ -90,14 +90,14 @@
         onchange={saveDisplayName} />
     </label>
     {#if displayNameStatus === "saving"}
-      <p class="mt-2 text-sm text-dim">Enregistrement…</p>
+      <p class="text-dim mt-2 text-sm">Enregistrement…</p>
     {:else if displayNameStatus === "saved"}
-      <p class="mt-2 text-sm text-success">Enregistré.</p>
+      <p class="text-success mt-2 text-sm">Enregistré.</p>
     {:else if displayNameStatus === "error"}
-      <p class="mt-2 text-sm text-danger">{displayNameError}</p>
+      <p class="text-danger mt-2 text-sm">{displayNameError}</p>
     {/if}
 
-    <div class="mt-5 border-t border-border pt-5">
+    <div class="border-border mt-5 border-t pt-5">
       <label class="block max-w-xs">
         <span class="mb-1.5 block text-sm font-semibold">
           Date de naissance
@@ -109,23 +109,23 @@
           bind:value={birthDate}
           onchange={saveBirthDate} />
       </label>
-      <p class="mt-1.5 text-xs text-dim">
+      <p class="text-dim mt-1.5 text-xs">
         Utilisée pour adapter certaines recommandations à ton âge.
       </p>
       {#if birthDateStatus === "saving"}
-        <p class="mt-2 text-sm text-dim">Enregistrement…</p>
+        <p class="text-dim mt-2 text-sm">Enregistrement…</p>
       {:else if birthDateStatus === "saved"}
-        <p class="mt-2 text-sm text-success">Enregistré.</p>
+        <p class="text-success mt-2 text-sm">Enregistré.</p>
       {:else if birthDateStatus === "error"}
-        <p class="mt-2 text-sm text-danger">{birthDateError}</p>
+        <p class="text-danger mt-2 text-sm">{birthDateError}</p>
       {/if}
     </div>
 
-    <div class="mt-5 border-t border-border pt-5">
+    <div class="border-border mt-5 border-t pt-5">
       <div class="flex items-start justify-between gap-4">
         <div>
           <p class="font-semibold">Contenu pour adultes</p>
-          <p class="text-sm text-dim">
+          <p class="text-dim text-sm">
             {#if isAdultEligible}
               Inclut les titres 18+ (hentai, films pornographiques) dans les
               recherches.
@@ -144,7 +144,7 @@
         </button>
       </div>
       {#if adultContentError}
-        <p class="mt-2 text-sm text-danger">{adultContentError}</p>
+        <p class="text-danger mt-2 text-sm">{adultContentError}</p>
       {/if}
     </div>
   </section>

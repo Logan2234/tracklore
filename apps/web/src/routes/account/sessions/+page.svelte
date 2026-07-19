@@ -117,7 +117,7 @@
       Appareils connectés
     </h1>
   </div>
-  <p class="mb-8 max-w-xl text-sm text-dim">
+  <p class="text-dim mb-8 max-w-xl text-sm">
     Les sessions actuellement ouvertes sur ton compte. Déconnecte un appareil
     que tu ne reconnais pas ou que tu n'utilises plus.
   </p>
@@ -125,30 +125,30 @@
   {#if loading}
     <CardRowSkeleton count={3} />
   {:else if error}
-    <p class="text-sm text-danger">{error}</p>
+    <p class="text-danger text-sm">{error}</p>
   {:else}
-    <div class="card divide-y divide-border">
+    <div class="card divide-border divide-y">
       {#each sessions as session (session.id)}
         {@const isCurrent = session.jti === currentJti}
         <div class="flex items-center gap-4 p-4">
-          <Icon name="monitor" class="h-6 w-6 shrink-0 text-dim" />
+          <Icon name="monitor" class="text-dim h-6 w-6 shrink-0" />
           <div class="min-w-0 flex-1">
             <p class="flex items-center gap-2 font-semibold">
               <span class="truncate">{deviceLabel(session.userAgent)}</span>
               {#if isCurrent}
                 <span
-                  class="rounded-full bg-accent/15 px-2.5 py-0.5 text-xs font-semibold text-accent">
+                  class="bg-accent/15 text-accent rounded-full px-2.5 py-0.5 text-xs font-semibold">
                   Cet appareil
                 </span>
               {/if}
             </p>
-            <p class="text-sm text-dim">
+            <p class="text-dim text-sm">
               Actif {lastActive(session.lastUsedAt)}
             </p>
           </div>
           {#if !isCurrent}
             <button
-              class="shrink-0 text-sm font-semibold text-danger hover:underline"
+              class="text-danger shrink-0 text-sm font-semibold hover:underline"
               onclick={() => (confirmTarget = { kind: "one", session })}>
               Déconnecter
             </button>
@@ -175,7 +175,7 @@
         : "Déconnecter l'appareil"}
       onclose={() => (confirmTarget = null)}>
       <div class="flex flex-col gap-3">
-        <p class="text-sm text-dim">
+        <p class="text-dim text-sm">
           {#if confirmTarget.kind === "others"}
             Toutes les autres sessions seront fermées. Les appareils concernés
             devront se reconnecter.
@@ -185,7 +185,7 @@
           {/if}
         </p>
         {#if revokeError}
-          <p class="text-sm text-danger">{revokeError}</p>
+          <p class="text-danger text-sm">{revokeError}</p>
         {/if}
         <div class="mt-2 flex justify-end gap-2">
           <button

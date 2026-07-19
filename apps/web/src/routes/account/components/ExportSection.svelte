@@ -35,11 +35,28 @@
     }
   }
 
-  const CSV_DOMAINS: { domain: Domain; label: string; slug: string }[] = [
+  const CSV_DOMAINS: {
+    domain: Domain;
+    label: string;
+    slug: string;
+    comingSoon?: boolean;
+  }[] = [
     { domain: Domain.MEDIA, label: "Films, séries et animés", slug: "media" },
     { domain: Domain.BOOKS, label: "Livres", slug: "books" },
     { domain: Domain.GAMES, label: "Jeux", slug: "games" },
     { domain: Domain.MUSIC, label: "Musique", slug: "music" },
+    {
+      domain: Domain.PODCASTS,
+      label: "Podcasts",
+      slug: "podcasts",
+      comingSoon: true,
+    },
+    {
+      domain: Domain.BOARDGAMES,
+      label: "Jeux de société",
+      slug: "boardgames",
+      comingSoon: true,
+    },
   ];
 
   let csvExporting = $state<Domain | null>(null);
@@ -65,8 +82,8 @@
 </script>
 
 <section class="card mb-5 p-5 md:p-6">
-  <h2 class="mb-1 font-display text-lg font-bold">Export</h2>
-  <p class="mb-4 text-sm text-dim">
+  <h2 class="font-display mb-1 text-lg font-bold">Export</h2>
+  <p class="text-dim mb-4 text-sm">
     Télécharge une copie complète de tes données — profil, bibliothèque et
     historique de visionnage — au format JSON.
   </p>
@@ -75,26 +92,37 @@
     {exporting ? "Préparation…" : "Télécharger mes données (JSON)"}
   </button>
   {#if exportError}
-    <p class="mt-2 text-sm text-danger">{exportError}</p>
+    <p class="text-danger mt-2 text-sm">{exportError}</p>
   {/if}
 
-  <div class="mt-5 border-t border-border pt-5">
-    <p class="mb-3 text-sm text-dim">
+  <div class="border-border mt-5 border-t pt-5">
+    <p class="text-dim mb-3 text-sm">
       Ou exporte une bibliothèque en CSV, à plat, pour l'importer ailleurs.
     </p>
     <div class="flex flex-wrap gap-2">
       {#each CSV_DOMAINS as d (d.domain)}
-        <button
-          class="btn btn-ghost"
-          disabled={csvExporting !== null}
-          onclick={() => downloadCsv(d.domain, d.slug)}>
-          <Icon name="download" class="mr-1.5 inline h-4 w-4" />
-          {csvExporting === d.domain ? "Préparation…" : `${d.label} (CSV)`}
-        </button>
+        {#if d.comingSoon}
+          <!-- Planned domain: no data to export yet. -->
+          <button
+            class="btn btn-ghost disabled:pointer-events-none disabled:opacity-40"
+            disabled
+            title="Disponible prochainement">
+            <Icon name="download" class="mr-1.5 inline h-4 w-4" />
+            {d.label} (CSV) · Bientôt
+          </button>
+        {:else}
+          <button
+            class="btn btn-ghost"
+            disabled={csvExporting !== null}
+            onclick={() => downloadCsv(d.domain, d.slug)}>
+            <Icon name="download" class="mr-1.5 inline h-4 w-4" />
+            {csvExporting === d.domain ? "Préparation…" : `${d.label} (CSV)`}
+          </button>
+        {/if}
       {/each}
     </div>
     {#if csvError}
-      <p class="mt-2 text-sm text-danger">{csvError}</p>
+      <p class="text-danger mt-2 text-sm">{csvError}</p>
     {/if}
   </div>
 </section>

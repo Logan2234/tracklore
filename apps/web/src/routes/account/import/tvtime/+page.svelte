@@ -5,7 +5,7 @@
 
 <ImportWizard descriptor={IMPORT_SOURCES.tvtime}>
   {#snippet intro()}
-    Dépose l’archive <code class="rounded bg-bg px-1.5 py-0.5 font-mono text-xs"
+    Dépose l’archive <code class="bg-bg rounded px-1.5 py-0.5 font-mono text-xs"
       >.zip</code>
     de ton
     <a

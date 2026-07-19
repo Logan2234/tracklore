@@ -179,6 +179,10 @@ export class DataExportService {
         finishedAt: entry.finishedAt?.toISOString() ?? null,
         createdAt: entry.createdAt.toISOString(),
       })),
+      // Reserved keys for the planned podcasts/board-games domains — no backing
+      // tables yet, so always empty (keeps the export shape stable ahead of P3).
+      podcasts: [],
+      boardGames: [],
       notifications: notifications.map((n) => ({
         type: n.type,
         mediaTitle: n.mediaTitle,

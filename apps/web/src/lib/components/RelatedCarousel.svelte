@@ -16,11 +16,11 @@
 
 {#if items.length > 0}
   <section class="mt-10">
-    <h2 class="mb-3 font-display text-xl font-bold">{title}</h2>
+    <h2 class="font-display mb-3 text-xl font-bold">{title}</h2>
     <Carousel {items} keyOf={(item) => item.key}>
       {#snippet card(item)}
         <a href={item.href} class="w-28 shrink-0 snap-start sm:w-32">
-          <div class="card transition-colors hover:border-accent">
+          <div class="card hover:border-accent transition-colors">
             <Poster src={item.cover} title={item.title} />
           </div>
           <p class="mt-1.5 truncate text-xs font-semibold">{item.title}</p>

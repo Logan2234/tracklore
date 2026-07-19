@@ -29,7 +29,7 @@
       <p class="font-display text-3xl font-extrabold tracking-tight">
         TRACK<span class="text-accent">LORE</span>
       </p>
-      <p class="mt-2 text-sm text-dim">Ta salle de projection privée.</p>
+      <p class="text-dim mt-2 text-sm">Ta salle de projection privée.</p>
     </div>
 
     <form onsubmit={submit} class="card flex flex-col gap-4 p-7">
@@ -46,13 +46,13 @@
         required />
       <a
         href="/forgot-password"
-        class="-mt-2 text-right text-sm text-dim hover:text-accent hover:underline"
+        class="text-dim hover:text-accent -mt-2 text-right text-sm hover:underline"
         >Mot de passe oublié ?</a>
-      {#if error}<p class="text-sm text-danger">{error}</p>{/if}
+      {#if error}<p class="text-danger text-sm">{error}</p>{/if}
       <button type="submit" class="btn btn-primary" disabled={loading}>
         {loading ? "Connexion…" : "Se connecter"}
       </button>
-      <p class="text-center text-sm text-dim">
+      <p class="text-dim text-center text-sm">
         Pas encore de compte ?
         <a href="/register" class="link-accent">Créer un compte</a>
       </p>

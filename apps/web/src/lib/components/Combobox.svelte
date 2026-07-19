@@ -97,15 +97,15 @@
       onclick={() => (open = false)}></button>
     <div
       role="listbox"
-      class="absolute left-0 z-40 mt-1 min-w-48 overflow-hidden rounded-lg border border-border bg-surface py-1 shadow-lg">
+      class="border-border bg-surface absolute left-0 z-40 mt-1 min-w-48 overflow-hidden rounded-lg border py-1 shadow-lg">
       {#if searchable}
-        <div class="border-b border-border p-1.5">
+        <div class="border-border border-b p-1.5">
           <input
             bind:this={searchInput}
             bind:value={query}
             type="text"
             placeholder={searchPlaceholder}
-            class="w-full rounded-md border border-border bg-surface-2 px-2 py-1 text-sm" />
+            class="border-border bg-surface-2 w-full rounded-md border px-2 py-1 text-sm" />
         </div>
       {/if}
       {#each visibleOptions as o (o.value)}
@@ -114,7 +114,7 @@
           type="button"
           role="option"
           aria-selected={on}
-          class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors hover:bg-surface-2"
+          class="hover:bg-surface-2 flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors"
           onclick={() => choose(o.value)}>
           {#if multiselect}
             <span
@@ -124,7 +124,7 @@
               {#if on}<Icon name="check" class="h-3 w-3" />{/if}
             </span>
           {:else}
-            <span class="grid h-4 w-4 shrink-0 place-items-center text-accent">
+            <span class="text-accent grid h-4 w-4 shrink-0 place-items-center">
               {#if on}<Icon name="check" class="h-3.5 w-3.5" />{/if}
             </span>
           {/if}
@@ -134,7 +134,7 @@
         </button>
       {/each}
       {#if searchable && visibleOptions.length === 0}
-        <p class="px-3 py-2 text-sm text-dim">Aucun résultat.</p>
+        <p class="text-dim px-3 py-2 text-sm">Aucun résultat.</p>
       {/if}
     </div>
   {/if}

@@ -21,7 +21,7 @@
 
 <a
   {href}
-  class="card group transition-[transform,border-color] duration-150 hover:-translate-y-0.5 hover:border-accent">
+  class="card group hover:border-accent transition-[transform,border-color] duration-150 hover:-translate-y-0.5">
   <Poster {src} {title} />
   <div class="flex flex-col gap-1.5 p-3">
     <span class="font-display text-sm leading-tight font-semibold">

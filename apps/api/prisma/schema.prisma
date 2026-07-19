@@ -24,11 +24,15 @@ enum MediaType {
 // Top-level content domain a user can compose their app from. MEDIA groups
 // MOVIE/SERIES/ANIME; BOOKS/GAMES/MUSIC each have their own screens (search,
 // library, stats). `User.enabledDomains` drives the nav (see web isDomainEnabled).
+// PODCASTS/BOARDGAMES are planned P3 placeholders — no backing tables yet,
+// surfaced as "coming soon" and kept out of the enabledDomains default (opt-in).
 enum Domain {
   MEDIA
   BOOKS
   GAMES
   MUSIC
+  PODCASTS
+  BOARDGAMES
 }
 
 // Operational permission level, orthogonal to User.entitlements (the future
@@ -356,6 +360,20 @@ model ImportRun {
 
   @@index([sourceId, startedAt])
   @@index([userId])
+}
+
+// One row per external provider per UTC day — the raw series the /admin/services
+// page aggregates into "today" and "this month" depending on each provider's
+// documented quota window. Unbounded (like SecurityEvent/ImportRun): a few
+// rows per provider per day is negligible volume.
+model ApiCallCounter {
+  id       String   @id @default(cuid())
+  provider String
+  day      DateTime
+  count    Int      @default(0)
+
+  @@unique([provider, day])
+  @@index([provider])
 }
 
 // One pending email change per row; a fresh request invalidates the previous

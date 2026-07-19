@@ -10,20 +10,16 @@ export type AdminNavItem = {
   description: string;
   icon: IconName;
   match: (path: string) => boolean;
-  /** Not built yet: shown dimmed with a "Bientôt" badge, not navigable. */
-  soon?: boolean;
 };
 
-// Full list per the admin-panel-idea memory: Logan's requested features plus
-// Claude's suggestions. Only Services is built; the rest are placeholders
-// ("soon") so the destination and its rationale aren't lost between sessions.
 export const ADMIN_NAV: AdminNavItem[] = [
   {
-    href: "/admin/status",
+    href: "/admin/services",
     label: "Services",
-    description: "Santé des dépendances externes (clés, disponibilité).",
+    description:
+      "Santé et usage des dépendances externes (clés, disponibilité, quotas).",
     icon: "monitor",
-    match: (p) => p.startsWith("/admin/status"),
+    match: (p) => p.startsWith("/admin/services"),
   },
   {
     href: "/admin/users",
@@ -73,14 +69,6 @@ export const ADMIN_NAV: AdminNavItem[] = [
     description: "Journal des imports (Steam, StoryGraph, TV Time…).",
     icon: "download",
     match: (p) => p.startsWith("/admin/imports"),
-  },
-  {
-    href: "/admin/quotas",
-    label: "Quotas",
-    description: "Usage vs. limites des APIs externes mesurées.",
-    icon: "gauge",
-    match: (p) => p.startsWith("/admin/quotas"),
-    soon: true,
   },
   {
     href: "/admin/cache",

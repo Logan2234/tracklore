@@ -21,7 +21,7 @@
 </script>
 
 <div
-  class="mt-6 flex max-w-xl flex-col gap-4 rounded-xl border border-border bg-surface p-4">
+  class="border-border bg-surface mt-6 flex max-w-xl flex-col gap-4 rounded-xl border p-4">
   <!-- Block header: label + favourite pinned top-right. -->
   <div class="flex items-center justify-between gap-2">
     <span class="timecode text-[0.62rem] tracking-[0.18em] uppercase"
@@ -45,7 +45,7 @@
   <div class="flex justify-end">
     <button
       type="button"
-      class="text-sm font-medium text-dim underline-offset-4 transition-colors hover:text-danger hover:underline disabled:opacity-50"
+      class="text-dim hover:text-danger text-sm font-medium underline-offset-4 transition-colors hover:underline disabled:opacity-50"
       disabled={saving}
       onclick={onRemove}>
       Retirer de ma bibliothèque

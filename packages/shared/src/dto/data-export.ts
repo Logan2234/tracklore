@@ -131,6 +131,14 @@ export interface UserDataExportDto {
   games: DataExportGameEntry[];
   books: DataExportBookEntry[];
   music: DataExportMusicEntry[];
+  /**
+   * Reserved for the planned podcasts domain (see `Domain.PODCASTS`). Present in
+   * the schema now so the export shape is stable before the domain ships;
+   * always an empty array until then.
+   */
+  podcasts: never[];
+  /** Reserved for the planned board-games domain (see `Domain.BOARDGAMES`); always empty until it ships. */
+  boardGames: never[];
   notifications: DataExportNotification[];
 }
 

@@ -179,7 +179,7 @@
 
   <div class="relative mb-4">
     <span
-      class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-dim">
+      class="text-dim pointer-events-none absolute inset-y-0 left-3 flex items-center">
       <Icon name="search" class="h-5 w-5" />
     </span>
     <input

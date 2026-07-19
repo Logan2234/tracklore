@@ -156,11 +156,11 @@
   {#if hoverIndex !== null && coords[hoverIndex]}
     {@const h = coords[hoverIndex]}
     <div
-      class="pointer-events-none absolute top-0 z-10 rounded-md border border-border bg-surface px-2 py-1 text-xs whitespace-nowrap shadow-sm"
+      class="border-border bg-surface pointer-events-none absolute top-0 z-10 rounded-md border px-2 py-1 text-xs whitespace-nowrap shadow-sm"
       style="left: {h.x}px; transform: {tooltipTransform(
         h.x,
       )} translateY(calc(-100% - 6px));">
-      <span class="font-semibold tabular-nums text-fg"
+      <span class="text-fg font-semibold tabular-nums"
         >{nf.format(h.point.count)}</span>
       <span class="text-dim"> · {bucketLabel(h.point.periodStart)}</span>
     </div>

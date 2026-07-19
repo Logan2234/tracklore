@@ -37,10 +37,10 @@
 </script>
 
 <section class="card border-danger/40 p-5 md:p-6">
-  <h2 class="mb-1 font-display text-lg font-bold text-danger">
+  <h2 class="font-display text-danger mb-1 text-lg font-bold">
     Zone de danger
   </h2>
-  <p class="mb-4 text-sm text-dim">
+  <p class="text-dim mb-4 text-sm">
     La suppression du compte efface définitivement ton profil, ta bibliothèque,
     ton historique de visionnage et tes notifications. Cette action est
     irréversible.
@@ -58,7 +58,7 @@
         e.preventDefault();
         confirmDeleteAccount();
       }}>
-      <p class="text-sm text-dim">
+      <p class="text-dim text-sm">
         Ton compte et toutes les données associées — bibliothèque, historique de
         visionnage, notes et notifications — seront définitivement supprimés.
         Cette action ne peut pas être annulée.
@@ -72,7 +72,7 @@
           bind:value={deletePasswordInput} />
       </label>
       {#if deleteError}
-        <p class="text-sm text-danger">{deleteError}</p>
+        <p class="text-danger text-sm">{deleteError}</p>
       {/if}
       <div class="mt-2 flex justify-end gap-2">
         <button type="button" class="btn btn-ghost" onclick={closeModal}>

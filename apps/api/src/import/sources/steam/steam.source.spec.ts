@@ -2,6 +2,7 @@ import { ConfigService } from "@nestjs/config";
 import { GameSource } from "@tracklore/shared";
 import type { ImportPlan, ImportPlanItem } from "@tracklore/shared";
 import type { ProviderGameDetails } from "../../../games/providers/game-provider.types";
+import type { QuotaTrackerService } from "../../../common/quota-tracker.service";
 import { GameItemService } from "../../../games/game-item.service";
 import { IgdbProvider } from "../../../games/providers/igdb.provider";
 import { PrismaService } from "../../../prisma/prisma.service";
@@ -92,12 +93,14 @@ function build(over: Partial<Mocks> = {}): {
     importRun: { create: jest.fn() },
   };
   const config = { getOrThrow: jest.fn().mockReturnValue("steam-key") };
+  const quota = { record: jest.fn() };
   const source = new SteamImportSource(
     config as unknown as ConfigService,
     mocks.prisma as unknown as PrismaService,
     mocks.igdb as unknown as IgdbProvider,
     mocks.gameItemService as unknown as GameItemService,
     mocks.ageGate as unknown as AgeGateService,
+    quota as unknown as QuotaTrackerService,
   );
   const service = new ImportJobService([source], {
     ...mocks.prisma,

@@ -3,9 +3,9 @@ import type { EntryStatus, MediaType } from "../enums";
 // ============================================================================
 // Generic, source-agnostic import model.
 //
-// Every import source (TV Time, StoryGraph, Goodreads, Steam, …) runs through
-// one async job framework: `analyze` parses the export and resolves it against
-// the catalogue into a reviewable {@link ImportPlan} (writing nothing);
+// Every import source runs through one async job framework: `analyze`
+// parses the export and resolves it against the catalogue into a reviewable
+// {@link ImportPlan} (writing nothing);
 // `commit` writes the user's decisions and returns an {@link ImportReport}.
 // Both phases run in the background as an {@link ImportJobDto} the client polls.
 //

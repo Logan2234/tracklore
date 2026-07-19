@@ -9,13 +9,31 @@
   import { isDomainEnabled } from "$lib/domains";
   import { Domain } from "@tracklore/shared";
 
-  type DomainIcon = "tv" | "gamepad" | "book" | "music";
+  type DomainIcon =
+    "tv" | "gamepad" | "book" | "music" | "podcast" | "boardgame";
 
-  const DOMAIN_TABS: { label: string; value: Domain; icon: DomainIcon }[] = [
-    { label: "Médias", value: Domain.MEDIA, icon: "tv" },
+  const DOMAIN_TABS: {
+    label: string;
+    value: Domain;
+    icon: DomainIcon;
+    comingSoon?: boolean;
+  }[] = [
+    { label: "Vidéo", value: Domain.MEDIA, icon: "tv" },
     { label: "Jeux", value: Domain.GAMES, icon: "gamepad" },
     { label: "Livres", value: Domain.BOOKS, icon: "book" },
     { label: "Musique", value: Domain.MUSIC, icon: "music" },
+    {
+      label: "Podcasts",
+      value: Domain.PODCASTS,
+      icon: "podcast",
+      comingSoon: true,
+    },
+    {
+      label: "Jeux de société",
+      value: Domain.BOARDGAMES,
+      icon: "boardgame",
+      comingSoon: true,
+    },
   ];
 
   // Search-box placeholder fragment, named after the active domain tab.
@@ -24,6 +42,8 @@
     [Domain.GAMES]: "un jeu",
     [Domain.BOOKS]: "un livre",
     [Domain.MUSIC]: "un album",
+    [Domain.PODCASTS]: "un podcast",
+    [Domain.BOARDGAMES]: "un jeu de société",
   };
 
   // Only the domains the user keeps enabled are searchable (mirrors the nav;
@@ -36,6 +56,11 @@
   let domain = $state<Domain>(Domain.MEDIA);
 
   const placeholder = $derived(`Chercher ${DOMAIN_HINT[domain]}…`);
+
+  // Planned domains show a "coming soon" placeholder instead of a search panel.
+  const comingSoon = $derived(
+    DOMAIN_TABS.find((t) => t.value === domain)?.comingSoon ?? false,
+  );
 
   // If the active domain gets disabled (or was never enabled), fall back to the
   // first enabled one so the panel below always matches a visible tab.
@@ -55,7 +80,7 @@
 
   <div class="relative mb-5">
     <span
-      class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-dim">
+      class="text-dim pointer-events-none absolute inset-y-0 left-3 flex items-center">
       <Icon name="search" class="h-5 w-5" />
     </span>
     <input type="search" {placeholder} bind:value={query} class="input pl-10" />
@@ -70,12 +95,29 @@
           onclick={() => (domain = tab.value)}>
           <Icon name={tab.icon} class="mr-1 -ml-0.5 inline h-3.5 w-3.5" />
           {tab.label}
+          {#if tab.comingSoon}
+            <span
+              class="bg-surface-2 text-dim ml-1.5 rounded-full px-1.5 py-0.5 text-[0.55rem] font-bold">
+              Bientôt
+            </span>
+          {/if}
         </button>
       {/each}
     </div>
   {/if}
 
-  {#if domain === Domain.MEDIA}
+  {#if comingSoon}
+    <div
+      class="border-border text-dim flex flex-col items-center gap-2 rounded-xl border border-dashed px-6 py-14 text-center">
+      <Icon
+        name={domain === Domain.PODCASTS ? "podcast" : "boardgame"}
+        class="text-dim/60 h-8 w-8" />
+      <p class="text-fg font-semibold">Bientôt disponible</p>
+      <p class="max-w-xs text-sm">
+        La recherche de ce domaine arrive prochainement.
+      </p>
+    </div>
+  {:else if domain === Domain.MEDIA}
     <MediaSearchPanel {query} />
   {:else if domain === Domain.GAMES}
     <GameSearchPanel {query} />

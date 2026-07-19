@@ -107,8 +107,8 @@
     subtitle="Export et restauration complète de la base de données." />
 
   <section class="card mb-5 p-5 md:p-6">
-    <h2 class="mb-1 font-display text-lg font-bold">Télécharger</h2>
-    <p class="mb-4 text-sm text-dim">
+    <h2 class="font-display mb-1 text-lg font-bold">Télécharger</h2>
+    <p class="text-dim mb-4 text-sm">
       Génère un dump SQL complet de l'instance (comptes, bibliothèques,
       historique…) et le télécharge localement.
     </p>
@@ -122,7 +122,7 @@
     {#if downloadError}
       <Banner variant="error" class="mt-3">{downloadError}</Banner>
     {:else if lastDownloadedAt}
-      <p class="mt-3 text-xs text-dim">
+      <p class="text-dim mt-3 text-xs">
         Dernière sauvegarde générée : {new Date(
           lastDownloadedAt,
         ).toLocaleString("fr-FR")}
@@ -131,8 +131,8 @@
   </section>
 
   <section class="card border-danger/40 p-5 md:p-6">
-    <h2 class="mb-1 font-display text-lg font-bold text-danger">Restaurer</h2>
-    <p class="mb-4 text-sm text-dim">
+    <h2 class="font-display text-danger mb-1 text-lg font-bold">Restaurer</h2>
+    <p class="text-dim mb-4 text-sm">
       Remplace <strong>l'intégralité</strong> de la base de données par le contenu
       d'un fichier de sauvegarde. Toute donnée créée depuis cette sauvegarde sera
       définitivement perdue. Cette action est irréversible.
@@ -162,15 +162,15 @@
         </button>
       </div>
     {:else}
-      <p class="text-sm text-dim">
+      <p class="text-dim text-sm">
         Fichier sélectionné : <strong class="text-fg"
           >{pendingFile.name}</strong>
         ({formatBytes(pendingFile.size)})
       </p>
-      <p class="mt-3 text-sm text-dim">
+      <p class="text-dim mt-3 text-sm">
         Cette action écrase <strong>toutes</strong> les données actuelles de
         l'instance, sans retour en arrière possible. Pour confirmer, tape
-        <code class="rounded bg-surface-2 px-1.5 py-0.5 text-xs font-bold"
+        <code class="bg-surface-2 rounded px-1.5 py-0.5 text-xs font-bold"
           >{CONFIRM_PHRASE}</code>
         ci-dessous.
       </p>
@@ -179,7 +179,7 @@
         bind:value={confirmText}
         disabled={restoring}
         placeholder={CONFIRM_PHRASE}
-        class="mt-3 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm" />
+        class="border-border bg-surface mt-3 w-full rounded-lg border px-3 py-2 text-sm" />
       {#if restoreError}
         <Banner variant="error" class="mt-3">{restoreError}</Banner>
       {/if}

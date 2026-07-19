@@ -106,10 +106,10 @@
   <PosterGrid>
     {#each { length: 10 } as _, i (i)}
       <div class="card flex flex-col">
-        <div class="aspect-2/3 w-full skeleton"></div>
+        <div class="skeleton aspect-2/3 w-full"></div>
         <div class="flex flex-col gap-2 p-3">
-          <div class="h-3.5 w-4/5 skeleton rounded"></div>
-          <div class="h-3 w-1/2 skeleton rounded"></div>
+          <div class="skeleton h-3.5 w-4/5 rounded"></div>
+          <div class="skeleton h-3 w-1/2 rounded"></div>
         </div>
       </div>
     {/each}
@@ -125,7 +125,7 @@
         <div class="flex flex-1 flex-col gap-2 p-3">
           <a
             href={`/music/${album.sourceId}`}
-            class="font-display text-sm leading-tight font-semibold group-hover:text-accent">
+            class="font-display group-hover:text-accent text-sm leading-tight font-semibold">
             {album.title}
           </a>
           <span class="timecode text-xs">
@@ -140,7 +140,7 @@
           </span>
           {#if entry}
             <span
-              class="mt-auto inline-flex items-center gap-1 text-xs font-semibold text-accent">
+              class="text-accent mt-auto inline-flex items-center gap-1 text-xs font-semibold">
               <Icon name="check" class="h-3.5 w-3.5" />
               {STATUS_LABELS[entry.status]}
             </span>

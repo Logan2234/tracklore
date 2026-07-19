@@ -26,12 +26,12 @@
     aria-labelledby="modal-title"
     class="card relative z-10 w-full max-w-md rounded-t-2xl p-5 sm:rounded-2xl">
     <button
-      class="absolute top-3 right-3 rounded-full p-1.5 text-dim hover:bg-surface-2 hover:text-fg"
+      class="text-dim hover:bg-surface-2 hover:text-fg absolute top-3 right-3 rounded-full p-1.5"
       aria-label="Fermer"
       onclick={onclose}>
       <Icon name="x" class="h-5 w-5" />
     </button>
-    <h3 id="modal-title" class="mb-4 font-display text-lg font-bold">
+    <h3 id="modal-title" class="font-display mb-4 text-lg font-bold">
       {title}
     </h3>
     {@render children()}

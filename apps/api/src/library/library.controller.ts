@@ -21,8 +21,8 @@ import type {
   StatsDto,
 } from "@tracklore/shared";
 import { Domain } from "@tracklore/shared";
-import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { JwtPayload } from "../auth/decorators/current-user.decorator";
+import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { toQueryArray } from "../common/query-array.util";
 import { DomainGateService } from "../users/domain-gate.service";
 import { UpdateEntryDto } from "./dto/update-entry.dto";

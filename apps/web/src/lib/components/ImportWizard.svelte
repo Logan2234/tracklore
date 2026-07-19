@@ -9,6 +9,7 @@
     searchGames,
   } from "$lib/api/client";
   import Banner from "$lib/components/Banner.svelte";
+  import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import Poster from "$lib/components/Poster.svelte";
   import {
@@ -41,6 +42,7 @@
   type Phase = "input" | "analyzing" | "review" | "committing" | "done";
   let phase = $state<Phase>("input");
   let error = $state<string | null>(null);
+  let showOverwriteConfirm = $state(false);
 
   // --- Input step ---
   // The raw payload sent as-is to the source: CSV text, a base64 ZIP, or a Steam id.
@@ -293,15 +295,18 @@
     searchResults = [];
   }
 
-  async function commit() {
+  function commit() {
     if (!analyzeJobId || !plan || selectedCount === 0) return;
     if (overwrite) {
-      const ok = confirm(
-        "Écraser supprimera définitivement ta bibliothèque et ton historique " +
-          "de ce domaine avant l’import. Cette action est irréversible. Continuer ?",
-      );
-      if (!ok) return;
+      showOverwriteConfirm = true;
+      return;
     }
+    doCommit();
+  }
+
+  async function doCommit() {
+    showOverwriteConfirm = false;
+    if (!analyzeJobId || !plan || selectedCount === 0) return;
     error = null;
     phase = "committing";
 
@@ -368,7 +373,7 @@
 
   {#if phase === "input"}
     {#if intro}
-      <div class="mb-6 max-w-xl text-sm text-dim">{@render intro()}</div>
+      <div class="text-dim mb-6 max-w-xl text-sm">{@render intro()}</div>
     {/if}
 
     {#if isFileInput}
@@ -393,11 +398,11 @@
           <span class="timecode text-sm">clique ou dépose pour changer</span>
         {:else}
           <span class="font-semibold">Dépose ton fichier ici</span>
-          <span class="text-sm text-dim">ou clique pour parcourir</span>
+          <span class="text-dim text-sm">ou clique pour parcourir</span>
         {/if}
       </label>
       {#if fileError}
-        <p class="mt-3 text-sm text-danger">{fileError}</p>
+        <p class="text-danger mt-3 text-sm">{fileError}</p>
       {/if}
     {:else}
       <input
@@ -434,9 +439,9 @@
       <p class="mb-2 font-semibold">
         {phase === "analyzing" ? "Analyse en cours…" : "Import en cours…"}
       </p>
-      <div class="h-2.5 overflow-hidden rounded-full bg-surface-2">
+      <div class="bg-surface-2 h-2.5 overflow-hidden rounded-full">
         <div
-          class="h-full bg-accent transition-[width]"
+          class="bg-accent h-full transition-[width]"
           style={`width: ${progressPct}%`}>
         </div>
       </div>
@@ -448,11 +453,11 @@
     </section>
   {:else if phase === "review" && plan}
     <div
-      class="sticky top-2 z-10 mb-5 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-xl border border-border bg-surface px-4 py-3 shadow-sm">
+      class="border-border bg-surface sticky top-2 z-10 mb-5 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-xl border px-4 py-3 shadow-sm">
       <p class="flex items-baseline gap-2">
         <span class="font-display text-xl font-extrabold tabular-nums"
           >{selectedCount}</span>
-        <span class="text-sm text-dim">
+        <span class="text-dim text-sm">
           {plural(selectedCount)} à importer{#if plan.counts.unresolved > 0}
             · {plan.counts.unresolved} à associer{/if}
         </span>
@@ -460,7 +465,7 @@
       <div class="flex items-center gap-3">
         {#if descriptor.canOverrideData}
           <label
-            class="flex items-center gap-2 rounded-lg border border-danger/30 bg-danger/5 px-3 py-1.5 text-sm font-medium text-danger">
+            class="border-danger/30 bg-danger/5 text-danger flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium">
             <input
               type="checkbox"
               bind:checked={overwrite}
@@ -479,7 +484,7 @@
 
     {#if plan.groups.length === 0}
       <div
-        class="mt-6 rounded-xl border border-dashed border-border px-6 py-12 text-center text-dim">
+        class="border-border text-dim mt-6 rounded-xl border border-dashed px-6 py-12 text-center">
         Rien à importer dans cet export.
       </div>
     {:else}
@@ -487,7 +492,7 @@
         {#if descriptor.collapsibleGroups}
           <details class="card mb-3 p-4" open={gi === 0}>
             <summary
-              class="flex cursor-pointer items-center justify-between font-display font-bold">
+              class="font-display flex cursor-pointer items-center justify-between font-bold">
               <span>{g.label} ({g.items.length})</span>
               <span class="flex gap-2 text-xs font-normal">
                 <button
@@ -509,7 +514,7 @@
         {:else}
           <section class="card mb-3 p-4">
             <div
-              class="flex items-center justify-between font-display font-bold">
+              class="font-display flex items-center justify-between font-bold">
               <span>{g.label} ({g.items.length})</span>
               <span class="flex gap-2 text-xs font-normal">
                 <button class="chip" onclick={() => setAll(g.items, true)}
@@ -527,11 +532,11 @@
     {@const r = job.report}
     <section class="card p-5 md:p-6">
       <div class="mb-4 flex items-center gap-3">
-        <Icon name="check" class="h-6 w-6 text-success" />
+        <Icon name="check" class="text-success h-6 w-6" />
         <h2 class="font-display text-lg font-bold">Import terminé</h2>
         {#if r.overwrite}
           <span
-            class="rounded-full bg-danger/15 px-2.5 py-0.5 text-xs font-semibold text-danger">
+            class="bg-danger/15 text-danger rounded-full px-2.5 py-0.5 text-xs font-semibold">
             Données remplacées
           </span>
         {/if}
@@ -540,10 +545,10 @@
         class="grid gap-3"
         style={`grid-template-columns: repeat(${Math.min(r.tiles.length, 3)}, minmax(0, 1fr))`}>
         {#each r.tiles as tile (tile.label)}
-          <div class="rounded-lg border border-border bg-bg p-4">
+          <div class="border-border bg-bg rounded-lg border p-4">
             <p class="timecode text-xs uppercase">{tile.label}</p>
             <p class="font-display text-2xl font-bold">{tile.value}</p>
-            {#if tile.sub}<p class="text-sm text-dim">{tile.sub}</p>{/if}
+            {#if tile.sub}<p class="text-dim text-sm">{tile.sub}</p>{/if}
           </div>
         {/each}
       </div>
@@ -556,8 +561,18 @@
   {/if}
 </div>
 
+{#if showOverwriteConfirm}
+  <ConfirmationModal
+    title="Écraser tes données ?"
+    message="Écraser supprimera définitivement ta bibliothèque et ton historique de ce domaine avant l’import. Cette action est irréversible."
+    confirmLabel="Écraser et importer"
+    danger
+    onConfirm={doCommit}
+    onCancel={() => (showOverwriteConfirm = false)} />
+{/if}
+
 {#snippet groupBody(g: ImportPlanGroup)}
-  <ul class="mt-3 flex flex-col divide-y divide-border">
+  <ul class="divide-border mt-3 flex flex-col divide-y">
     {#each g.items as item (item.key)}
       {@const match = matchOf(item)}
       {@const on = included.has(item.key)}
@@ -565,11 +580,11 @@
         <div class="flex items-center gap-3">
           <input
             type="checkbox"
-            class="h-4 w-4 shrink-0 accent-accent"
+            class="accent-accent h-4 w-4 shrink-0"
             checked={on}
             disabled={!match}
             onchange={() => toggle(item.key)} />
-          <div class="h-12 w-9 shrink-0 overflow-hidden rounded bg-surface-2">
+          <div class="bg-surface-2 h-12 w-9 shrink-0 overflow-hidden rounded">
             {#if match?.coverUrl}
               <img
                 src={match.coverUrl}
@@ -599,7 +614,7 @@
               </button>
             {:else}
               <button
-                class="chip text-xs text-danger"
+                class="chip text-danger text-xs"
                 onclick={() => openSearch(item)}>
                 Associer…
               </button>
@@ -619,7 +634,7 @@
         </div>
 
         {#if searchKey === item.key}
-          <div class="rounded-lg border border-border bg-bg p-3">
+          <div class="border-border bg-bg rounded-lg border p-3">
             <form
               onsubmit={(e) => {
                 e.preventDefault();
@@ -639,7 +654,7 @@
                 {#each searchResults as r (`${r.source}:${r.sourceId}`)}
                   <li>
                     <button
-                      class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-surface-2"
+                      class="hover:bg-surface-2 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm"
                       onclick={() => chooseMatch(item.key, r)}>
                       <div class="h-10 w-7 shrink-0 overflow-hidden rounded">
                         <Poster src={r.coverUrl} title={r.title} />

@@ -31,7 +31,7 @@
     bind:value />
   <button
     type="button"
-    class="absolute inset-y-0 right-0 flex w-9 items-center justify-center text-dim hover:text-fg"
+    class="text-dim hover:text-fg absolute inset-y-0 right-0 flex w-9 items-center justify-center"
     aria-label={visible
       ? "Masquer le mot de passe"
       : "Afficher le mot de passe"}

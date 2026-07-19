@@ -11,6 +11,7 @@ import {
 } from "@tracklore/shared";
 import type { MediaExtrasDto } from "@tracklore/shared";
 import { fetchJson } from "../../common/http.util";
+import { QuotaTrackerService } from "../../common/quota-tracker.service";
 import type {
   CatalogProvider,
   ProviderEpisode,
@@ -118,6 +119,8 @@ interface AnilistExtras {
 export class AnilistProvider implements CatalogProvider {
   readonly source = CatalogSource.ANILIST;
 
+  constructor(private readonly quota: QuotaTrackerService) {}
+
   // AniList only serves anime, so the `type` filter is irrelevant here.
   async search(
     query: string,
@@ -217,6 +220,7 @@ export class AnilistProvider implements CatalogProvider {
     query: string,
     variables: Record<string, unknown>,
   ): Promise<T> {
+    this.quota.record("anilist");
     const body = await fetchJson<{
       data?: T;
       errors?: { message: string }[];

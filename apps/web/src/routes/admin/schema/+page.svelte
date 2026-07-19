@@ -71,7 +71,7 @@
   {:else if activeGraph}
     <MermaidDiagram code={activeGraph} />
   {:else}
-    <div class="card p-6 text-sm text-dim">
+    <div class="card text-dim p-6 text-sm">
       <p>
         Pas encore généré pour cette session de développement (fichier absent de <code
           class="text-fg">docs/</code
@@ -79,7 +79,7 @@
       </p>
       <p class="mt-3">Génère-le avec :</p>
       <pre
-        class="mt-2 overflow-x-auto rounded-lg border border-border bg-surface-2 p-3 text-xs text-fg">{active.regenerate}</pre>
+        class="border-border bg-surface-2 text-fg mt-2 overflow-x-auto rounded-lg border p-3 text-xs">{active.regenerate}</pre>
       <p class="mt-3">Puis rafraîchis cette page.</p>
     </div>
   {/if}

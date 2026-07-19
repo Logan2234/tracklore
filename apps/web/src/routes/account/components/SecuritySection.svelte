@@ -167,41 +167,41 @@
 
 {#if auth.user}
   <section class="card mb-5 p-5 md:p-6">
-    <h2 class="mb-4 font-display text-lg font-bold">Sécurité</h2>
-    <div class="divide-y divide-border">
+    <h2 class="font-display mb-4 text-lg font-bold">Sécurité</h2>
+    <div class="divide-border divide-y">
       <div class="flex items-center justify-between gap-4 py-3 first:pt-0">
         <div>
-          <p class="text-sm text-dim">Nom d'utilisateur</p>
+          <p class="text-dim text-sm">Nom d'utilisateur</p>
           <p class="font-semibold">{auth.user.username}</p>
         </div>
-        <button class="text-sm link-accent" onclick={openUsernameModal}>
+        <button class="link-accent text-sm" onclick={openUsernameModal}>
           Modifier
         </button>
       </div>
       <div class="flex items-center justify-between gap-4 py-3">
         <div>
-          <p class="text-sm text-dim">Email</p>
+          <p class="text-dim text-sm">Email</p>
           <p class="font-semibold">{auth.user.email}</p>
         </div>
-        <button class="text-sm link-accent" onclick={openEmailModal}>
+        <button class="link-accent text-sm" onclick={openEmailModal}>
           Modifier
         </button>
       </div>
       <div class="flex items-center justify-between gap-4 py-3">
         <div>
-          <p class="text-sm text-dim">Mot de passe</p>
+          <p class="text-dim text-sm">Mot de passe</p>
           <p class="font-semibold tracking-widest">••••••••</p>
         </div>
-        <button class="text-sm link-accent" onclick={openPasswordModal}>
+        <button class="link-accent text-sm" onclick={openPasswordModal}>
           Modifier
         </button>
       </div>
       <div class="flex items-center justify-between gap-4 py-3 last:pb-0">
         <div>
-          <p class="text-sm text-dim">Appareils connectés</p>
+          <p class="text-dim text-sm">Appareils connectés</p>
           <p class="font-semibold">Sessions ouvertes sur ton compte</p>
         </div>
-        <a href="/account/sessions" class="text-sm link-accent"> Gérer </a>
+        <a href="/account/sessions" class="link-accent text-sm"> Gérer </a>
       </div>
     </div>
   </section>
@@ -226,16 +226,16 @@
             oninput={onUsernameInput} />
         </label>
         {#if usernameCheck === "checking"}
-          <p class="text-sm text-dim">Vérification…</p>
+          <p class="text-dim text-sm">Vérification…</p>
         {:else if usernameCheck === "available"}
-          <p class="text-sm text-success">Disponible.</p>
+          <p class="text-success text-sm">Disponible.</p>
         {:else if usernameCheck === "taken"}
-          <p class="text-sm text-danger">Déjà pris.</p>
+          <p class="text-danger text-sm">Déjà pris.</p>
         {:else if usernameCheck === "error"}
-          <p class="text-sm text-danger">Vérification impossible.</p>
+          <p class="text-danger text-sm">Vérification impossible.</p>
         {/if}
         {#if usernameError}
-          <p class="text-sm text-danger">{usernameError}</p>
+          <p class="text-danger text-sm">{usernameError}</p>
         {/if}
         <div class="mt-2 flex justify-end gap-2">
           <button type="button" class="btn btn-ghost" onclick={closeModal}>
@@ -278,7 +278,7 @@
               bind:value={emailPasswordInput} />
           </label>
           {#if emailError}
-            <p class="text-sm text-danger">{emailError}</p>
+            <p class="text-danger text-sm">{emailError}</p>
           {/if}
           <div class="mt-2 flex justify-end gap-2">
             <button type="button" class="btn btn-ghost" onclick={closeModal}>
@@ -316,7 +316,7 @@
               bind:value={emailCodeInput} />
           </label>
           {#if emailConfirmError}
-            <p class="text-sm text-danger">{emailConfirmError}</p>
+            <p class="text-danger text-sm">{emailConfirmError}</p>
           {/if}
           <div class="mt-2 flex justify-end gap-2">
             <button
@@ -371,7 +371,7 @@
             bind:value={confirmPasswordInput} />
         </label>
         {#if passwordError}
-          <p class="text-sm text-danger">{passwordError}</p>
+          <p class="text-danger text-sm">{passwordError}</p>
         {/if}
         <div class="mt-2 flex justify-end gap-2">
           <button type="button" class="btn btn-ghost" onclick={closeModal}>

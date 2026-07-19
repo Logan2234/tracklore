@@ -136,14 +136,14 @@
 {#if detail}
   <!-- Hero: books have no wide artwork, so a gradient fades into the page. -->
   <div class="relative">
-    <div class="h-44 w-full bg-linear-to-br from-surface-2 to-surface md:h-60">
+    <div class="from-surface-2 to-surface h-44 w-full bg-linear-to-br md:h-60">
     </div>
     <div
-      class="absolute inset-0 bg-linear-to-t from-bg via-bg/50 to-transparent">
+      class="from-bg via-bg/50 absolute inset-0 bg-linear-to-t to-transparent">
     </div>
     <a
       href="/books"
-      class="absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full border border-border bg-bg/60 px-3 py-1.5 text-sm font-semibold backdrop-blur hover:bg-bg">
+      class="border-border bg-bg/60 hover:bg-bg absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold backdrop-blur">
       ← Livres
     </a>
   </div>
@@ -157,7 +157,7 @@
           class="-mt-24 flex flex-col gap-5 sm:flex-row sm:items-end md:-mt-28">
           <button
             type="button"
-            class="w-32 shrink-0 overflow-hidden rounded-xl border border-border shadow-lg md:w-44 {detail.coverUrl
+            class="border-border w-32 shrink-0 overflow-hidden rounded-xl border shadow-lg md:w-44 {detail.coverUrl
               ? 'cursor-zoom-in'
               : ''}"
             aria-label="Agrandir l'image"
@@ -168,12 +168,12 @@
           <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-2">
               <span
-                class="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-semibold text-dim">
+                class="bg-surface-2 text-dim rounded-full px-2.5 py-0.5 text-xs font-semibold">
                 Livre
               </span>
               {#if detail.isAdult}
                 <span
-                  class="rounded-full bg-danger/15 px-2.5 py-0.5 text-xs font-bold text-danger">
+                  class="bg-danger/15 text-danger rounded-full px-2.5 py-0.5 text-xs font-bold">
                   18+
                 </span>
               {/if}
@@ -188,14 +188,14 @@
               {/if}
             </div>
             <h1
-              class="mt-2 font-display text-3xl font-extrabold tracking-tight text-balance md:text-4xl">
+              class="font-display mt-2 text-3xl font-extrabold tracking-tight text-balance md:text-4xl">
               {detail.title}
             </h1>
             {#if detail.subtitle}
-              <p class="mt-0.5 text-lg text-dim">{detail.subtitle}</p>
+              <p class="text-dim mt-0.5 text-lg">{detail.subtitle}</p>
             {/if}
             {#if detail.authors.length > 0}
-              <p class="mt-1.5 font-display text-lg font-semibold text-dim">
+              <p class="font-display text-dim mt-1.5 text-lg font-semibold">
                 {detail.authors.join(", ")}
               </p>
             {/if}
@@ -223,7 +223,7 @@
         </div>
 
         {#if detail.overview}
-          <p class="mt-6 max-w-2xl whitespace-pre-line text-dim">
+          <p class="text-dim mt-6 max-w-2xl whitespace-pre-line">
             {detail.overview}
           </p>
         {/if}
@@ -233,7 +233,7 @@
             href={detail.website}
             target="_blank"
             rel="noopener noreferrer"
-            class="mt-4 inline-flex items-center gap-1 text-sm link-accent">
+            class="link-accent mt-4 inline-flex items-center gap-1 text-sm">
             Voir sur Google Books ↗
           </a>
         {/if}
@@ -264,7 +264,7 @@
             <div class="flex flex-col gap-2">
               <span class="timecode text-[0.62rem] tracking-[0.18em] uppercase"
                 >Progression de lecture</span>
-              <div class="flex items-center gap-2 text-sm text-dim">
+              <div class="text-dim flex items-center gap-2 text-sm">
                 <span>Page</span>
                 <input
                   type="number"
@@ -278,15 +278,15 @@
                   }} />
                 {#if detail.pageCount}
                   <span class="timecode">/ {detail.pageCount}</span>
-                  <span class="ml-auto font-display font-bold text-fg">
+                  <span class="font-display text-fg ml-auto font-bold">
                     {progressPct} %
                   </span>
                 {/if}
               </div>
               {#if detail.pageCount}
-                <div class="h-2 overflow-hidden rounded-full bg-surface-2">
+                <div class="bg-surface-2 h-2 overflow-hidden rounded-full">
                   <div
-                    class="h-full rounded-full bg-accent transition-[width]"
+                    class="bg-accent h-full rounded-full transition-[width]"
                     style={`width:${progressPct}%`}>
                   </div>
                 </div>
@@ -330,7 +330,7 @@
                   {#if entry.status === "READ"}
                     <button
                       type="button"
-                      class="text-xs link-accent disabled:opacity-50"
+                      class="link-accent text-xs disabled:opacity-50"
                       disabled={saving}
                       onclick={addReplay}>
                       + J'ai relu ce livre
@@ -340,7 +340,7 @@
                 {#if entry.replays.length > 0}
                   <ul class="flex flex-col gap-1">
                     {#each entry.replays as replay (replay.id)}
-                      <li class="flex items-center gap-2 text-xs text-dim">
+                      <li class="text-dim flex items-center gap-2 text-xs">
                         <span class="flex-1">
                           {formatDate(replay.finishedAt)}
                         </span>

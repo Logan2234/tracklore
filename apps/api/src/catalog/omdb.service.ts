@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { RatingDto } from "@tracklore/shared";
+import { QuotaTrackerService } from "../common/quota-tracker.service";
 
 const OMDB_URL = "https://www.omdbapi.com/";
 
@@ -23,7 +24,10 @@ interface OmdbResponse {
  */
 @Injectable()
 export class OmdbService {
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly quota: QuotaTrackerService,
+  ) {}
 
   async getRatings(imdbId: string | null): Promise<RatingDto[]> {
     const apiKey = this.config.get<string>("OMDB_API_KEY");
@@ -33,6 +37,7 @@ export class OmdbService {
       const url = new URL(OMDB_URL);
       url.searchParams.set("apikey", apiKey);
       url.searchParams.set("i", imdbId);
+      this.quota.record("omdb");
       const response = await fetch(url);
       if (!response.ok) return [];
 
