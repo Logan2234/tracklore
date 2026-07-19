@@ -28,8 +28,9 @@
     if (auth.isAdmin) void load();
   });
 
-  // Ordered areas so groups render in a stable, sensible order.
-  const AREAS = ["Vidéo", "Jeux", "Livres", "Musique", "Système"] as const;
+  // Ordered areas so groups render in a stable, sensible order. Must match the
+  // ServiceArea values the API emits (see admin.service.ts) — "Écrans", not "Vidéo".
+  const AREAS = ["Écrans", "Jeux", "Livres", "Musique", "Système"] as const;
 
   const grouped = $derived(
     AREAS.map((area) => ({

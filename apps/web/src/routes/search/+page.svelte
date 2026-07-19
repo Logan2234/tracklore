@@ -9,11 +9,13 @@
   import { isDomainEnabled } from "$lib/domains";
   import { Domain } from "@tracklore/shared";
 
-  const DOMAIN_TABS: { label: string; value: Domain }[] = [
-    { label: "Médias", value: Domain.MEDIA },
-    { label: "Jeux", value: Domain.GAMES },
-    { label: "Livres", value: Domain.BOOKS },
-    { label: "Musique", value: Domain.MUSIC },
+  type DomainIcon = "tv" | "gamepad" | "book" | "music";
+
+  const DOMAIN_TABS: { label: string; value: Domain; icon: DomainIcon }[] = [
+    { label: "Médias", value: Domain.MEDIA, icon: "tv" },
+    { label: "Jeux", value: Domain.GAMES, icon: "gamepad" },
+    { label: "Livres", value: Domain.BOOKS, icon: "book" },
+    { label: "Musique", value: Domain.MUSIC, icon: "music" },
   ];
 
   // Search-box placeholder fragment, named after the active domain tab.
@@ -66,6 +68,7 @@
           class="chip"
           class:chip-on={domain === tab.value}
           onclick={() => (domain = tab.value)}>
+          <Icon name={tab.icon} class="mr-1 -ml-0.5 inline h-3.5 w-3.5" />
           {tab.label}
         </button>
       {/each}
