@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getAdminSecurityEvents, ApiError } from "$lib/api/client";
   import Banner from "$lib/components/Banner.svelte";
+  import Combobox from "$lib/components/Combobox.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import PageHeader from "$lib/components/PageHeader.svelte";
   import type { SecurityEventDto, SecurityEventType } from "@tracklore/shared";
@@ -23,7 +24,13 @@
     LOGIN_FAILED: "border-danger/40 bg-danger/10 text-danger",
   };
 
-  const TYPES = Object.keys(TYPE_LABELS) as SecurityEventType[];
+  const TYPE_OPTIONS = [
+    { label: "Tous les types", value: "" },
+    ...(Object.keys(TYPE_LABELS) as SecurityEventType[]).map((t) => ({
+      label: TYPE_LABELS[t],
+      value: t,
+    })),
+  ];
 
   let activeType = $state<SecurityEventType | null>(null);
   let identifierInput = $state("");
@@ -85,20 +92,11 @@
     subtitle="Actions sensibles sur les comptes : création, suppression, changements d'identifiants, connexions échouées." />
 
   <div class="mb-4 flex flex-wrap items-center gap-2">
-    <button
-      class="chip"
-      class:chip-on={activeType === null}
-      onclick={() => selectType(null)}>
-      Tous
-    </button>
-    {#each TYPES as t (t)}
-      <button
-        class="chip"
-        class:chip-on={activeType === t}
-        onclick={() => selectType(t)}>
-        {TYPE_LABELS[t]}
-      </button>
-    {/each}
+    <Combobox
+      label="Tous les types"
+      options={TYPE_OPTIONS}
+      values={activeType ? [activeType] : []}
+      onChange={(v) => selectType((v[0] as SecurityEventType) || null)} />
   </div>
 
   <input

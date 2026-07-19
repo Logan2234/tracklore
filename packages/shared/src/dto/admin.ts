@@ -242,10 +242,52 @@ export interface AdminCacheItemDto {
   stale: boolean;
 }
 
+/** How the cache list is ordered. `stale` (default) surfaces the least-fresh first. */
+export type AdminCacheSort = "stale" | "recent" | "title";
+
 export interface AdminCacheListResponseDto {
   items: AdminCacheItemDto[];
   /** Total items matching the current filters, across all pages. */
   total: number;
+  /** How many items in this domain are past the 24h TTL — drives the "resync stale" action. */
+  staleTotal: number;
+  /** How many items in this domain have zero references — drives the "delete orphans" action. */
+  orphanTotal: number;
+}
+
+/** One external identifier a cached item carries (its source + id in that source). */
+export interface AdminCacheExternalIdDto {
+  source: string;
+  externalId: string;
+}
+
+/**
+ * Full detail of one cached item, shown in the admin cache drawer. Deliberately
+ * light on catalogue metadata (overview, genres…) — that lives on the item's own
+ * Tracklore page, linked via `detailPath`; the drawer focuses on cache state.
+ */
+export interface AdminCacheItemDetailDto extends AdminCacheItemDto {
+  /** When the DB row itself last changed (distinct from `lastSyncedAt`). */
+  updatedAt: string;
+  externalIds: AdminCacheExternalIdDto[];
+  /** MEDIA only: seasons with their episode counts. Empty for other domains. */
+  seasons: { number: number; title: string | null; episodeCount: number }[];
+  /** In-app path to this item's public Tracklore page (e.g. `/media/series/1396`). */
+  detailPath: string;
+}
+
+/** Outcome of re-syncing every stale item in a domain. */
+export interface AdminCacheResyncStaleResultDto {
+  /** Items that refreshed successfully. */
+  resynced: number;
+  /** Items whose source refresh failed (left untouched). */
+  failed: number;
+}
+
+/** Outcome of purging every orphaned (unreferenced) item in a domain. */
+export interface AdminCacheDeleteOrphansResultDto {
+  /** Items removed from the cache. */
+  deleted: number;
 }
 
 /** One registered account, as listed in the admin users page. */

@@ -15,11 +15,12 @@ const STATUSES: JobStatus[] = ["SUCCESS", "FAILURE"];
 export class AdminImportsController {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Most recent commits first, filterable by source/status and paginated. */
+  /** Most recent commits first, filterable by source/status/account and paginated. */
   @Get("imports")
   async listImportRuns(
     @Query("source") source?: string,
     @Query("status") status?: string,
+    @Query("userId") userId?: string,
     @Query("page") page?: string,
   ): Promise<AdminImportRunListResponseDto> {
     const pageNum = page ? Math.max(1, Number(page)) : 1;
@@ -28,6 +29,7 @@ export class AdminImportsController {
       status: STATUSES.includes(status as JobStatus)
         ? (status as JobStatus)
         : undefined,
+      userId: userId?.trim() || undefined,
     };
 
     const runs = await this.prisma.importRun.findMany({
