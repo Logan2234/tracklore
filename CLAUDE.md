@@ -24,6 +24,18 @@ pnpm --filter @tracklore/web check             # svelte-check (type errors in .s
 docker compose up -d --build                   # db + api + web (see .env.example)
 ```
 
+**Git hooks (husky, `.husky/`):** `pre-commit` runs `lint-staged`, which
+auto-fixes and formats staged files (`eslint --fix` for js/ts/svelte —
+formatting is itself an ESLint rule via `eslint-plugin-prettier`, so this one
+step covers both; `prettier --write` for json/md/css/yaml) and re-stages them.
+**Formatting is handled by this hook — don't run `pnpm format` by hand before
+committing, it's redundant and the hook will re-touch the files anyway.**
+`pre-push` runs the heavier gate once per push: `pnpm build:package && pnpm
+lint && pnpm --filter @tracklore/web check && pnpm test` (deliberately
+excludes e2e — needs a running Postgres, too environment-fragile to gate every
+push). `knip` (dead code / unused dependency detection) is available via
+`pnpm knip` but isn't wired into a hook — run it on demand.
+
 Dev database: Docker container `tracklore-dev-db`, Postgres 17 on port **5433**
 (5432 is taken by an unrelated project on this machine). Connection string lives
 in `apps/api/.env` (copy from `.env.example`). e2e tests reuse that server but
