@@ -174,7 +174,7 @@
   }
 </script>
 
-<div class="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-10">
+<div class="mx-auto max-w-6xl px-5 py-6 md:px-8 md:py-10">
   <PageHeader {icon} {title} subtitle={subtitle(total)} class="mb-6" />
 
   <div class="relative mb-4">
@@ -193,27 +193,30 @@
       class="input pl-10" />
   </div>
 
-  <div class="mb-7 flex flex-wrap items-center gap-2">
-    <Combobox
-      label="Statut"
-      multiselect
-      options={statusOptions}
-      values={statuses}
-      onChange={(v) => {
-        statuses = v;
-        void run(true);
-      }} />
-    {@render extraFilters?.()}
-    <button
-      class="chip inline-flex items-center gap-1"
-      class:chip-on={favoritesOnly}
-      onclick={() => {
-        favoritesOnly = !favoritesOnly;
-        void run(true);
-      }}>
-      <Icon name="star" class="h-3.5 w-3.5" /> Favoris
-    </button>
-    <div class="ml-auto flex items-center gap-2">
+  <div
+    class="mb-7 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+    <div class="flex flex-wrap items-center gap-2">
+      <Combobox
+        label="Statut"
+        multiselect
+        options={statusOptions}
+        values={statuses}
+        onChange={(v) => {
+          statuses = v;
+          void run(true);
+        }} />
+      {@render extraFilters?.()}
+      <button
+        class="chip inline-flex items-center gap-1"
+        class:chip-on={favoritesOnly}
+        onclick={() => {
+          favoritesOnly = !favoritesOnly;
+          void run(true);
+        }}>
+        <Icon name="star" class="h-3.5 w-3.5" /> Favoris
+      </button>
+    </div>
+    <div class="flex items-center gap-2 sm:ml-auto">
       <Combobox
         label="Trier"
         options={sorts}

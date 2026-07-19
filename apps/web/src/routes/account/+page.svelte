@@ -9,6 +9,7 @@
   import ExportSection from "./components/ExportSection.svelte";
   import IdentityHeader from "./components/IdentityHeader.svelte";
   import ImportSection from "./components/ImportSection.svelte";
+  import NavShortcutsSection from "./components/NavShortcutsSection.svelte";
   import ProfileSection from "./components/ProfileSection.svelte";
   import SecuritySection from "./components/SecuritySection.svelte";
 
@@ -24,7 +25,7 @@
   });
 </script>
 
-<div class="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
+<div class="mx-auto max-w-3xl px-5 py-6 md:px-8 md:py-10">
   <PageHeader icon="user" title="Compte" class="mb-6" />
 
   {#if auth.user}
@@ -32,6 +33,7 @@
     <SecuritySection />
     <ProfileSection />
     <DomainsSection />
+    <NavShortcutsSection />
     <CommunicationsSection />
     <AppearanceSection />
     <ImportSection />

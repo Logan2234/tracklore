@@ -143,7 +143,7 @@
   }
 </script>
 
-<div class="mx-auto max-w-xl px-4 py-6 md:px-8 md:py-10">
+<div class="mx-auto max-w-xl px-5 py-6 md:px-8 md:py-10">
   <PageHeader
     icon="bell"
     title="Notifications push"

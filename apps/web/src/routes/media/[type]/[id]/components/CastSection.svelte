@@ -169,7 +169,8 @@
             keyOf={(k) => `${k.source}:${k.sourceId}`}
             gap="gap-3"
             wrapClass="-mx-1"
-            innerClass="px-1 pb-1">
+            innerClass="px-1 pb-1"
+            snapPad="scroll-pl-1">
             {#snippet card(k)}
               <a
                 href={`/media/${k.type.toLowerCase()}/${k.sourceId}`}
