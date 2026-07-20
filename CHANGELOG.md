@@ -15,6 +15,24 @@ this point beyond the roadmap phases already documented in the README.
 - CI pipeline (GitHub Actions): lint/build/test/e2e/Docker build gates,
   Dependabot, CodeQL, Codecov.
 
+## 0.5.0 — P4: social foundation & reviews
+
+All of it is gated behind the runtime `SOCIAL_ENABLED` flag (off by default; a
+single Docker image serves both modes), exposed to the web via `GET /api/config`.
+
+- **Foundation**: `User.bio`/`profileAccess` (PUBLIC/PRIVATE/GHOST) and a
+  `VisibilitySetting` matrix (per-domain × facet audience).
+- **Social graph & profiles**: `Follow` (with private-profile approval) + `Block`,
+  a central `VisibilityService`, public profiles at `/u/:username`, member search,
+  and the account "Confidentialité" screen. Reusable identicon `Avatar`.
+- **Reviews**: a `Review` model (mandatory /10 rating + optional text + audience)
+  with edit history is now the single source of truth for ratings — the `rating`
+  column was removed from every entry and projected from `Review` instead
+  (rating your own items still works with social off). A "Mes reviews" management
+  screen (`/reviews`) lists, edits and deletes them.
+- Deferred within P4: social notifications (needs a generic `Notification` model),
+  bio-editing UI, and the activity feed / comments / lists / Figurant increments.
+
 ## 0.4.0 — P3: games, books & music
 
 - Games module (IGDB catalogue): library, statuses, playtime, Steam import,
