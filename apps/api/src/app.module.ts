@@ -9,6 +9,7 @@ import { JwtAuthGuard } from "./auth/guards/jwt-auth.guard";
 import { BooksModule } from "./books/books.module";
 import { CatalogModule } from "./catalog/catalog.module";
 import { CommonModule } from "./common/common.module";
+import { RuntimeConfigModule } from "./config/config.module";
 import { GamesModule } from "./games/games.module";
 import { HealthModule } from "./health/health.module";
 import { ImportModule } from "./import/import.module";
@@ -17,6 +18,8 @@ import { MailModule } from "./mail/mail.module";
 import { MusicModule } from "./music/music.module";
 import { NotificationModule } from "./notifications/notification.module";
 import { PrismaModule } from "./prisma/prisma.module";
+import { ReviewsModule } from "./reviews/reviews.module";
+import { SocialModule } from "./social/social.module";
 import { UsersModule } from "./users/users.module";
 
 @Module({
@@ -28,6 +31,7 @@ import { UsersModule } from "./users/users.module";
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]),
     PrismaModule,
     CommonModule,
+    RuntimeConfigModule,
     MailModule,
     AuthModule,
     AdminModule,
@@ -40,6 +44,8 @@ import { UsersModule } from "./users/users.module";
     ImportModule,
     NotificationModule,
     HealthModule,
+    SocialModule,
+    ReviewsModule,
   ],
   controllers: [],
   providers: [

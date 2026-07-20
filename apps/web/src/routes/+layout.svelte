@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import { initAuth } from "$lib/api/client";
+  import { initAuth, initConfig } from "$lib/api/client";
   import favicon from "$lib/assets/favicon.svg";
   import { auth } from "$lib/auth.svelte";
   import DesktopSidebar from "$lib/components/sidebars/DesktopSidebar.svelte";
@@ -26,7 +26,9 @@
   ];
 
   $effect(() => {
-    initAuth().finally(() => {
+    // Load auth and the public runtime config (social flag) in parallel before
+    // rendering, so social surfaces don't flash in/out once they exist.
+    Promise.all([initAuth(), initConfig()]).finally(() => {
       ready = true;
     });
   });

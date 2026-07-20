@@ -154,9 +154,9 @@ describe("Tracklore API (e2e)", () => {
 
     expect(response.body).toMatchObject({
       email: user.email,
-      entitlements: [],
-      // New accounts get every content domain enabled by default.
-      enabledDomains: ["MEDIA", "BOOKS", "GAMES"],
+      // New accounts get every shipped content domain enabled by default
+      // (PODCASTS/BOARDGAMES are opt-in "coming soon" placeholders).
+      enabledDomains: ["MEDIA", "BOOKS", "GAMES", "MUSIC"],
     });
   });
 
@@ -222,8 +222,8 @@ describe("Tracklore API (e2e)", () => {
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
 
-    expect(response.body).toHaveLength(1);
-    expect(response.body[0].id).toBe(entryId);
+    expect(response.body.items).toHaveLength(1);
+    expect(response.body.items[0].id).toBe(entryId);
   });
 
   it("exposes the persisted episodes of the entry", async () => {

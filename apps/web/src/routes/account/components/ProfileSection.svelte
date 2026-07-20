@@ -1,6 +1,7 @@
 <script lang="ts">
   import { ApiError, updateMe } from "$lib/api/client";
   import { auth } from "$lib/auth.svelte";
+  import { appConfig } from "$lib/config.svelte";
 
   let displayNameInput = $state(auth.user?.displayName ?? "");
   let displayNameStatus = $state<"idle" | "saving" | "saved" | "error">("idle");
@@ -21,6 +22,28 @@
     } catch (err) {
       displayNameStatus = "error";
       displayNameError =
+        err instanceof ApiError ? err.message : "Enregistrement impossible";
+    }
+  }
+
+  let bioInput = $state(auth.user?.bio ?? "");
+  let bioStatus = $state<"idle" | "saving" | "saved" | "error">("idle");
+  let bioError = $state("");
+
+  async function saveBio() {
+    const value = bioInput.trim();
+    if (value === (auth.user?.bio ?? "")) return;
+    bioStatus = "saving";
+    bioError = "";
+    try {
+      await updateMe({ bio: value || null });
+      bioStatus = "saved";
+      setTimeout(() => {
+        if (bioStatus === "saved") bioStatus = "idle";
+      }, 2500);
+    } catch (err) {
+      bioStatus = "error";
+      bioError =
         err instanceof ApiError ? err.message : "Enregistrement impossible";
     }
   }
@@ -95,6 +118,28 @@
       <p class="text-success mt-2 text-sm">Enregistré.</p>
     {:else if displayNameStatus === "error"}
       <p class="text-danger mt-2 text-sm">{displayNameError}</p>
+    {/if}
+
+    {#if appConfig.socialEnabled}
+      <!-- Bio only matters when there are profiles for others to read it. -->
+      <div class="border-border mt-5 border-t pt-5">
+        <label class="block">
+          <span class="mb-1.5 block text-sm font-semibold">Bio</span>
+          <textarea
+            class="input min-h-20 max-w-md resize-y"
+            maxlength="500"
+            placeholder="Quelques mots sur vous, affichés sur votre profil…"
+            bind:value={bioInput}
+            onchange={saveBio}></textarea>
+        </label>
+        {#if bioStatus === "saving"}
+          <p class="text-dim mt-2 text-sm">Enregistrement…</p>
+        {:else if bioStatus === "saved"}
+          <p class="text-success mt-2 text-sm">Enregistré.</p>
+        {:else if bioStatus === "error"}
+          <p class="text-danger mt-2 text-sm">{bioError}</p>
+        {/if}
+      </div>
     {/if}
 
     <div class="border-border mt-5 border-t pt-5">

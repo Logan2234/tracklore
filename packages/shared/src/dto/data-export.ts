@@ -111,12 +111,11 @@ export interface DataExportMusicEntry {
 /** One in-app notification in a data export. */
 export interface DataExportNotification {
   type: string;
-  mediaTitle: string;
-  mediaType: MediaType;
-  seasonNumber: number;
-  episodeNumber: number;
-  episodeTitle: string | null;
-  airDate: string;
+  title: string;
+  body: string | null;
+  url: string | null;
+  /** Kind-specific extras (episode airDate, social actor identity…). */
+  data: Record<string, unknown>;
   readAt: string | null;
   createdAt: string;
 }

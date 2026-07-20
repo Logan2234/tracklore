@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { BooksModule } from "../books/books.module";
 import { CatalogModule } from "../catalog/catalog.module";
 import { GamesModule } from "../games/games.module";
+import { ReviewsModule } from "../reviews/reviews.module";
 import { UsersModule } from "../users/users.module";
 import { IMPORT_SOURCES, type ImportSource } from "./import-source";
 import { ImportController } from "./import.controller";
@@ -20,7 +21,13 @@ import { TvTimeImportSource } from "./sources/tvtime/tvtime.source";
  * and UsersModule (AgeGateService). PrismaService/ConfigService are global.
  */
 @Module({
-  imports: [CatalogModule, BooksModule, GamesModule, UsersModule],
+  imports: [
+    CatalogModule,
+    BooksModule,
+    GamesModule,
+    UsersModule,
+    ReviewsModule,
+  ],
   controllers: [ImportController],
   providers: [
     ImportJobService,

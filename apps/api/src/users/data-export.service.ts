@@ -1,11 +1,13 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import type { UserDataExportDto } from "@tracklore/shared";
+import { ReviewTargetType } from "@tracklore/shared";
 import { toUserDto } from "../auth/auth.service";
 import {
   canonicalExternalId,
   toExternalIdDtos,
 } from "../common/external-id.util";
 import { PrismaService } from "../prisma/prisma.service";
+import { ReviewService } from "../reviews/review.service";
 
 /**
  * Builds the full portable data dump (GDPR "download my data"). Shared by the
@@ -15,7 +17,10 @@ import { PrismaService } from "../prisma/prisma.service";
  */
 @Injectable()
 export class DataExportService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly reviews: ReviewService,
+  ) {}
 
   async buildExport(userId: string): Promise<UserDataExportDto> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -77,6 +82,31 @@ export class DataExportService {
       }),
     ]);
 
+    // Ratings now live in Review; project them back into the export.
+    const [mediaRatings, gameRatings, bookRatings, musicRatings] =
+      await Promise.all([
+        this.reviews.getRatings(
+          userId,
+          ReviewTargetType.MEDIA,
+          entries.map((e) => e.mediaItemId),
+        ),
+        this.reviews.getRatings(
+          userId,
+          ReviewTargetType.GAME,
+          gameEntries.map((e) => e.gameItemId),
+        ),
+        this.reviews.getRatings(
+          userId,
+          ReviewTargetType.BOOK,
+          bookEntries.map((e) => e.bookItemId),
+        ),
+        this.reviews.getRatings(
+          userId,
+          ReviewTargetType.MUSIC,
+          musicEntries.map((e) => e.musicItemId),
+        ),
+      ]);
+
     return {
       exportedAt: new Date().toISOString(),
       account: toUserDto(user),
@@ -92,7 +122,7 @@ export class DataExportService {
           externalIds: toExternalIdDtos(entry.mediaItem.externalIds),
         },
         status: entry.status,
-        rating: entry.rating,
+        rating: mediaRatings.get(entry.mediaItemId) ?? null,
         notes: entry.notes,
         favorite: entry.favorite,
         startedAt: entry.startedAt?.toISOString() ?? null,
@@ -124,7 +154,7 @@ export class DataExportService {
           externalIds: toExternalIdDtos(entry.gameItem.externalIds),
         },
         status: entry.status,
-        rating: entry.rating,
+        rating: gameRatings.get(entry.gameItemId) ?? null,
         notes: entry.notes,
         favorite: entry.favorite,
         playtimeMinutes: entry.playtimeMinutes,
@@ -147,7 +177,7 @@ export class DataExportService {
           externalIds: toExternalIdDtos(entry.bookItem.externalIds),
         },
         status: entry.status,
-        rating: entry.rating,
+        rating: bookRatings.get(entry.bookItemId) ?? null,
         notes: entry.notes,
         favorite: entry.favorite,
         currentPage: entry.currentPage,
@@ -170,7 +200,7 @@ export class DataExportService {
           externalIds: toExternalIdDtos(entry.musicItem.externalIds),
         },
         status: entry.status,
-        rating: entry.rating,
+        rating: musicRatings.get(entry.musicItemId) ?? null,
         notes: entry.notes,
         favorite: entry.favorite,
         ownershipStatus: entry.ownershipStatus,
@@ -185,12 +215,10 @@ export class DataExportService {
       boardGames: [],
       notifications: notifications.map((n) => ({
         type: n.type,
-        mediaTitle: n.mediaTitle,
-        mediaType: n.mediaType,
-        seasonNumber: n.seasonNumber,
-        episodeNumber: n.episodeNumber,
-        episodeTitle: n.episodeTitle,
-        airDate: n.airDate.toISOString(),
+        title: n.title,
+        body: n.body,
+        url: n.url,
+        data: (n.data ?? {}) as Record<string, unknown>,
         readAt: n.readAt?.toISOString() ?? null,
         createdAt: n.createdAt.toISOString(),
       })),

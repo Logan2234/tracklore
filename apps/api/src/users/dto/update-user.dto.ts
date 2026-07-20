@@ -11,8 +11,15 @@ import {
   MaxLength,
   MinLength,
 } from "class-validator";
-import type { Domain, UpdateUserRequestDto } from "@tracklore/shared";
-import { Domain as DomainValues } from "@tracklore/shared";
+import type {
+  Domain,
+  ReviewVisibility,
+  UpdateUserRequestDto,
+} from "@tracklore/shared";
+import {
+  Domain as DomainValues,
+  ReviewVisibility as ReviewVisibilityValues,
+} from "@tracklore/shared";
 
 export class UpdateUserDto implements UpdateUserRequestDto {
   @IsOptional()
@@ -57,4 +64,13 @@ export class UpdateUserDto implements UpdateUserRequestDto {
   @ArrayUnique()
   @IsString({ each: true })
   mobileNavShortcuts?: string[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  bio?: string | null;
+
+  @IsOptional()
+  @IsIn(Object.values(ReviewVisibilityValues))
+  defaultReviewVisibility?: ReviewVisibility;
 }

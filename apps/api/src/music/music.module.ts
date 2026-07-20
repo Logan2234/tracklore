@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { ReviewsModule } from "../reviews/reviews.module";
 import { UsersModule } from "../users/users.module";
 import { MusicController } from "./music.controller";
 import { MusicItemService } from "./music-item.service";
@@ -6,7 +7,7 @@ import { MusicLibraryService } from "./music-library.service";
 import { MusicBrainzProvider } from "./providers/musicbrainz.provider";
 
 @Module({
-  imports: [UsersModule],
+  imports: [UsersModule, ReviewsModule],
   controllers: [MusicController],
   providers: [MusicItemService, MusicLibraryService, MusicBrainzProvider],
   exports: [MusicItemService],

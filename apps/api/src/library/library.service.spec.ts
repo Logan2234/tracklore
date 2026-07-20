@@ -1,4 +1,5 @@
 import type { PrismaService } from "../prisma/prisma.service";
+import type { ReviewService } from "../reviews/review.service";
 import type { AgeGateService } from "../users/age-gate.service";
 import type { MediaItemService } from "../catalog/media-item.service";
 import { LibraryService } from "./library.service";
@@ -88,10 +89,27 @@ function makeService(
       ),
     },
   } as unknown as PrismaService;
+  // Ratings now come from Review; project the rows' ratings back through it.
+  const reviews = {
+    getRatings: jest.fn(() =>
+      Promise.resolve(
+        new Map(
+          rows
+            .filter((r) => r.rating !== null)
+            .map((r) => [r.mediaItemId, r.rating]),
+        ),
+      ),
+    ),
+    getRating: jest.fn((_u: string, _t: string, id: string) =>
+      Promise.resolve(rows.find((r) => r.mediaItemId === id)?.rating ?? null),
+    ),
+    setRating: jest.fn(),
+  } as unknown as ReviewService;
   const service = new LibraryService(
     prisma,
     {} as MediaItemService,
     {} as AgeGateService,
+    reviews,
   );
   return { service, prisma };
 }

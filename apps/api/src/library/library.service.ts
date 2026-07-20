@@ -25,10 +25,11 @@ import type {
   ProgressDto,
   StatsDto,
 } from "@tracklore/shared";
-import { isDormant } from "@tracklore/shared";
+import { isDormant, ReviewTargetType } from "@tracklore/shared";
 import { MediaItemService } from "../catalog/media-item.service";
 import { canonicalExternalId } from "../common/external-id.util";
 import { PrismaService } from "../prisma/prisma.service";
+import { ReviewService } from "../reviews/review.service";
 import { AgeGateService } from "../users/age-gate.service";
 import { UpdateEntryDto } from "./dto/update-entry.dto";
 import { UpsertEntryDto } from "./dto/upsert-entry.dto";
@@ -135,6 +136,7 @@ export class LibraryService {
     private readonly prisma: PrismaService,
     private readonly mediaItemService: MediaItemService,
     private readonly ageGate: AgeGateService,
+    private readonly reviews: ReviewService,
   ) {}
 
   /** First touch of a media persists it (on-demand cache), then upserts the entry. */
@@ -150,7 +152,6 @@ export class LibraryService {
 
     const changes = {
       status: dto.status,
-      rating: dto.rating,
       notes: dto.notes,
       favorite: dto.favorite,
     };
@@ -161,10 +162,25 @@ export class LibraryService {
       include: ENTRY_INCLUDE,
     });
 
+    // The /10 rating lives in Review (the single source of truth).
+    if (dto.rating !== undefined) {
+      await this.reviews.setRating(
+        userId,
+        ReviewTargetType.MEDIA,
+        mediaItem.id,
+        dto.rating,
+      );
+    }
+
     return this.toEntryDto(
       entry,
       await this.computeProgress(userId, mediaItem.id),
       await this.lastWatchedAt(userId, mediaItem.id),
+      await this.reviews.getRating(
+        userId,
+        ReviewTargetType.MEDIA,
+        mediaItem.id,
+      ),
     );
   }
 
@@ -184,12 +200,18 @@ export class LibraryService {
       orderBy: { updatedAt: "desc" },
     });
 
+    const ratings = await this.reviews.getRatings(
+      userId,
+      ReviewTargetType.MEDIA,
+      entries.map((e) => e.mediaItemId),
+    );
     const dtos = await Promise.all(
       entries.map(async (entry) =>
         this.toEntryDto(
           entry,
           await this.computeProgress(userId, entry.mediaItemId),
           await this.lastWatchedAt(userId, entry.mediaItemId),
+          ratings.get(entry.mediaItemId) ?? null,
         ),
       ),
     );
@@ -239,6 +261,11 @@ export class LibraryService {
       entry,
       await this.computeProgress(userId, entry.mediaItemId),
       await this.lastWatchedAt(userId, entry.mediaItemId),
+      await this.reviews.getRating(
+        userId,
+        ReviewTargetType.MEDIA,
+        entry.mediaItemId,
+      ),
     );
   }
 
@@ -253,7 +280,6 @@ export class LibraryService {
       where: { id: entryId },
       data: {
         status: dto.status,
-        rating: dto.rating,
         notes: dto.notes,
         favorite: dto.favorite,
         startedAt:
@@ -268,10 +294,24 @@ export class LibraryService {
       include: ENTRY_INCLUDE,
     });
 
+    if (dto.rating !== undefined) {
+      await this.reviews.setRating(
+        userId,
+        ReviewTargetType.MEDIA,
+        entry.mediaItemId,
+        dto.rating,
+      );
+    }
+
     return this.toEntryDto(
       entry,
       await this.computeProgress(userId, entry.mediaItemId),
       await this.lastWatchedAt(userId, entry.mediaItemId),
+      await this.reviews.getRating(
+        userId,
+        ReviewTargetType.MEDIA,
+        entry.mediaItemId,
+      ),
     );
   }
 
@@ -624,6 +664,7 @@ export class LibraryService {
     entry: EntryWithMedia,
     progress: ProgressDto | null,
     watchedAt: Date | null,
+    rating: number | null,
   ): LibraryEntryDto {
     const media = entry.mediaItem;
     const status = deriveStatus(
@@ -638,7 +679,7 @@ export class LibraryService {
       id: entry.id,
       mediaItem: toMediaItemDto(media),
       status,
-      rating: entry.rating,
+      rating,
       notes: entry.notes,
       favorite: entry.favorite,
       startedAt: entry.startedAt?.toISOString() ?? null,
@@ -757,6 +798,11 @@ export class LibraryService {
           entryRow,
           await this.computeProgress(userId, media.id),
           await this.lastWatchedAt(userId, media.id),
+          await this.reviews.getRating(
+            userId,
+            ReviewTargetType.MEDIA,
+            media.id,
+          ),
         )
       : null;
 
