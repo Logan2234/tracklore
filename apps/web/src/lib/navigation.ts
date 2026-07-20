@@ -16,7 +16,8 @@ type NavIcon =
   | "user"
   | "users"
   | "shield"
-  | "star";
+  | "star"
+  | "activity";
 
 interface NavItem {
   href: string;
@@ -127,6 +128,13 @@ export const NAVIGATION: NavSection[] = [
         match: (p) => p.startsWith("/reviews"),
       },
       {
+        href: "/feed",
+        label: "Fil",
+        icon: "activity",
+        social: true,
+        match: (p) => p.startsWith("/feed"),
+      },
+      {
         href: "/u/me",
         label: "Mon profil",
         icon: "user",
@@ -169,6 +177,7 @@ export type MobileNavId =
   | "calendar"
   | "stats"
   | "reviews"
+  | "feed"
   | "profile"
   | "people"
   | "notifications"
@@ -286,6 +295,14 @@ const MOBILE_DESTINATIONS: Record<MobileNavId, MobileDestination> = {
     icon: "star",
     match: (p) => p.startsWith("/reviews"),
   },
+  feed: {
+    id: "feed",
+    href: "/feed",
+    label: "Fil",
+    icon: "activity",
+    social: true,
+    match: (p) => p.startsWith("/feed"),
+  },
   profile: {
     id: "profile",
     href: "/u/me",
@@ -338,6 +355,7 @@ const MENU_GROUPS: { label: string; ids: MobileNavId[] }[] = [
       "calendar",
       "stats",
       "reviews",
+      "feed",
       "profile",
       "people",
       "notifications",

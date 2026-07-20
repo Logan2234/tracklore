@@ -9,6 +9,7 @@
   } from "$lib/api/client";
   import { ApiError } from "$lib/api/core";
   import Avatar from "$lib/components/Avatar.svelte";
+  import ProfileActivity from "$lib/components/ProfileActivity.svelte";
   import type { RelationshipDto, SocialProfileDto } from "@tracklore/shared";
 
   const DOMAIN_LABEL: Record<string, string> = {
@@ -270,5 +271,8 @@
         </div>
       {/each}
     </section>
+
+    <!-- Recent activity (visibility-filtered server-side; self-hides if empty). -->
+    <ProfileActivity username={profile.username} />
   {/if}
 </div>

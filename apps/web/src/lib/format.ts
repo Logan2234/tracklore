@@ -10,3 +10,21 @@ const dateFmt = new Intl.DateTimeFormat("fr-FR", {
 export function formatDate(iso: string): string {
   return dateFmt.format(new Date(iso));
 }
+
+const relFmt = new Intl.RelativeTimeFormat("fr-FR", { numeric: "auto" });
+
+/**
+ * Compact relative time, e.g. "il y a 2 h", "hier". Falls back to an absolute
+ * date past a week, where "il y a 9 j" reads worse than the plain date.
+ */
+export function formatRelative(iso: string): string {
+  const then = new Date(iso).getTime();
+  const diffSec = Math.round((then - Date.now()) / 1000);
+  const abs = Math.abs(diffSec);
+
+  if (abs < 60) return "à l'instant";
+  if (abs < 3600) return relFmt.format(Math.round(diffSec / 60), "minute");
+  if (abs < 86_400) return relFmt.format(Math.round(diffSec / 3600), "hour");
+  if (abs < 604_800) return relFmt.format(Math.round(diffSec / 86_400), "day");
+  return formatDate(iso);
+}

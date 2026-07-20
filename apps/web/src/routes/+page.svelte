@@ -10,6 +10,7 @@
   import { auth } from "$lib/auth.svelte";
   import Carousel from "$lib/components/Carousel.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
+  import HomeActivityPreview from "$lib/components/HomeActivityPreview.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import PageHeader from "$lib/components/PageHeader.svelte";
   import Poster from "$lib/components/Poster.svelte";
@@ -191,6 +192,9 @@
       <a href="/search" class="link-accent">Trouve un titre</a> à suivre.
     </EmptyState>
   {/if}
+
+  <!-- Community activity teaser (social only; self-hides when empty). -->
+  <HomeActivityPreview />
 
   <!-- Vidéo -->
   {#if showScreens}

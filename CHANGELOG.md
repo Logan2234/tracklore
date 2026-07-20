@@ -28,6 +28,11 @@ this point beyond the roadmap phases already documented in the README.
   review audience is now configurable from "Mes reviews".
 - Profile bio is now editable from account settings (it was displayed but had
   no input).
+- Activity feed (P4, increment 3): a materialised `ActivityEvent` log records
+  library milestones (started/finished/dropped/added/favourited) and reviews
+  across all four domains. A home feed at `/feed` (people you follow, binge-
+  aggregated), a "Dernières activités" teaser on the home page, and a "Activité
+  récente" timeline on each profile (visibility-filtered by the Activité facet).
 
 ## 0.5.0 — P4: social foundation & reviews
 

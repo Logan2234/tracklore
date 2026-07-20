@@ -8,6 +8,7 @@
     | "stats"
     | "user"
     | "users"
+    | "activity"
     | "menu"
     | "sun"
     | "moon"
@@ -74,6 +75,8 @@
     <circle cx="9" cy="8" r="3.2" />
     <path d="M3 19c0-3.3 2.7-5 6-5s6 1.7 6 5" />
     <path d="M16 5.2a3.2 3.2 0 0 1 0 5.9M17.5 14.2c2 .6 3.5 2 3.5 4.8" />
+  {:else if name === "activity"}
+    <path d="M3 12h4l3 8 4-16 3 8h4" />
   {:else if name === "menu"}
     <path d="M4 6h16M4 12h16M4 18h16" />
   {:else if name === "sun"}
