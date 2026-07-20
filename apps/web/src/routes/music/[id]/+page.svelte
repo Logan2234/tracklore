@@ -17,6 +17,8 @@
   import Poster from "$lib/components/Poster.svelte";
   import RatingPips from "$lib/components/RatingPips.svelte";
   import RelatedCarousel from "$lib/components/RelatedCarousel.svelte";
+  import ReviewCritique from "$lib/components/ReviewCritique.svelte";
+  import WorkReviews from "$lib/components/WorkReviews.svelte";
   import SegmentedStatusControl from "$lib/components/SegmentedStatusControl.svelte";
   import TrackingPanel from "$lib/components/TrackingPanel.svelte";
   import { toCarouselItems } from "$lib/carousel";
@@ -275,6 +277,11 @@
               value={entry.rating}
               onChange={(v) => patch({ rating: v })} />
 
+            <ReviewCritique
+              targetType="MUSIC"
+              targetId={entry.album.id}
+              rating={entry.rating} />
+
             <NoteField
               value={entry.notes}
               placeholder="Une phrase, une note d'écoute…"
@@ -347,6 +354,10 @@
           <div class="mt-8 md:hidden">
             {@render detailsPanel()}
           </div>
+        {/if}
+
+        {#if entry}
+          <WorkReviews targetType="MUSIC" targetId={entry.album.id} />
         {/if}
 
         <RelatedCarousel

@@ -12,6 +12,25 @@ export function getMyReviews(): Promise<MyReviewDto[]> {
   return request("/reviews/me");
 }
 
+/** The current user's own review for a target, or null. Always available. */
+export function getMyReview(
+  targetType: ReviewTargetType,
+  targetId: string,
+): Promise<ReviewDto | null> {
+  return request(`/reviews/me/${targetType}/${encodeURIComponent(targetId)}`);
+}
+
+/**
+ * Others' reviews for a target, visibility-filtered (social-gated server-side —
+ * fails when SOCIAL_ENABLED is off, so only call it when social is enabled).
+ */
+export function getReviewsForTarget(
+  targetType: ReviewTargetType,
+  targetId: string,
+): Promise<ReviewDto[]> {
+  return request(`/reviews/${targetType}/${encodeURIComponent(targetId)}`);
+}
+
 export function upsertReview(
   targetType: ReviewTargetType,
   targetId: string,
