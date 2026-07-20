@@ -112,7 +112,6 @@
   ];
 
   let settings = $state<VisibilitySettingsDto | null>(null);
-  let saving = $state(false);
   let showModesModal = $state(false);
   let savingDefaultReviewVisibility = $state(false);
 
@@ -132,12 +131,7 @@
 
   async function setAccess(access: ProfileAccess) {
     if (!settings || settings.profileAccess === access) return;
-    saving = true;
-    try {
-      settings = await updatePrivacySettings({ profileAccess: access });
-    } finally {
-      saving = false;
-    }
+    settings = await updatePrivacySettings({ profileAccess: access });
   }
 
   async function setAudience(
@@ -146,14 +140,9 @@
     audience: VisibilityAudience,
   ) {
     if (!settings) return;
-    saving = true;
-    try {
-      settings = await updatePrivacySettings({
-        settings: [{ domain, facet, audience }],
-      });
-    } finally {
-      saving = false;
-    }
+    settings = await updatePrivacySettings({
+      settings: [{ domain, facet, audience }],
+    });
   }
 
   async function setDefaultReviewVisibility(v: ReviewVisibility) {
