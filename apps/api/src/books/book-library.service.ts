@@ -20,8 +20,10 @@ import type {
   BookStatsDto,
   PagedResult,
 } from "@tracklore/shared";
+import { ReviewTargetType } from "@tracklore/shared";
 import { canonicalExternalId } from "../common/external-id.util";
 import { PrismaService } from "../prisma/prisma.service";
+import { ReviewService } from "../reviews/review.service";
 import { AgeGateService } from "../users/age-gate.service";
 import { filterAdultContent } from "../users/age.util";
 import { BookItemService } from "./book-item.service";
@@ -128,6 +130,7 @@ export class BookLibraryService {
     private readonly prisma: PrismaService,
     private readonly bookItemService: BookItemService,
     private readonly ageGate: AgeGateService,
+    private readonly reviews: ReviewService,
   ) {}
 
   /** First touch of a book persists it (on-demand cache), then upserts the entry. */
@@ -142,7 +145,6 @@ export class BookLibraryService {
 
     const changes = {
       status: dto.status,
-      rating: dto.rating,
       notes: dto.notes,
       favorite: dto.favorite,
     };
@@ -153,7 +155,19 @@ export class BookLibraryService {
       include: ENTRY_INCLUDE,
     });
 
-    return toEntryDto(entry);
+    if (dto.rating !== undefined) {
+      await this.reviews.setRating(
+        userId,
+        ReviewTargetType.BOOK,
+        bookItem.id,
+        dto.rating,
+      );
+    }
+
+    return toEntryDto(
+      entry,
+      await this.reviews.getRating(userId, ReviewTargetType.BOOK, bookItem.id),
+    );
   }
 
   async listEntries(
@@ -172,7 +186,14 @@ export class BookLibraryService {
       orderBy: { updatedAt: "desc" },
     });
 
-    let dtos = entries.map(toEntryDto);
+    const ratings = await this.reviews.getRatings(
+      userId,
+      ReviewTargetType.BOOK,
+      entries.map((e) => e.bookItemId),
+    );
+    let dtos = entries.map((e) =>
+      toEntryDto(e, ratings.get(e.bookItemId) ?? null),
+    );
 
     const q = filters.q?.trim().toLowerCase();
     dtos = dtos.filter((dto) => {
@@ -205,7 +226,14 @@ export class BookLibraryService {
       where: { id: entryId },
       include: ENTRY_INCLUDE,
     });
-    return toEntryDto(entry);
+    return toEntryDto(
+      entry,
+      await this.reviews.getRating(
+        userId,
+        ReviewTargetType.BOOK,
+        entry.bookItemId,
+      ),
+    );
   }
 
   async updateEntry(
@@ -219,7 +247,6 @@ export class BookLibraryService {
       where: { id: entryId },
       data: {
         status: dto.status,
-        rating: dto.rating,
         notes: dto.notes,
         favorite: dto.favorite,
         currentPage: dto.currentPage,
@@ -235,7 +262,23 @@ export class BookLibraryService {
       include: ENTRY_INCLUDE,
     });
 
-    return toEntryDto(entry);
+    if (dto.rating !== undefined) {
+      await this.reviews.setRating(
+        userId,
+        ReviewTargetType.BOOK,
+        entry.bookItemId,
+        dto.rating,
+      );
+    }
+
+    return toEntryDto(
+      entry,
+      await this.reviews.getRating(
+        userId,
+        ReviewTargetType.BOOK,
+        entry.bookItemId,
+      ),
+    );
   }
 
   async deleteEntry(userId: string, entryId: string): Promise<void> {
@@ -262,7 +305,14 @@ export class BookLibraryService {
       where: { id: entryId },
       include: ENTRY_INCLUDE,
     });
-    return toEntryDto(entry);
+    return toEntryDto(
+      entry,
+      await this.reviews.getRating(
+        userId,
+        ReviewTargetType.BOOK,
+        entry.bookItemId,
+      ),
+    );
   }
 
   async deleteReplay(userId: string, replayId: string): Promise<void> {
@@ -335,7 +385,19 @@ export class BookLibraryService {
         })
       : null;
 
-    return { ...details, entry: entryRow ? toEntryDto(entryRow) : null };
+    return {
+      ...details,
+      entry: entryRow
+        ? toEntryDto(
+            entryRow,
+            await this.reviews.getRating(
+              userId,
+              ReviewTargetType.BOOK,
+              entryRow.bookItemId,
+            ),
+          )
+        : null,
+    };
   }
 
   private async assertEntryOwnership(
@@ -372,12 +434,12 @@ function toBookItemDto(
   };
 }
 
-function toEntryDto(entry: EntryWithBook): BookEntryDto {
+function toEntryDto(entry: EntryWithBook, rating: number | null): BookEntryDto {
   return {
     id: entry.id,
     book: toBookItemDto(entry.bookItem),
     status: entry.status,
-    rating: entry.rating,
+    rating,
     notes: entry.notes,
     favorite: entry.favorite,
     currentPage: entry.currentPage,

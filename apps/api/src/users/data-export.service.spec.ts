@@ -35,8 +35,13 @@ function makeService() {
     musicEntry: { findMany: jest.fn().mockResolvedValue([]) },
     notification: { findMany: jest.fn().mockResolvedValue([]) },
   } as unknown as PrismaService;
+  // Ratings live in Review now; the export projects them but these tests don't
+  // assert the value, so an empty projection is enough.
+  const reviews = {
+    getRatings: jest.fn(() => Promise.resolve(new Map())),
+  } as unknown as import("../reviews/review.service").ReviewService;
 
-  return { service: new DataExportService(prisma), prisma };
+  return { service: new DataExportService(prisma, reviews), prisma };
 }
 
 describe("DataExportService.buildExport", () => {

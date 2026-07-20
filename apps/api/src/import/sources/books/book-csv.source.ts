@@ -10,8 +10,10 @@ import type {
   ImportReport,
   ImportReportTile,
 } from "@tracklore/shared";
+import { ReviewTargetType } from "@tracklore/shared";
 import { mapWithConcurrency, refKey } from "../../../common/concurrency.util";
 import { PrismaService } from "../../../prisma/prisma.service";
+import { ReviewService } from "../../../reviews/review.service";
 import { AgeGateService } from "../../../users/age-gate.service";
 import { BookItemService } from "../../../books/book-item.service";
 import type {
@@ -80,6 +82,7 @@ export abstract class BookCsvSource<
     protected readonly prisma: PrismaService,
     protected readonly bookItemService: BookItemService,
     protected readonly ageGate: AgeGateService,
+    protected readonly reviews: ReviewService,
   ) {}
 
   /** Source-specific: parse the raw export CSV into normalised rows. */
@@ -231,7 +234,6 @@ export abstract class BookCsvSource<
 
     const data = {
       status,
-      rating: row.rating,
       notes: row.notes,
       currentPage,
       startedAt: row.startedAt ? new Date(row.startedAt) : null,
@@ -250,6 +252,16 @@ export abstract class BookCsvSource<
       update: data,
       create: { userId, bookItemId: bookItem.id, ...data },
     });
+
+    // The rating now lives in Review (the single source of truth).
+    if (row.rating !== null) {
+      await this.reviews.setRating(
+        userId,
+        ReviewTargetType.BOOK,
+        bookItem.id,
+        row.rating,
+      );
+    }
 
     if (!existing && row.readCount > 1) {
       await this.prisma.bookReplay.createMany({

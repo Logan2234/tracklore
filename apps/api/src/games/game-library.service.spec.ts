@@ -35,10 +35,26 @@ function makeService(rows: ReturnType<typeof makeRow>[]) {
   const prisma = {
     gameEntry: { findMany: jest.fn().mockResolvedValue(rows) },
   } as unknown as PrismaService;
+  const reviews = {
+    getRatings: jest.fn(() =>
+      Promise.resolve(
+        new Map(
+          rows
+            .filter((r) => r.rating !== null)
+            .map((r) => [r.gameItemId, r.rating]),
+        ),
+      ),
+    ),
+    getRating: jest.fn((_u: string, _t: string, id: string) =>
+      Promise.resolve(rows.find((r) => r.gameItemId === id)?.rating ?? null),
+    ),
+    setRating: jest.fn(),
+  } as unknown as import("../reviews/review.service").ReviewService;
   const service = new GameLibraryService(
     prisma,
     {} as GameItemService,
     {} as AgeGateService,
+    reviews,
   );
   return { service, prisma };
 }

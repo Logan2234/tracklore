@@ -625,8 +625,6 @@ model LibraryEntry {
   userId          String
   mediaItemId     String
   status          EntryStatus          @default(PLANNED)
-  // 0–10, half-points allowed.
-  rating          Float?
   notes           String?
   favorite        Boolean              @default(false)
   startedAt       DateTime?
@@ -697,8 +695,6 @@ model GameEntry {
   userId          String
   gameItemId      String
   status          GameStatus          @default(BACKLOG)
-  // 0–10, half-points allowed.
-  rating          Float?
   notes           String?
   favorite        Boolean             @default(false)
   // Total time played, in minutes. Imported from Steam (playtime_forever);
@@ -774,8 +770,6 @@ model BookEntry {
   userId          String
   bookItemId      String
   status          BookStatus          @default(TO_READ)
-  // 0–10, half-points allowed.
-  rating          Float?
   notes           String?
   favorite        Boolean             @default(false)
   // Current reading position, in pages. No session history — running position.
@@ -848,8 +842,6 @@ model MusicEntry {
   userId          String
   musicItemId     String
   status          MusicStatus          @default(TO_LISTEN)
-  // 0–10, half-points allowed.
-  rating          Float?
   notes           String?
   favorite        Boolean              @default(false)
   startedAt       DateTime?

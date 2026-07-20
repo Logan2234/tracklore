@@ -187,6 +187,87 @@ export class ReviewService {
     return visible;
   }
 
+  // --- Rating projection for the library services (entry DTOs keep `rating`,
+  //     now sourced from Review). ---
+
+  /** The user's ratings for many targets of one type, keyed by targetId. */
+  async getRatings(
+    userId: string,
+    targetType: ReviewTargetType,
+    targetIds: string[],
+  ): Promise<Map<string, number>> {
+    if (targetIds.length === 0) return new Map();
+    const rows = await this.prisma.review.findMany({
+      where: { userId, targetType, targetId: { in: targetIds } },
+      select: { targetId: true, rating: true },
+    });
+    return new Map(rows.map((r) => [r.targetId, r.rating]));
+  }
+
+  /** The user's rating for a single target, or null. */
+  async getRating(
+    userId: string,
+    targetType: ReviewTargetType,
+    targetId: string,
+  ): Promise<number | null> {
+    const row = await this.prisma.review.findUnique({
+      where: { userId_targetType_targetId: { userId, targetType, targetId } },
+      select: { rating: true },
+    });
+    return row?.rating ?? null;
+  }
+
+  /**
+   * Sets only the rating for a target, preserving any existing review text and
+   * audience, and recording a revision. `null` removes the review entirely (a
+   * review can't exist without a rating). Not social-gated.
+   */
+  async setRating(
+    userId: string,
+    targetType: ReviewTargetType,
+    targetId: string,
+    rating: number | null,
+  ): Promise<void> {
+    if (rating === null) {
+      await this.prisma.review.deleteMany({
+        where: { userId, targetType, targetId },
+      });
+      return;
+    }
+
+    const existing = await this.prisma.review.findUnique({
+      where: { userId_targetType_targetId: { userId, targetType, targetId } },
+      select: { text: true },
+    });
+
+    if (existing) {
+      const row = await this.prisma.review.update({
+        where: { userId_targetType_targetId: { userId, targetType, targetId } },
+        data: { rating },
+      });
+      await this.prisma.reviewRevision.create({
+        data: { reviewId: row.id, rating, text: existing.text },
+      });
+    } else {
+      const user = await this.prisma.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { defaultReviewVisibility: true },
+      });
+      const row = await this.prisma.review.create({
+        data: {
+          userId,
+          targetType,
+          targetId,
+          rating,
+          visibility: user.defaultReviewVisibility,
+        },
+      });
+      await this.prisma.reviewRevision.create({
+        data: { reviewId: row.id, rating },
+      });
+    }
+  }
+
   private async author(userId: string): Promise<UserSummaryDto> {
     return this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
