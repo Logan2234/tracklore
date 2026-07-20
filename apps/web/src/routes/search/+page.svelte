@@ -52,8 +52,17 @@
     DOMAIN_TABS.filter((t) => isDomainEnabled(t.value)),
   );
 
+  // `type` preselects the domain tab (e.g. linked from a library page's
+  // "Chercher un jeu" / empty-search-preview "Voir plus"), same idea as
+  // `query` prefilling the search box.
+  const typeParam = page.url.searchParams.get("type");
+  const initialDomain =
+    typeParam && DOMAIN_TABS.some((t) => t.value === typeParam)
+      ? (typeParam as Domain)
+      : Domain.MEDIA;
+
   let query = $state(page.url.searchParams.get("query") ?? "");
-  let domain = $state<Domain>(Domain.MEDIA);
+  let domain = $state<Domain>(initialDomain);
 
   const placeholder = $derived(`Chercher ${DOMAIN_HINT[domain]}…`);
 

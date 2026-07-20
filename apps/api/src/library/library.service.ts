@@ -36,8 +36,8 @@ import { AgeGateService } from "../users/age-gate.service";
 import { UpdateEntryDto } from "./dto/update-entry.dto";
 import { UpsertEntryDto } from "./dto/upsert-entry.dto";
 import { WatchEpisodeDto } from "./dto/watch-episode.dto";
-import { deriveStatus, normalizeAiringFinished } from "./status.util";
 import { aggregateStats } from "./stats.util";
+import { deriveStatus, normalizeAiringFinished } from "./status.util";
 
 // Reused include: entries always need the media + its external IDs (sourceId).
 // `satisfies` (not a type annotation) keeps the literal shape so Prisma can

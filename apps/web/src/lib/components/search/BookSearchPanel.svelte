@@ -17,7 +17,18 @@
   import { SvelteMap } from "svelte/reactivity";
 
   // The search query is owned by the page and shared across domain panels.
-  let { query }: { query: string } = $props();
+  // `limit` caps the rendered results and switches to compact embedded mode
+  // (no own empty-state copy — the host renders it) for the library-page
+  // preview use; `onResults` reports the raw result count to that host.
+  let {
+    query,
+    limit,
+    onResults,
+  }: {
+    query: string;
+    limit?: number;
+    onResults?: (count: number) => void;
+  } = $props();
 
   const DEBOUNCE_MS = 300;
 
@@ -26,6 +37,11 @@
   let byAuthor = $state(false);
 
   let results = $state<BookSummaryDto[]>([]);
+  const shown = $derived(limit ? results.slice(0, limit) : results);
+
+  $effect(() => {
+    onResults?.(results.length);
+  });
   let searching = $state(false);
   let searched = $state(false);
   let searchError = $state<string | null>(null);
@@ -130,7 +146,7 @@
   </PosterGrid>
 {:else if results.length > 0}
   <PosterGrid>
-    {#each results as book (book.sourceId)}
+    {#each shown as book (book.sourceId)}
       {@const entry = tracked.get(book.sourceId)}
       <div class="card group flex flex-col">
         <a href={`/books/${book.sourceId}`} class="block">
@@ -169,8 +185,11 @@
       </div>
     {/each}
   </PosterGrid>
-{:else if searched}
-  <p class="timecode text-sm">Aucun livre trouvé.</p>
-{:else}
-  <EmptyState>Lance une recherche pour trouver un livre à ajouter.</EmptyState>
+{:else if !limit}
+  {#if searched}
+    <p class="timecode text-sm">Aucun livre trouvé.</p>
+  {:else}
+    <EmptyState
+      >Lance une recherche pour trouver un livre à ajouter.</EmptyState>
+  {/if}
 {/if}

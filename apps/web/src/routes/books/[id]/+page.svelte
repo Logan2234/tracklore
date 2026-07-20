@@ -9,6 +9,7 @@
     updateBookEntry,
     upsertBookEntry,
   } from "$lib/api/client";
+  import { toCarouselItems } from "$lib/carousel";
   import Banner from "$lib/components/Banner.svelte";
   import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
   import DetailHeroSkeleton from "$lib/components/DetailHeroSkeleton.svelte";
@@ -17,13 +18,10 @@
   import NoteField from "$lib/components/NoteField.svelte";
   import OwnershipField from "$lib/components/OwnershipField.svelte";
   import Poster from "$lib/components/Poster.svelte";
-  import RatingPips from "$lib/components/RatingPips.svelte";
   import RelatedCarousel from "$lib/components/RelatedCarousel.svelte";
-  import ReviewCritique from "$lib/components/ReviewCritique.svelte";
-  import WorkReviews from "$lib/components/WorkReviews.svelte";
+  import ReviewsSection from "$lib/components/ReviewsSection.svelte";
   import SegmentedStatusControl from "$lib/components/SegmentedStatusControl.svelte";
   import TrackingPanel from "$lib/components/TrackingPanel.svelte";
-  import { toCarouselItems } from "$lib/carousel";
   import { formatDate } from "$lib/format";
   import { createLibraryEntryActions } from "$lib/library-entry";
   import {
@@ -31,10 +29,10 @@
     BOOK_OWNERSHIP_STATUS_OPTIONS,
   } from "$lib/ownership-sources";
   import {
+    BOOK_STATUS_SEG_ACTIVE as SEG_ACTIVE,
     BOOK_STATUS_DESC as STATUS_DESC,
     BOOK_STATUS_META as STATUS_META,
     BOOK_STATUS_ORDER as STATUS_ORDER,
-    BOOK_STATUS_SEG_ACTIVE as SEG_ACTIVE,
   } from "$lib/status-labels";
   import type { BookDetailDto } from "@tracklore/shared";
 
@@ -297,15 +295,6 @@
 
             <hr class="border-border" />
 
-            <RatingPips
-              value={entry.rating}
-              onChange={(v) => patch({ rating: v })} />
-
-            <ReviewCritique
-              targetType="BOOK"
-              targetId={entry.book.id}
-              rating={entry.rating} />
-
             <NoteField
               value={entry.notes}
               placeholder="Une phrase, une note de lecture…"
@@ -368,10 +357,6 @@
           </TrackingPanel>
         {/if}
 
-        {#if entry}
-          <WorkReviews targetType="BOOK" targetId={entry.book.id} />
-        {/if}
-
         <RelatedCarousel
           title="Du même auteur"
           items={toCarouselItems(detail.sameAuthorBooks, "/books")} />
@@ -381,6 +366,13 @@
           <div class="mt-8 md:hidden">
             {@render detailsPanel()}
           </div>
+        {/if}
+
+        {#if entry}
+          <ReviewsSection
+            targetType="BOOK"
+            targetId={id}
+            workTitle={detail.title} />
         {/if}
       </div>
 

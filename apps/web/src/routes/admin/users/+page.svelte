@@ -535,7 +535,7 @@
           {/if}
           {#if selected.id === auth.user?.id}
             <p class="text-dim text-xs">
-              Utilise la suppression de compte depuis /account pour ton propre
+              Utilise la suppression de compte depuis /settings pour ton propre
               compte.
             </p>
           {:else}

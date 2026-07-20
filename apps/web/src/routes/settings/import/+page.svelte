@@ -28,7 +28,7 @@
           name: "TV Time",
           description:
             "Films, séries et animes suivis, réconciliation interactive.",
-          href: "/account/import/tvtime",
+          href: "/settings/import/tvtime",
         },
         { name: "Trakt", description: "Films et séries." },
         { name: "Letterboxd", description: "Films." },
@@ -45,12 +45,12 @@
         {
           name: "The StoryGraph",
           description: "Bibliothèque, statuts et notes (export CSV).",
-          href: "/account/import/storygraph",
+          href: "/settings/import/storygraph",
         },
         {
           name: "Goodreads",
           description: "Bibliothèque, statuts et notes (export CSV).",
-          href: "/account/import/goodreads",
+          href: "/settings/import/goodreads",
         },
         { name: "Babelio", description: "Bibliothèque et lectures." },
         { name: "LibraryThing", description: "Bibliothèque et lectures." },
@@ -65,7 +65,7 @@
         {
           name: "Steam",
           description: "Bibliothèque et temps de jeu.",
-          href: "/account/import/steam",
+          href: "/settings/import/steam",
         },
         { name: "Backloggd", description: "Backlog et jeux terminés." },
       ],
@@ -99,7 +99,7 @@
 
 <div class="mx-auto max-w-3xl px-5 py-6 md:px-8 md:py-10">
   <div class="mb-6 flex items-center gap-3">
-    <a href="/account" class="text-dim hover:text-fg" aria-label="Retour">
+    <a href="/settings" class="text-dim hover:text-fg" aria-label="Retour">
       <Icon name="chevron-left" class="h-5 w-5" />
     </a>
     <h1 class="font-display text-3xl font-extrabold tracking-tight md:text-4xl">

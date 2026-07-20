@@ -61,6 +61,14 @@ export function getMyFollowing(): Promise<UserSummaryDto[]> {
   return request("/social/me/following");
 }
 
+export function getUserFollowers(username: string): Promise<UserSummaryDto[]> {
+  return request(`/social/users/${encodeURIComponent(username)}/followers`);
+}
+
+export function getUserFollowing(username: string): Promise<UserSummaryDto[]> {
+  return request(`/social/users/${encodeURIComponent(username)}/following`);
+}
+
 export function getPrivacySettings(): Promise<VisibilitySettingsDto> {
   return request("/social/me/privacy");
 }

@@ -19,8 +19,7 @@ this point beyond the roadmap phases already documented in the README.
   still 404, and no content leaves the server. A "Mon profil" nav entry opens
   your own profile as others see it. "Mes reviews" rows link to the work and
   support bulk delete / audience changes; the revision history shows each
-  version's text. `/people` gained a followers/following network view so the
-  page is no longer empty before searching.
+  version's text. `/notifications` gained a followers/following network view.
 - Social notifications: a generic `Notification` model powers in-app alerts for
   new followers, follow requests and approvals (alongside new-episode alerts).
 - Reviews on detail pages: rate + write a critique (with audience) and read the

@@ -3,8 +3,9 @@
   import type { LibraryLoadParams } from "$lib/components/LibraryBrowser.svelte";
   import LibraryBrowser from "$lib/components/LibraryBrowser.svelte";
   import PosterCard from "$lib/components/PosterCard.svelte";
+  import MusicSearchPanel from "$lib/components/search/MusicSearchPanel.svelte";
   import { MUSIC_STATUS_LABELS, MUSIC_STATUS_ORDER } from "$lib/status-labels";
-  import type { MusicEntryDto } from "@tracklore/shared";
+  import { Domain, type MusicEntryDto } from "@tracklore/shared";
 
   const STATUS_OPTIONS = MUSIC_STATUS_ORDER.map((value) => ({
     label: MUSIC_STATUS_LABELS[value],
@@ -37,11 +38,15 @@
   title="Musique"
   subtitle={(n) => `${n} album${n > 1 ? "s" : ""}`}
   noun="album"
+  domain={Domain.MUSIC}
   {load}
   keyOf={(e) => e.id}
   statusOptions={STATUS_OPTIONS}
   sorts={SORTS}
   defaultSort="added">
+  {#snippet catalogPreview(query: string, onResults: (n: number) => void)}
+    <MusicSearchPanel {query} limit={10} {onResults} />
+  {/snippet}
   {#snippet card(entry: MusicEntryDto)}
     <PosterCard
       href={`/music/${entry.album.sourceId}`}

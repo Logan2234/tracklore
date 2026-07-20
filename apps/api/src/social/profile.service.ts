@@ -5,9 +5,11 @@ import {
   ProfileAccess,
   type SocialProfileDto,
   type UserSearchResultDto,
+  type UserSummaryDto,
   VisibilityFacet,
 } from "@tracklore/shared";
 import { PrismaService } from "../prisma/prisma.service";
+import { FollowService } from "./follow.service";
 import { SOCIAL_DOMAINS } from "./social.constants";
 import { resolveFacet, resolveProfileVisibility } from "./visibility.util";
 import { VisibilityService } from "./visibility.service";
@@ -19,6 +21,7 @@ export class ProfileService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly visibility: VisibilityService,
+    private readonly follow: FollowService,
   ) {}
 
   /** Builds a user's profile as seen by `viewerId`, or 404 if not reachable. */
@@ -127,6 +130,48 @@ export class ProfileService {
     if (visibility === "hidden") throw new NotFoundException();
     if (visibility === "locked") return null;
     return target;
+  }
+
+  /**
+   * A user's followers, gated the same way as their profile content: hidden
+   * for GHOST/blocked, empty for a locked private stranger, full list
+   * otherwise (public, self, or an accepted friend of a private account).
+   */
+  async listFollowers(
+    viewerId: string,
+    username: string,
+  ): Promise<UserSummaryDto[]> {
+    const targetId = await this.resolveConnectionsTarget(viewerId, username);
+    return targetId ? this.follow.listFollowers(targetId) : [];
+  }
+
+  /** A user's followed accounts — same gating as {@link listFollowers}. */
+  async listFollowing(
+    viewerId: string,
+    username: string,
+  ): Promise<UserSummaryDto[]> {
+    const targetId = await this.resolveConnectionsTarget(viewerId, username);
+    return targetId ? this.follow.listFollowing(targetId) : [];
+  }
+
+  // Resolves `username` to an id the viewer may see the connections of, or
+  // `null` when the profile is locked (empty list, not an error). 404s when
+  // the profile must not be revealed to exist (GHOST/blocked).
+  private async resolveConnectionsTarget(
+    viewerId: string,
+    username: string,
+  ): Promise<string | null> {
+    const target = await this.prisma.user.findUnique({
+      where: { username },
+      select: { id: true, profileAccess: true },
+    });
+    if (!target) throw new NotFoundException();
+
+    const relation = await this.visibility.getRelation(viewerId, target);
+    const visibility = resolveProfileVisibility(target.profileAccess, relation);
+    if (visibility === "hidden") throw new NotFoundException();
+    if (visibility === "locked") return null;
+    return target.id;
   }
 
   /** Directory search. Excludes self, GHOSTs and anyone who blocked the viewer. */

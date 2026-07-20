@@ -15,30 +15,38 @@
     options,
     values = [],
     multiselect = false,
-    allLabel = "tous",
     searchable = false,
     searchPlaceholder = "Rechercher…",
+    disabledValues = [],
+    disabledHint,
     onChange,
   }: {
     label: string;
     options: Option[];
     values?: string[];
     multiselect?: boolean;
-    allLabel?: string;
     /** Adds a text filter at the top of the panel. Single-select only. */
     searchable?: boolean;
     searchPlaceholder?: string;
+    /** Options rendered unselectable (e.g. capped by another setting). */
+    disabledValues?: string[];
+    /** Tooltip shown on a disabled option. */
+    disabledHint?: string;
     onChange: (values: string[]) => void;
   } = $props();
 
   let open = $state(false);
   let query = $state("");
   let searchInput: HTMLInputElement | undefined;
+  let triggerEl: HTMLButtonElement | undefined;
+  // Positioned `fixed` (viewport coords) rather than `absolute`, so the panel
+  // never gets clipped by an ancestor `.card`'s `overflow-hidden`.
+  let panelPos = $state({ top: 0, left: 0 });
 
   const selectedOption = $derived(options.find((o) => o.value === values[0]));
   const triggerText = $derived(
     multiselect
-      ? `${label} : ${values.length === 0 ? allLabel : values.length}`
+      ? `${label} : ${values.length === 0 ? "Tous" : values.length}`
       : (selectedOption?.label ?? label),
   );
   const visibleOptions = $derived(
@@ -66,15 +74,23 @@
     open = !open;
     if (open) {
       query = "";
+      if (triggerEl) {
+        const rect = triggerEl.getBoundingClientRect();
+        panelPos = { top: rect.bottom + 4, left: rect.left };
+      }
       if (searchable) queueMicrotask(() => searchInput?.focus());
     }
   }
 </script>
 
-<svelte:window onkeydown={(e) => e.key === "Escape" && (open = false)} />
+<svelte:window
+  onkeydown={(e) => e.key === "Escape" && (open = false)}
+  onresize={() => (open = false)}
+  onscroll={() => (open = false)} />
 
 <div class="relative">
   <button
+    bind:this={triggerEl}
     type="button"
     class="chip inline-flex items-center gap-1.5"
     class:chip-on={multiselect && values.length > 0}
@@ -85,7 +101,7 @@
     <Icon
       name="chevron-right"
       class="h-3.5 w-3.5 transition-transform {open
-        ? 'rotate-[270deg]'
+        ? 'rotate-270'
         : 'rotate-90'}" />
   </button>
 
@@ -97,7 +113,8 @@
       onclick={() => (open = false)}></button>
     <div
       role="listbox"
-      class="border-border bg-surface absolute left-0 z-40 mt-1 min-w-48 overflow-hidden rounded-lg border py-1 shadow-lg">
+      style="top: {panelPos.top}px; left: {panelPos.left}px;"
+      class="border-border bg-surface fixed z-40 min-w-48 overflow-hidden rounded-lg border py-1 shadow-lg">
       {#if searchable}
         <div class="border-border border-b p-1.5">
           <input
@@ -110,11 +127,14 @@
       {/if}
       {#each visibleOptions as o (o.value)}
         {@const on = values.includes(o.value)}
+        {@const dis = disabledValues.includes(o.value)}
         <button
           type="button"
           role="option"
           aria-selected={on}
-          class="hover:bg-surface-2 flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors"
+          disabled={dis}
+          title={dis ? disabledHint : undefined}
+          class="hover:bg-surface-2 flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors disabled:pointer-events-none disabled:opacity-40"
           onclick={() => choose(o.value)}>
           {#if multiselect}
             <span

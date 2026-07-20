@@ -1,41 +1,5 @@
 <script lang="ts">
-  // Small stroke-icon set used across the nav and pages. Inherits `currentColor`.
-  type IconName =
-    | "home"
-    | "library"
-    | "search"
-    | "calendar"
-    | "stats"
-    | "user"
-    | "users"
-    | "activity"
-    | "menu"
-    | "sun"
-    | "moon"
-    | "check"
-    | "star"
-    | "gamepad"
-    | "book"
-    | "chevron-left"
-    | "chevron-right"
-    | "download"
-    | "bell"
-    | "monitor"
-    | "plus"
-    | "trash"
-    | "x"
-    | "eye"
-    | "eye-off"
-    | "shield"
-    | "mail"
-    | "database"
-    | "gauge"
-    | "archive"
-    | "music"
-    | "tv"
-    | "podcast"
-    | "boardgame"
-    | "refresh";
+  import type { IconName } from "$lib/types/icon-name";
 
   let { name, class: cls = "h-5 w-5" }: { name: IconName; class?: string } =
     $props();
@@ -162,5 +126,19 @@
     <path d="M20 4v4h-4" />
     <path d="M20 12a8 8 0 0 1-14 5.3L4 16" />
     <path d="M4 20v-4h4" />
+  {:else if name === "gear"}
+    <circle cx="12" cy="12" r="3" />
+    <path
+      d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+  {:else if name === "pin"}
+    <!-- Outline map-pin: "not pinned" state. -->
+    <path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21Z" />
+    <circle cx="12" cy="9.5" r="2.2" />
+  {:else if name === "pin-filled"}
+    <!-- Solid map-pin: "pinned" state — same silhouette, filled. -->
+    <path
+      d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21Z"
+      fill="currentColor"
+      stroke="none" />
   {/if}
 </svg>

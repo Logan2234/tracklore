@@ -21,7 +21,19 @@
   import { fly } from "svelte/transition";
 
   // The search query is owned by the page and shared across domain panels.
-  let { query }: { query: string } = $props();
+  // `limit` caps the rendered results, disables infinite scroll, and switches
+  // to compact embedded mode (no own empty-state copy — the host renders it)
+  // for the library-page preview use; `onResults` reports the raw result
+  // count to that host.
+  let {
+    query,
+    limit,
+    onResults,
+  }: {
+    query: string;
+    limit?: number;
+    onResults?: (count: number) => void;
+  } = $props();
 
   const TYPE_TABS: { label: string; value: MediaType | undefined }[] = [
     { label: "Tout", value: undefined },
@@ -48,6 +60,11 @@
 
   let type = $state<MediaType | undefined>(undefined);
   let results = $state<MediaSummaryDto[]>([]);
+  const shown = $derived(limit ? results.slice(0, limit) : results);
+
+  $effect(() => {
+    onResults?.(results.length);
+  });
   let searched = $state(false);
   let loading = $state(false); // fetching the first page of a new search
   let loadingMore = $state(false); // fetching a follow-up page (infinite scroll)
@@ -185,16 +202,18 @@
   }
 </script>
 
-<div class="mb-7 flex flex-wrap gap-2">
-  {#each TYPE_TABS as tab (tab.label)}
-    <button
-      class="chip"
-      class:chip-on={type === tab.value}
-      onclick={() => selectType(tab.value)}>
-      {tab.label}
-    </button>
-  {/each}
-</div>
+{#if !limit}
+  <div class="mb-7 flex flex-wrap gap-2">
+    {#each TYPE_TABS as tab (tab.label)}
+      <button
+        class="chip"
+        class:chip-on={type === tab.value}
+        onclick={() => selectType(tab.value)}>
+        {tab.label}
+      </button>
+    {/each}
+  </div>
+{/if}
 
 {#if error}
   <Banner variant="error" class="mb-4">{error}</Banner>
@@ -214,7 +233,7 @@
   </PosterGrid>
 {:else if results.length > 0}
   <PosterGrid>
-    {#each results as media (keyOf(media))}
+    {#each shown as media (keyOf(media))}
       <a
         in:fly={{ y: 8, duration: reduced ? 0 : 220 }}
         href={`/media/${media.type.toLowerCase()}/${media.sourceId}`}
@@ -244,11 +263,11 @@
     {/each}
   </PosterGrid>
 
-  {#if !done}
+  {#if !done && !limit}
     <!-- Sentinel: entering the viewport triggers the next page. -->
     <div bind:this={sentinel} class="h-10"></div>
   {/if}
-  {#if loadingMore}
+  {#if loadingMore && !limit}
     <PosterGrid>
       {#each { length: 5 } as _, i (i)}
         <div class="card flex flex-col">
@@ -261,10 +280,12 @@
       {/each}
     </PosterGrid>
   {/if}
-{:else if searched}
-  <p class="timecode text-sm">Aucun résultat.</p>
-{:else}
-  <EmptyState>
-    Lance une recherche pour trouver un film, une série ou un animé.
-  </EmptyState>
+{:else if !limit}
+  {#if searched}
+    <p class="timecode text-sm">Aucun résultat.</p>
+  {:else}
+    <EmptyState>
+      Lance une recherche pour trouver un film, une série ou un animé.
+    </EmptyState>
+  {/if}
 {/if}

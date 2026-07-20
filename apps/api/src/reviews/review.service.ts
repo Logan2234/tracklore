@@ -97,6 +97,11 @@ export class ReviewService {
     const visibility = dto.visibility ?? user.defaultReviewVisibility;
     const text = dto.text ?? null;
 
+    const existing = await this.prisma.review.findUnique({
+      where: { userId_targetType_targetId: { userId, targetType, targetId } },
+      select: { rating: true, text: true },
+    });
+
     const row = await this.prisma.review.upsert({
       where: { userId_targetType_targetId: { userId, targetType, targetId } },
       update: { rating: dto.rating, text, visibility },
@@ -109,9 +114,17 @@ export class ReviewService {
         visibility,
       },
     });
-    await this.prisma.reviewRevision.create({
-      data: { reviewId: row.id, rating: dto.rating, text },
-    });
+
+    // A revision only snapshots rating/text — skip it when neither changed
+    // (including when only the visibility changed).
+    const contentChanged =
+      !existing || existing.rating !== dto.rating || existing.text !== text;
+
+    if (contentChanged) {
+      await this.prisma.reviewRevision.create({
+        data: { reviewId: row.id, rating: dto.rating, text },
+      });
+    }
 
     await this.emitReviewed(userId, targetType, targetId, dto.rating);
 
@@ -446,10 +459,11 @@ export class ReviewService {
 
     const existing = await this.prisma.review.findUnique({
       where: { userId_targetType_targetId: { userId, targetType, targetId } },
-      select: { text: true },
+      select: { rating: true, text: true },
     });
 
     if (existing) {
+      if (existing.rating === rating) return;
       const row = await this.prisma.review.update({
         where: { userId_targetType_targetId: { userId, targetType, targetId } },
         data: { rating },

@@ -3,8 +3,9 @@
   import type { LibraryLoadParams } from "$lib/components/LibraryBrowser.svelte";
   import LibraryBrowser from "$lib/components/LibraryBrowser.svelte";
   import PosterCard from "$lib/components/PosterCard.svelte";
+  import GameSearchPanel from "$lib/components/search/GameSearchPanel.svelte";
   import { GAME_STATUS_LABELS, GAME_STATUS_ORDER } from "$lib/status-labels";
-  import type { GameEntryDto } from "@tracklore/shared";
+  import { Domain, type GameEntryDto } from "@tracklore/shared";
 
   const STATUS_OPTIONS = GAME_STATUS_ORDER.map((value) => ({
     label: GAME_STATUS_LABELS[value],
@@ -38,11 +39,15 @@
   title="Jeux"
   subtitle={(n) => `${n} jeu${n > 1 ? "x" : ""}`}
   noun="jeu"
+  domain={Domain.GAMES}
   {load}
   keyOf={(e) => e.id}
   statusOptions={STATUS_OPTIONS}
   sorts={SORTS}
   defaultSort="added">
+  {#snippet catalogPreview(query: string, onResults: (n: number) => void)}
+    <GameSearchPanel {query} limit={10} {onResults} />
+  {/snippet}
   {#snippet card(entry: GameEntryDto)}
     <PosterCard
       href={`/games/${entry.game.sourceId}`}

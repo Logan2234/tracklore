@@ -1,15 +1,45 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { notifications } from "$lib/notifications.svelte";
+  import {
+    acceptFollowRequest,
+    getFollowRequests,
+    rejectFollowRequest,
+  } from "$lib/api/social";
   import Avatar from "$lib/components/Avatar.svelte";
   import CardRowSkeleton from "$lib/components/CardRowSkeleton.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import PageHeader from "$lib/components/PageHeader.svelte";
-  import type { NotificationDto } from "@tracklore/shared";
+  import { notifications } from "$lib/notifications.svelte";
+  import type { FollowRequestDto, NotificationDto } from "@tracklore/shared";
+  import { onMount } from "svelte";
 
   let loading = $state(true);
+  let requests = $state<FollowRequestDto[]>([]);
+  let busy = $state<string | null>(null);
 
+  $effect(() => {
+    void getFollowRequests().then((r) => (requests = r));
+  });
+
+  async function accept(req: FollowRequestDto) {
+    busy = req.id;
+    try {
+      await acceptFollowRequest(req.id);
+      requests = requests.filter((r) => r.id !== req.id);
+    } finally {
+      busy = null;
+    }
+  }
+
+  async function reject(req: FollowRequestDto) {
+    busy = req.id;
+    try {
+      await rejectFollowRequest(req.id);
+      requests = requests.filter((r) => r.id !== req.id);
+    } finally {
+      busy = null;
+    }
+  }
   onMount(async () => {
     await notifications.refresh(true); // scan for new episodes, then list
     loading = false;
@@ -38,6 +68,43 @@
       {/if}
     {/snippet}
   </PageHeader>
+
+  {#if requests.length > 0}
+    <section class="mb-6">
+      <h2 class="text-dim mb-2 text-xs font-semibold tracking-wide uppercase">
+        Demandes de suivi
+      </h2>
+      <ul class="space-y-2">
+        {#each requests as req (req.id)}
+          <li class="card flex items-center gap-3 p-3">
+            <a href="/u/{req.user.username}">
+              <Avatar seed={req.user.username} size={40} />
+            </a>
+            <div class="min-w-0 flex-1">
+              <a
+                href="/u/{req.user.username}"
+                class="block truncate font-semibold hover:underline">
+                {req.user.displayName}
+              </a>
+              <p class="timecode truncate text-xs">@{req.user.username}</p>
+            </div>
+            <button
+              class="btn btn-primary"
+              disabled={busy === req.id}
+              onclick={() => accept(req)}>
+              Accepter
+            </button>
+            <button
+              class="btn btn-ghost"
+              disabled={busy === req.id}
+              onclick={() => reject(req)}>
+              Refuser
+            </button>
+          </li>
+        {/each}
+      </ul>
+    </section>
+  {/if}
 
   {#if loading}
     <CardRowSkeleton count={5} />

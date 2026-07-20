@@ -105,6 +105,24 @@ export class SocialController {
     return this.follow.listFollowing(user.sub);
   }
 
+  /** A user's followers (gated like their profile content). */
+  @Get("users/:username/followers")
+  userFollowers(
+    @CurrentUser() user: JwtPayload,
+    @Param("username") username: string,
+  ): Promise<UserSummaryDto[]> {
+    return this.profiles.listFollowers(user.sub, username);
+  }
+
+  /** Accounts a user follows (gated like their profile content). */
+  @Get("users/:username/following")
+  userFollowing(
+    @CurrentUser() user: JwtPayload,
+    @Param("username") username: string,
+  ): Promise<UserSummaryDto[]> {
+    return this.profiles.listFollowing(user.sub, username);
+  }
+
   @Get("users/:username")
   profile(
     @CurrentUser() user: JwtPayload,

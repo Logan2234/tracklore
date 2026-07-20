@@ -1,9 +1,6 @@
 <script lang="ts">
-  // Lets the user compose the mobile bottom bar: 3–7 ordered shortcuts, the
-  // "Menu" launcher always kept. Choices are gated by the enabled domains, so a
-  // disabled domain never appears here (and a stored shortcut for one silently
-  // drops on the next save). Persisted server-side via updateMe.
-  import { ApiError, updateMe } from "$lib/api/client";
+  import { updateMe } from "$lib/api/auth";
+  import { ApiError } from "$lib/api/core";
   import { auth } from "$lib/auth.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import { isDomainEnabled } from "$lib/domains";
@@ -12,6 +9,7 @@
     resolveBottomShortcuts,
     resolveShortcutChoices,
   } from "$lib/navigation";
+  import { theme } from "$lib/theme.svelte";
 
   const MIN = 3;
   const MAX = 7;
@@ -73,12 +71,31 @@
   }
 </script>
 
-{#if auth.user}
-  <section class="card mb-5 p-5 md:p-6">
-    <h2 class="font-display mb-1 text-lg font-bold">
-      Barre de navigation mobile
-    </h2>
-    <p class="text-dim mb-4 text-sm">
+<section class="card mb-5 space-y-4 p-5 md:p-6">
+  <h2 class="font-display mb-1 text-lg font-bold">Apparence</h2>
+  <p class="text-dim text-sm">Configure l’apparence de l’application.</p>
+
+  <div>
+    <p class="mb-2 font-semibold">Thème</p>
+    <div class="flex gap-2">
+      <button
+        class="chip inline-flex items-center gap-2"
+        class:chip-on={theme.mode === "light"}
+        onclick={() => theme.mode !== "light" && theme.toggle()}>
+        <Icon name="sun" class="h-4 w-4" /> Clair
+      </button>
+      <button
+        class="chip inline-flex items-center gap-2"
+        class:chip-on={theme.mode === "dark"}
+        onclick={() => theme.mode !== "dark" && theme.toggle()}>
+        <Icon name="moon" class="h-4 w-4" /> Sombre
+      </button>
+    </div>
+  </div>
+
+  <div>
+    <p class="mb-2 font-semibold">Barre de navigation mobile</p>
+    <p class="text-dim text-sm">
       Choisis les raccourcis du bas de l’écran sur téléphone ({MIN} à {MAX}) et
       leur ordre. « Menu » reste toujours présent — c’est lui qui ouvre toutes
       les pages.
@@ -87,7 +104,7 @@
     <ul class="divide-border divide-y">
       {#each selected as item, i (item.id)}
         {@const locked = item.id === "menu"}
-        <li class="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+        <li class="flex items-center gap-3 py-2.5">
           <span class="timecode w-5 shrink-0 text-center text-xs">{i + 1}</span>
           <Icon name={item.icon} class="text-accent h-5 w-5 shrink-0" />
           <span class="min-w-0 flex-1 truncate font-semibold">
@@ -101,7 +118,7 @@
           <div class="flex shrink-0 items-center gap-1">
             <button
               type="button"
-              class="hover:bg-surface-2 text-dim grid h-8 w-8 place-items-center rounded-lg disabled:pointer-events-none disabled:opacity-30"
+              class="hover:bg-surface-2 text-dim grid h-8 w-8 place-items-center rounded-lg transition-colors disabled:pointer-events-none disabled:opacity-30"
               aria-label="Monter"
               disabled={saving || i === 0}
               onclick={() => move(i, -1)}>
@@ -109,7 +126,7 @@
             </button>
             <button
               type="button"
-              class="hover:bg-surface-2 text-dim grid h-8 w-8 place-items-center rounded-lg disabled:pointer-events-none disabled:opacity-30"
+              class="hover:bg-surface-2 text-dim grid h-8 w-8 place-items-center rounded-lg transition-colors disabled:pointer-events-none disabled:opacity-30"
               aria-label="Descendre"
               disabled={saving || i === selected.length - 1}
               onclick={() => move(i, 1)}>
@@ -117,7 +134,7 @@
             </button>
             <button
               type="button"
-              class="hover:bg-danger/10 hover:text-danger text-dim grid h-8 w-8 place-items-center rounded-lg disabled:pointer-events-none disabled:opacity-30"
+              class="hover:bg-danger/10 hover:text-danger text-dim grid h-8 w-8 place-items-center rounded-lg transition-colors disabled:pointer-events-none disabled:opacity-30"
               aria-label="Retirer"
               disabled={saving || locked || !canRemove}
               title={locked
@@ -134,7 +151,7 @@
     </ul>
 
     {#if choices.length > 0}
-      <div class="border-border mt-4 border-t pt-4">
+      <div class="border-border border-t pt-4">
         <p class="text-dim mb-2 text-xs font-semibold tracking-wide uppercase">
           Ajouter
         </p>
@@ -162,5 +179,5 @@
     {#if error}
       <p class="text-danger mt-3 text-sm">{error}</p>
     {/if}
-  </section>
-{/if}
+  </div>
+</section>

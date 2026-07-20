@@ -2,23 +2,13 @@
   import {
     batchDeleteReviews,
     batchSetReviewVisibility,
-    deleteReview,
     getMyReviews,
-    getReviewRevisions,
-    updateMe,
-    upsertReview,
   } from "$lib/api/client";
-  import { auth } from "$lib/auth.svelte";
-  import { appConfig } from "$lib/config.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
-  import Modal from "$lib/components/Modal.svelte";
   import PageHeader from "$lib/components/PageHeader.svelte";
-  import RatingPips from "$lib/components/RatingPips.svelte";
-  import type {
-    MyReviewDto,
-    ReviewRevisionDto,
-    ReviewVisibility,
-  } from "@tracklore/shared";
+  import ReviewFormModal from "$lib/components/ReviewFormModal.svelte";
+  import { appConfig } from "$lib/config.svelte";
+  import type { MyReviewDto, ReviewVisibility } from "@tracklore/shared";
 
   const TYPE_LABEL: Record<string, string> = {
     MEDIA: "Vidéo",
@@ -70,17 +60,6 @@
     }
   }
 
-  let savingDefault = $state(false);
-  async function setDefaultVisibility(v: ReviewVisibility) {
-    if (savingDefault || auth.user?.defaultReviewVisibility === v) return;
-    savingDefault = true;
-    try {
-      await updateMe({ defaultReviewVisibility: v });
-    } finally {
-      savingDefault = false;
-    }
-  }
-
   async function batchVisibility(visibility: ReviewVisibility) {
     if (selected.length === 0 || batchBusy) return;
     batchBusy = true;
@@ -98,12 +77,6 @@
 
   // Edit modal state.
   let editing = $state<MyReviewDto | null>(null);
-  let formRating = $state<number | null>(null);
-  let formText = $state("");
-  let formVisibility = $state<ReviewVisibility>("FRIENDS");
-  let revisions = $state<ReviewRevisionDto[]>([]);
-  let busy = $state(false);
-  let confirmingDelete = $state(false);
 
   $effect(() => {
     getMyReviews()
@@ -111,57 +84,28 @@
       .finally(() => (loading = false));
   });
 
-  const dateFmt = new Intl.DateTimeFormat("fr-FR", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-
   function openEdit(review: MyReviewDto) {
     editing = review;
-    formRating = review.rating;
-    formText = review.text ?? "";
-    formVisibility = review.visibility;
-    revisions = [];
-    confirmingDelete = false;
-    void getReviewRevisions(review.targetType, review.targetId).then(
-      (r) => (revisions = r),
-    );
   }
 
   function closeEdit() {
     editing = null;
   }
 
-  async function save() {
-    if (!editing || formRating === null || busy) return;
-    busy = true;
-    try {
-      const updated = await upsertReview(editing.targetType, editing.targetId, {
-        rating: formRating,
-        text: formText.trim() || null,
-        visibility: formVisibility,
-      });
-      // Merge back into the list, keeping the resolved target.
-      reviews = reviews.map((r) =>
-        r.id === editing!.id ? { ...r, ...updated, target: r.target } : r,
-      );
-      closeEdit();
-    } finally {
-      busy = false;
-    }
+  function handleSaved(updated: {
+    rating: number;
+    text: string | null;
+    visibility: ReviewVisibility;
+  }) {
+    if (!editing) return;
+    reviews = reviews.map((r) =>
+      r.id === editing!.id ? { ...r, ...updated, target: r.target } : r,
+    );
   }
 
-  async function doDelete() {
-    if (!editing || busy) return;
-    busy = true;
-    try {
-      await deleteReview(editing.targetType, editing.targetId);
-      reviews = reviews.filter((r) => r.id !== editing!.id);
-      closeEdit();
-    } finally {
-      busy = false;
-    }
+  function handleDeleted() {
+    if (!editing) return;
+    reviews = reviews.filter((r) => r.id !== editing!.id);
   }
 </script>
 
@@ -170,28 +114,6 @@
     icon="star"
     title="Mes reviews"
     subtitle="Toutes vos notes et critiques, à gérer d'un seul endroit." />
-
-  {#if appConfig.socialEnabled && auth.user}
-    <!-- Default audience for reviews created from the quick-rating path. -->
-    <div class="mb-4 flex flex-wrap items-center gap-2">
-      <span class="text-dim text-sm"
-        >Portée par défaut des nouvelles reviews&nbsp;:</span>
-      <button
-        class="chip"
-        class:chip-on={auth.user.defaultReviewVisibility === "FRIENDS"}
-        disabled={savingDefault}
-        onclick={() => setDefaultVisibility("FRIENDS")}>
-        Amis
-      </button>
-      <button
-        class="chip"
-        class:chip-on={auth.user.defaultReviewVisibility === "PUBLIC"}
-        disabled={savingDefault}
-        onclick={() => setDefaultVisibility("PUBLIC")}>
-        Public
-      </button>
-    </div>
-  {/if}
 
   {#if loading}
     <div class="space-y-2">
@@ -259,9 +181,6 @@
               Supprimer
             </button>
           {/if}
-          <button class="btn btn-ghost btn-sm" onclick={clearSelection}>
-            Annuler
-          </button>
         </div>
       {/if}
     </div>
@@ -336,97 +255,12 @@
 </div>
 
 {#if editing}
-  <Modal
+  <ReviewFormModal
     title={editing.target?.title ?? "Modifier la review"}
-    onclose={closeEdit}>
-    <div class="space-y-4">
-      <RatingPips value={formRating} onChange={(v) => (formRating = v)} />
-
-      <div>
-        <label
-          for="review-text"
-          class="timecode mb-1 block text-[0.62rem] tracking-[0.18em] uppercase">
-          Critique · optionnel
-        </label>
-        <textarea
-          id="review-text"
-          class="input min-h-24 resize-y"
-          placeholder="Votre avis…"
-          bind:value={formText}></textarea>
-      </div>
-
-      {#if appConfig.socialEnabled}
-        <div>
-          <span
-            class="timecode mb-1 block text-[0.62rem] tracking-[0.18em] uppercase">
-            Visible par
-          </span>
-          <div class="flex gap-2">
-            <button
-              class="chip"
-              class:chip-on={formVisibility === "FRIENDS"}
-              onclick={() => (formVisibility = "FRIENDS")}>
-              Amis
-            </button>
-            <button
-              class="chip"
-              class:chip-on={formVisibility === "PUBLIC"}
-              onclick={() => (formVisibility = "PUBLIC")}>
-              Public
-            </button>
-          </div>
-        </div>
-      {/if}
-
-      {#if revisions.length > 1}
-        <details class="text-sm">
-          <summary class="text-dim cursor-pointer select-none">
-            Historique ({revisions.length} versions)
-          </summary>
-          <ul class="border-border mt-2 space-y-2 border-l pl-3">
-            {#each revisions as rev, i (i)}
-              <li class="text-dim text-xs">
-                <div class="flex items-center gap-2">
-                  <span class="timecode text-fg"
-                    >V{revisions.length - i} · {rev.rating}/10</span>
-                  <span>{dateFmt.format(new Date(rev.createdAt))}</span>
-                </div>
-                {#if rev.text}
-                  <p class="mt-0.5 text-sm italic">« {rev.text} »</p>
-                {:else}
-                  <p class="mt-0.5 italic opacity-60">Sans texte</p>
-                {/if}
-              </li>
-            {/each}
-          </ul>
-        </details>
-      {/if}
-
-      <div class="flex items-center gap-2 pt-1">
-        <button
-          class="btn btn-primary flex-1"
-          disabled={busy || formRating === null}
-          onclick={save}>
-          Enregistrer
-        </button>
-        {#if confirmingDelete}
-          <button class="btn btn-danger" disabled={busy} onclick={doDelete}>
-            Confirmer
-          </button>
-        {:else}
-          <button
-            class="btn btn-ghost"
-            disabled={busy}
-            onclick={() => (confirmingDelete = true)}>
-            Supprimer
-          </button>
-        {/if}
-      </div>
-      {#if formRating === null}
-        <p class="text-dim text-xs">
-          Une review a toujours une note. Choisissez-en une, ou supprimez-la.
-        </p>
-      {/if}
-    </div>
-  </Modal>
+    targetType={editing.targetType}
+    targetId={editing.targetId}
+    review={editing}
+    onClose={closeEdit}
+    onSaved={handleSaved}
+    onDeleted={handleDeleted} />
 {/if}

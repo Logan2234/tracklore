@@ -1,28 +1,10 @@
 import { Domain } from "@tracklore/shared";
-
-type NavIcon =
-  | "home"
-  | "library"
-  | "search"
-  | "calendar"
-  | "stats"
-  | "gamepad"
-  | "book"
-  | "music"
-  | "tv"
-  | "podcast"
-  | "boardgame"
-  | "bell"
-  | "user"
-  | "users"
-  | "shield"
-  | "star"
-  | "activity";
+import type { IconName } from "./types/icon-name";
 
 interface NavItem {
   href: string;
   label: string;
-  icon: NavIcon;
+  icon: IconName;
   match(path: string): boolean;
   domain?: Domain;
   /**
@@ -116,12 +98,6 @@ export const NAVIGATION: NavSection[] = [
         match: (p) => p.startsWith("/calendar"),
       },
       {
-        href: "/stats",
-        label: "Statistiques",
-        icon: "stats",
-        match: (p) => p.startsWith("/stats"),
-      },
-      {
         href: "/reviews",
         label: "Mes reviews",
         icon: "star",
@@ -135,18 +111,10 @@ export const NAVIGATION: NavSection[] = [
         match: (p) => p.startsWith("/feed"),
       },
       {
-        href: "/u/me",
-        label: "Mon profil",
-        icon: "user",
-        social: true,
-        match: (p) => p === "/u/me",
-      },
-      {
-        href: "/people",
-        label: "Communauté",
-        icon: "users",
-        social: true,
-        match: (p) => p.startsWith("/people") || p.startsWith("/u/"),
+        href: "/stats",
+        label: "Statistiques",
+        icon: "stats",
+        match: (p) => p.startsWith("/stats"),
       },
     ],
   },
@@ -181,14 +149,14 @@ export type MobileNavId =
   | "profile"
   | "people"
   | "notifications"
-  | "account"
+  | "settings"
   | "admin";
 
 export interface MobileDestination {
   id: MobileNavId;
   href: string;
   label: string;
-  icon: NavIcon;
+  icon: IconName;
   match(path: string): boolean;
   /** Hidden when the domain is disabled in the user's composition. */
   domain?: Domain;
@@ -305,19 +273,11 @@ const MOBILE_DESTINATIONS: Record<MobileNavId, MobileDestination> = {
   },
   profile: {
     id: "profile",
-    href: "/u/me",
+    href: "/profile",
     label: "Mon profil",
     icon: "user",
     social: true,
-    match: (p) => p === "/u/me",
-  },
-  people: {
-    id: "people",
-    href: "/people",
-    label: "Communauté",
-    icon: "users",
-    social: true,
-    match: (p) => p.startsWith("/people") || p.startsWith("/u/"),
+    match: (p) => p === "/profile",
   },
   notifications: {
     id: "notifications",
@@ -326,12 +286,12 @@ const MOBILE_DESTINATIONS: Record<MobileNavId, MobileDestination> = {
     icon: "bell",
     match: (p) => p.startsWith("/notifications"),
   },
-  account: {
-    id: "account",
-    href: "/account",
-    label: "Compte",
-    icon: "user",
-    match: (p) => p.startsWith("/account"),
+  settings: {
+    id: "settings",
+    href: "/settings",
+    label: "Paramètres",
+    icon: "gear",
+    match: (p) => p.startsWith("/settings"),
   },
   admin: {
     id: "admin",
@@ -350,18 +310,12 @@ const MENU_GROUPS: { label: string; ids: MobileNavId[] }[] = [
     ids: ["media", "games", "books", "music", "podcasts", "boardgames"],
   },
   {
-    label: "Suivi & compte",
-    ids: [
-      "calendar",
-      "stats",
-      "reviews",
-      "feed",
-      "profile",
-      "people",
-      "notifications",
-      "account",
-      "admin",
-    ],
+    label: "Suivi",
+    ids: ["calendar", "stats", "reviews", "feed", "people", "notifications"],
+  },
+  {
+    label: "Compte",
+    ids: ["profile", "admin", "settings"],
   },
 ];
 
@@ -372,7 +326,7 @@ export const DEFAULT_BOTTOM_SHORTCUTS: MobileNavId[] = [
   "search",
   "menu",
   "calendar",
-  "account",
+  "settings",
 ];
 
 // Destinations the user may pin to the bottom bar (Phase B config UI). Excludes
@@ -387,7 +341,7 @@ const BOTTOM_SHORTCUT_CHOICES: MobileNavId[] = [
   "calendar",
   "stats",
   "notifications",
-  "account",
+  "settings",
   "admin",
 ];
 

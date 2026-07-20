@@ -51,7 +51,7 @@
           <Icon name={item.icon} class="h-6 w-6" />
           {#if !notifPinned && notifications.unread > 0}
             <span
-              class="bg-accent absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-[var(--surface)]">
+              class="bg-accent ring-surface absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2">
             </span>
           {/if}
         </span>

@@ -7,6 +7,7 @@
     updateMusicEntry,
     upsertMusicEntry,
   } from "$lib/api/client";
+  import { toCarouselItems } from "$lib/carousel";
   import Banner from "$lib/components/Banner.svelte";
   import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
   import DetailHeroSkeleton from "$lib/components/DetailHeroSkeleton.svelte";
@@ -15,13 +16,10 @@
   import NoteField from "$lib/components/NoteField.svelte";
   import OwnershipField from "$lib/components/OwnershipField.svelte";
   import Poster from "$lib/components/Poster.svelte";
-  import RatingPips from "$lib/components/RatingPips.svelte";
   import RelatedCarousel from "$lib/components/RelatedCarousel.svelte";
-  import ReviewCritique from "$lib/components/ReviewCritique.svelte";
-  import WorkReviews from "$lib/components/WorkReviews.svelte";
+  import ReviewsSection from "$lib/components/ReviewsSection.svelte";
   import SegmentedStatusControl from "$lib/components/SegmentedStatusControl.svelte";
   import TrackingPanel from "$lib/components/TrackingPanel.svelte";
-  import { toCarouselItems } from "$lib/carousel";
   import { formatDate } from "$lib/format";
   import { createLibraryEntryActions } from "$lib/library-entry";
   import {
@@ -29,10 +27,10 @@
     MUSIC_OWNERSHIP_STATUS_OPTIONS,
   } from "$lib/ownership-sources";
   import {
+    MUSIC_STATUS_SEG_ACTIVE as SEG_ACTIVE,
     MUSIC_STATUS_DESC as STATUS_DESC,
     MUSIC_STATUS_META as STATUS_META,
     MUSIC_STATUS_ORDER as STATUS_ORDER,
-    MUSIC_STATUS_SEG_ACTIVE as SEG_ACTIVE,
   } from "$lib/status-labels";
   import type { MusicDetailDto } from "@tracklore/shared";
 
@@ -273,15 +271,6 @@
               activeClass={SEG_ACTIVE}
               onSelect={(status) => patch({ status })} />
 
-            <RatingPips
-              value={entry.rating}
-              onChange={(v) => patch({ rating: v })} />
-
-            <ReviewCritique
-              targetType="MUSIC"
-              targetId={entry.album.id}
-              rating={entry.rating} />
-
             <NoteField
               value={entry.notes}
               placeholder="Une phrase, une note d'écoute…"
@@ -356,13 +345,16 @@
           </div>
         {/if}
 
-        {#if entry}
-          <WorkReviews targetType="MUSIC" targetId={entry.album.id} />
-        {/if}
-
         <RelatedCarousel
           title="Du même artiste"
           items={toCarouselItems(detail.sameArtistAlbums, "/music")} />
+
+        {#if entry}
+          <ReviewsSection
+            targetType="MUSIC"
+            targetId={entry.album.id}
+            workTitle={detail.title} />
+        {/if}
       </div>
 
       <!-- Details panel, desktop position: sidebar next to the main column. -->

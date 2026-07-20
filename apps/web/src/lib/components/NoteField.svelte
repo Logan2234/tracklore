@@ -1,10 +1,4 @@
 <script lang="ts">
-  import { tick } from "svelte";
-
-  // Opt-in personal note: while empty it's a single "＋ Ajouter une note"
-  // button, so cards that will never carry a note stay clean. Once revealed (or
-  // when a note already exists) it's a plain textarea; "supprimer" clears it and
-  // collapses back to the button.
   let {
     value = null,
     placeholder = "Notes personnelles…",
@@ -14,52 +8,19 @@
     placeholder?: string;
     onChange: (value: string | null) => void;
   } = $props();
-
-  // Show the textarea when a note already exists, or once the user reveals it.
-  let revealed = $state(false);
-  let textarea = $state<HTMLTextAreaElement>();
-  const open = $derived(revealed || Boolean(value));
-
-  async function reveal() {
-    revealed = true;
-    await tick();
-    textarea?.focus();
-  }
-
-  function remove() {
-    revealed = false;
-    onChange(null);
-  }
 </script>
 
-{#if open}
-  <div class="flex flex-col gap-1.5">
-    <div class="flex items-center">
-      <span class="timecode text-[0.62rem] tracking-[0.18em] uppercase"
-        >Prise de note</span>
-      <button
-        type="button"
-        class="text-dim hover:text-danger ml-auto font-mono text-[0.68rem] transition-colors"
-        onclick={remove}>
-        supprimer
-      </button>
-    </div>
-    <textarea
-      bind:this={textarea}
-      rows="3"
-      {placeholder}
-      class="input border-l-accent/50 bg-surface-2 min-h-[66px] rounded-l-sm border-l-[3px]"
-      value={value ?? ""}
-      onchange={(e) => {
-        const raw = e.currentTarget.value.trim();
-        onChange(raw === "" ? null : raw);
-      }}></textarea>
-  </div>
-{:else}
-  <button
-    type="button"
-    class="border-border text-dim hover:border-accent/45 hover:text-fg self-start rounded-lg border border-dashed px-3.5 py-2 text-sm font-semibold transition-colors"
-    onclick={reveal}>
-    ＋ Ajouter une note
-  </button>
-{/if}
+<div class="flex flex-col gap-1.5">
+  <span class="timecode text-[0.62rem] tracking-[0.18em] uppercase"
+    >Prise de note</span>
+
+  <textarea
+    rows="3"
+    {placeholder}
+    class="input bg-surface-2 min-h-16.5 rounded-l-sm text-sm"
+    value={value ?? ""}
+    onchange={(e) => {
+      const raw = e.currentTarget.value.trim();
+      onChange(raw === "" ? null : raw);
+    }}></textarea>
+</div>

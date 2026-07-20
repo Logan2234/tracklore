@@ -104,6 +104,19 @@ body {
   .chip-on {
     @apply border-accent bg-accent text-accent-fg hover:text-accent-fg;
   }
+  /* Boolean setting toggle (iOS-style track + thumb). */
+  .switch {
+    @apply border-border bg-surface-2 relative inline-flex h-6 w-10 shrink-0 items-center rounded-full border transition-colors disabled:pointer-events-none disabled:opacity-50;
+  }
+  .switch-on {
+    @apply border-accent bg-accent;
+  }
+  .switch-thumb {
+    @apply inline-block h-4 w-4 translate-x-0.5 rounded-full bg-white shadow ring-1 ring-black/10 transition-transform;
+  }
+  .switch-on .switch-thumb {
+    @apply translate-x-[18px];
+  }
   /* Marks placeholder/mock data (dotted underline + help cursor). */
   .mock {
     @apply decoration-dim/50 cursor-help underline decoration-dotted underline-offset-4;

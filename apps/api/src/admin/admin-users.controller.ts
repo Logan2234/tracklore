@@ -143,7 +143,7 @@ export class AdminUsersController {
   /**
    * Permanently deletes an account and all its data. An admin can't delete
    * their own account this way (no lockout escape hatch) — self-deletion
-   * stays on the password-confirmed /account flow.
+   * stays on the password-confirmed /settings flow.
    */
   @HttpCode(HttpStatus.NO_CONTENT)
   @Delete("users/:userId")
@@ -153,7 +153,7 @@ export class AdminUsersController {
   ): Promise<void> {
     if (userId === admin.sub) {
       throw new BadRequestException(
-        "Utilise la suppression de compte depuis /account pour ton propre compte",
+        "Utilise la suppression de compte depuis /settings pour ton propre compte",
       );
     }
 

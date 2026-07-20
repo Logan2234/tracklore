@@ -346,7 +346,7 @@ export interface AdminBackupRestoreRequestDto {
   sql: string;
 }
 
-/** Running app version, for the admin/account footer. */
+/** Running app version, for the admin/settings footer. */
 export interface AdminVersionDto {
   version: string;
 }

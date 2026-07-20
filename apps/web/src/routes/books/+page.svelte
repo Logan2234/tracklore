@@ -3,8 +3,9 @@
   import type { LibraryLoadParams } from "$lib/components/LibraryBrowser.svelte";
   import LibraryBrowser from "$lib/components/LibraryBrowser.svelte";
   import PosterCard from "$lib/components/PosterCard.svelte";
+  import BookSearchPanel from "$lib/components/search/BookSearchPanel.svelte";
   import { BOOK_STATUS_LABELS, BOOK_STATUS_ORDER } from "$lib/status-labels";
-  import type { BookEntryDto } from "@tracklore/shared";
+  import { Domain, type BookEntryDto } from "@tracklore/shared";
 
   const STATUS_OPTIONS = BOOK_STATUS_ORDER.map((value) => ({
     label: BOOK_STATUS_LABELS[value],
@@ -40,11 +41,15 @@
   title="Livres"
   subtitle={(n) => `${n} livre${n > 1 ? "s" : ""}`}
   noun="livre"
+  domain={Domain.BOOKS}
   {load}
   keyOf={(e) => e.id}
   statusOptions={STATUS_OPTIONS}
   sorts={SORTS}
   defaultSort="added">
+  {#snippet catalogPreview(query: string, onResults: (n: number) => void)}
+    <BookSearchPanel {query} limit={10} {onResults} />
+  {/snippet}
   {#snippet card(entry: BookEntryDto)}
     <PosterCard
       href={`/books/${entry.book.sourceId}`}

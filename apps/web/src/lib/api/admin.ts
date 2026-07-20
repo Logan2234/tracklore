@@ -161,7 +161,7 @@ export function deleteAdminUser(userId: string): Promise<void> {
   return request(`/admin/users/${userId}`, { method: "DELETE" });
 }
 
-/** The running app's version, shown in the admin/account footer. */
+/** The running app's version, shown in the admin/settings footer. */
 export function getAdminVersion(): Promise<AdminVersionDto> {
   return request("/admin/version");
 }

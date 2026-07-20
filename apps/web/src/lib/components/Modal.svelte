@@ -6,10 +6,13 @@
     title,
     onclose,
     children,
+    wide = false,
   }: {
     title: string;
     onclose: () => void;
     children: Snippet;
+    /** Wider variant (max-w-2xl instead of max-w-md), for content like tables. */
+    wide?: boolean;
   } = $props();
 </script>
 
@@ -24,7 +27,9 @@
     role="dialog"
     aria-modal="true"
     aria-labelledby="modal-title"
-    class="card relative z-10 w-full max-w-md rounded-t-2xl p-5 sm:rounded-2xl">
+    class="card relative z-10 w-full {wide
+      ? 'max-w-2xl'
+      : 'max-w-md'} rounded-t-2xl p-5 sm:rounded-2xl">
     <button
       class="text-dim hover:bg-surface-2 hover:text-fg absolute top-3 right-3 rounded-full p-1.5"
       aria-label="Fermer"

@@ -100,7 +100,6 @@ export class FollowService {
         type: NotificationType.FOLLOW_REQUEST,
         body: "souhaite vous suivre",
         dedupeKey: `request:${viewerId}`,
-        url: "/people",
       });
     }
 

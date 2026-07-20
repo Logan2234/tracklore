@@ -201,7 +201,7 @@
           <p class="text-dim text-sm">Appareils connectés</p>
           <p class="font-semibold">Sessions ouvertes sur ton compte</p>
         </div>
-        <a href="/account/sessions" class="link-accent text-sm"> Gérer </a>
+        <a href="/settings/sessions" class="link-accent text-sm"> Gérer </a>
       </div>
     </div>
   </section>

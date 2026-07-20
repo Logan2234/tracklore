@@ -1,11 +1,14 @@
 <script lang="ts">
   import { ApiError, updateMe } from "$lib/api/client";
   import { auth } from "$lib/auth.svelte";
+  import Icon from "$lib/components/Icon.svelte";
+  import Switch from "$lib/components/Switch.svelte";
   import { appConfig } from "$lib/config.svelte";
 
   let displayNameInput = $state(auth.user?.displayName ?? "");
   let displayNameStatus = $state<"idle" | "saving" | "saved" | "error">("idle");
   let displayNameError = $state("");
+  let copied = $state(false);
 
   async function saveDisplayName() {
     const value = displayNameInput.trim();
@@ -97,6 +100,14 @@
         err instanceof ApiError ? err.message : "Enregistrement impossible";
     }
   }
+
+  async function shareProfile() {
+    if (!auth.user) return;
+    const url = `${window.location.origin}/u/${auth.user.username}`;
+    await navigator.clipboard.writeText(url);
+    copied = true;
+    setTimeout(() => (copied = false), 2000);
+  }
 </script>
 
 {#if auth.user}
@@ -180,17 +191,27 @@
             {/if}
           </p>
         </div>
-        <button
-          class="chip shrink-0 disabled:pointer-events-none disabled:opacity-40"
-          class:chip-on={auth.user.allowAdultContent}
+        <Switch
+          label="Contenu pour adultes"
+          checked={auth.user.allowAdultContent}
           disabled={!isAdultEligible}
-          onclick={toggleAdultContent}>
-          {auth.user.allowAdultContent ? "Activé" : "Désactivé"}
-        </button>
+          onChange={toggleAdultContent} />
       </div>
       {#if adultContentError}
         <p class="text-danger mt-2 text-sm">{adultContentError}</p>
       {/if}
+    </div>
+
+    <div class="border-border mt-5 border-t pt-5">
+      <h2 class="font-semibold">Inviter des membres</h2>
+      <p class="text-dim mb-4 text-sm">
+        Il n'y a pas encore d'annuaire public — partagez le lien de votre profil
+        pour que d'autres puissent vous suivre.
+      </p>
+      <button class="btn btn-ghost" onclick={shareProfile}>
+        <Icon name={copied ? "check" : "users"} class="h-4 w-4" />
+        {copied ? "Lien copié" : "Partager mon profil"}
+      </button>
     </div>
   </section>
 {/if}

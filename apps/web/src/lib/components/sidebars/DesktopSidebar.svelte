@@ -3,29 +3,35 @@
   import { page } from "$app/state";
   import { ADMIN_NAV } from "$lib/admin-nav";
   import { auth } from "$lib/auth.svelte";
+  import Avatar from "$lib/components/Avatar.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import { appConfig } from "$lib/config.svelte";
   import { isDomainEnabled } from "$lib/domains";
   import { NAVIGATION } from "$lib/navigation";
   import { notifications } from "$lib/notifications.svelte";
 
-  let expanded = $state(
-    browser ? localStorage.getItem("tl-rail") === "open" : false,
+  // Pinned = stays open regardless of hover, persisted. Unpinned = follows the
+  // mouse (hover-only), as before.
+  let pinned = $state(
+    browser ? localStorage.getItem("tl-rail-pinned") === "true" : false,
   );
+  let hovered = $state(false);
+  let expanded = $derived(pinned || hovered);
 
   let { children } = $props();
 
   const inAdmin = $derived(page.url.pathname.startsWith("/admin"));
 
-  const initial = $derived(
-    (auth.user?.displayName ?? "?").charAt(0).toUpperCase(),
+  // "Mon profil" only exists when social is enabled — self-host without it
+  // still needs a way to the account settings from the sidebar footer.
+  const profileHref = $derived(
+    appConfig.socialEnabled ? "/profile" : "/settings",
   );
 
-  function toggleRail(expandedState = !expanded) {
-    expanded = expandedState;
-
+  function togglePinned() {
+    pinned = !pinned;
     if (browser) {
-      localStorage.setItem("tl-rail", expanded ? "open" : "closed");
+      localStorage.setItem("tl-rail-pinned", pinned ? "true" : "false");
     }
   }
 
@@ -63,20 +69,38 @@
   <aside
     class="border-border bg-surface sticky top-0 hidden h-screen shrink-0 flex-col overflow-hidden border-r px-3 py-3 transition-[width] duration-200 md:flex
     {expanded ? 'w-60' : 'w-16'}"
-    onmouseenter={() => toggleRail(true)}
-    onmouseleave={() => toggleRail(false)}>
-    <a href="/" class="mb-2 flex items-center overflow-hidden">
-      <span
-        class="font-display text-accent grid h-10 w-10 shrink-0 place-items-center text-xl font-extrabold">
-        T
-      </span>
+    onmouseenter={() => (hovered = true)}
+    onmouseleave={() => (hovered = false)}>
+    <div class="mb-2 flex items-center justify-between overflow-hidden">
+      <a href="/" class="flex min-w-0 items-center overflow-hidden">
+        <span
+          class="font-display text-accent grid h-10 w-10 shrink-0 place-items-center text-xl font-extrabold">
+          T
+        </span>
 
-      <span
-        class="font-display text-lg font-extrabold whitespace-nowrap transition-opacity
-        {expanded ? 'opacity-100' : 'opacity-0'}">
-        Tracklore
-      </span>
-    </a>
+        <span
+          class="font-display text-lg font-extrabold whitespace-nowrap transition-opacity
+          {expanded ? 'opacity-100' : 'opacity-0'}">
+          Tracklore
+        </span>
+      </a>
+
+      {#if expanded}
+        <button
+          type="button"
+          onclick={togglePinned}
+          title={pinned
+            ? "Désépingler le panneau"
+            : "Épingler le panneau ouvert"}
+          aria-label={pinned
+            ? "Désépingler le panneau"
+            : "Épingler le panneau ouvert"}
+          aria-pressed={pinned}
+          class="hover:bg-surface-2 text-dim grid h-8 w-8 shrink-0 place-items-center rounded-lg transition-colors">
+          <Icon name={pinned ? "pin-filled" : "pin"} class="h-4 w-4" />
+        </button>
+      {/if}
+    </div>
 
     <div class="relative flex min-h-0 flex-1 flex-col">
       <nav
@@ -271,18 +295,17 @@
 
       {#if !inAdmin}
         <a
-          href="/account"
+          href={profileHref}
           title={expanded ? undefined : auth.user?.displayName}
           class="hover:bg-surface-2 my-1 flex w-full items-center overflow-hidden rounded-xl transition-colors {page.url.pathname.startsWith(
-            '/account',
+            profileHref,
           )
             ? 'bg-surface-2'
             : ''}">
           <span class="grid h-10 w-10 shrink-0 place-items-center">
-            <span
-              class="border-border bg-surface-2 font-display text-fg flex h-8 w-8 items-center justify-center rounded-full border text-sm font-bold">
-              {initial}
-            </span>
+            {#if auth.user}
+              <Avatar seed={auth.user.username} size={32} />
+            {/if}
           </span>
           <span
             class="text-fg truncate text-sm font-semibold transition-opacity duration-150 {expanded

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { ApiError, updateMe } from "$lib/api/client";
   import { auth } from "$lib/auth.svelte";
+  import Switch from "$lib/components/Switch.svelte";
   import { Domain } from "@tracklore/shared";
 
   // Content domains the user composes the app from. Podcasts and board games
@@ -88,16 +89,17 @@
             </p>
             <p class="text-dim text-sm">{d.desc}</p>
           </div>
-          <button
-            class="chip shrink-0 disabled:pointer-events-none disabled:opacity-40"
-            class:chip-on={on}
-            disabled={isLast}
+          <span
+            class="shrink-0"
             title={isLast
               ? "Au moins un domaine doit rester actif."
-              : undefined}
-            onclick={() => toggleDomain(d.id)}>
-            {on ? "Activé" : "Désactivé"}
-          </button>
+              : undefined}>
+            <Switch
+              label={d.label}
+              checked={on}
+              disabled={isLast}
+              onChange={() => toggleDomain(d.id)} />
+          </span>
         </div>
       {/each}
     </div>

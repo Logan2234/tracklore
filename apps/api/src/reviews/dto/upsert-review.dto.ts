@@ -1,4 +1,5 @@
 import {
+  REVIEW_TEXT_MAX_LENGTH,
   type ReviewVisibility,
   ReviewVisibility as ReviewVisibilityEnum,
 } from "@tracklore/shared";
@@ -21,7 +22,7 @@ export class UpsertReviewBody {
 
   @IsOptional()
   @IsString()
-  @MaxLength(10000)
+  @MaxLength(REVIEW_TEXT_MAX_LENGTH)
   text?: string | null;
 
   @IsOptional()

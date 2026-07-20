@@ -1,0 +1,299 @@
+<script lang="ts">
+  import {
+    getPrivacySettings,
+    updateMe,
+    updatePrivacySettings,
+  } from "$lib/api/client";
+  import { auth } from "$lib/auth.svelte";
+  import Combobox from "$lib/components/Combobox.svelte";
+  import Modal from "$lib/components/Modal.svelte";
+  import { appConfig } from "$lib/config.svelte";
+  import {
+    Domain,
+    ProfileAccess,
+    type ReviewVisibility,
+    VisibilityAudience,
+    VisibilityFacet,
+    type VisibilitySettingsDto,
+  } from "@tracklore/shared";
+
+  const ACCESS: { id: ProfileAccess; label: string; desc: string }[] = [
+    {
+      id: ProfileAccess.PUBLIC,
+      label: "Public",
+      desc: "Tout le monde peut vous trouver et vous suivre librement.",
+    },
+    {
+      id: ProfileAccess.PRIVATE,
+      label: "Privé",
+      desc: "Vous validez chaque demande ; seuls vos amis voient votre contenu.",
+    },
+    {
+      id: ProfileAccess.GHOST,
+      label: "Figurant",
+      desc: "Invisible : personne ne peut vous trouver, vous suivre, ni voir votre activité. Vous pouvez suivre et commenter de façon anonyme.",
+    },
+  ];
+
+  const ACCESS_OPTIONS = ACCESS.map((a) => ({ id: a.id, label: a.label }));
+
+  const DOMAINS: { id: Domain; label: string }[] = [
+    { id: Domain.MEDIA, label: "Vidéo" },
+    { id: Domain.GAMES, label: "Jeux" },
+    { id: Domain.BOOKS, label: "Livres" },
+    { id: Domain.MUSIC, label: "Musique" },
+    { id: Domain.PODCASTS, label: "Podcasts" },
+    { id: Domain.BOARDGAMES, label: "Jeux de société" },
+  ];
+
+  const FACETS: { id: VisibilityFacet; label: string }[] = [
+    { id: VisibilityFacet.LIBRARY, label: "Bibliothèque" },
+    { id: VisibilityFacet.ACTIVITY, label: "Activité" },
+  ];
+
+  const AUDIENCES: { id: VisibilityAudience; label: string }[] = [
+    { id: VisibilityAudience.PUBLIC, label: "Public" },
+    { id: VisibilityAudience.FRIENDS, label: "Amis" },
+    { id: VisibilityAudience.NONE, label: "Personne" },
+  ];
+
+  // The modal's matrix — actions × the 3 modes (from the P4 cadrage plan).
+  const MODE_MATRIX: {
+    action: string;
+    public: string;
+    private: string;
+    ghost: string;
+  }[] = [
+    { action: "Trouvable en recherche", public: "✓", private: "✓", ghost: "✗" },
+    { action: "Profil consultable", public: "✓", private: "Amis", ghost: "✗" },
+    {
+      action: "Peut être suivi",
+      public: "Librement",
+      private: "Sur demande",
+      ghost: "✗",
+    },
+    {
+      action: "Peut suivre",
+      public: "✓",
+      private: "✓",
+      ghost: "Profils publics",
+    },
+    { action: "Devenir ami", public: "✓", private: "✓", ghost: "✗" },
+    {
+      action: "Voir le contenu Public / Amis",
+      public: "✓ / ✓",
+      private: "✓ / ✓",
+      ghost: "✓ / ✗",
+    },
+    {
+      action: "Commenter + réagir",
+      public: "✓",
+      private: "✓",
+      ghost: "Anonyme",
+    },
+    {
+      action: "Publier des reviews",
+      public: "✓",
+      private: "✓",
+      ghost: "Hors moyenne",
+    },
+    {
+      action: "Apparaître dans le fil d'autrui",
+      public: "✓",
+      private: "Amis",
+      ghost: "✗",
+    },
+    {
+      action: "Être mentionné / nom cliquable",
+      public: "✓",
+      private: "✓ (verrouillé)",
+      ghost: "✗",
+    },
+  ];
+
+  let settings = $state<VisibilitySettingsDto | null>(null);
+  let saving = $state(false);
+  let showModesModal = $state(false);
+  let savingDefaultReviewVisibility = $state(false);
+
+  $effect(() => {
+    void getPrivacySettings().then((s) => (settings = s));
+  });
+
+  function audienceOf(
+    domain: Domain,
+    facet: VisibilityFacet,
+  ): VisibilityAudience {
+    return (
+      settings?.settings.find((s) => s.domain === domain && s.facet === facet)
+        ?.audience ?? VisibilityAudience.FRIENDS
+    );
+  }
+
+  async function setAccess(access: ProfileAccess) {
+    if (!settings || settings.profileAccess === access) return;
+    saving = true;
+    try {
+      settings = await updatePrivacySettings({ profileAccess: access });
+    } finally {
+      saving = false;
+    }
+  }
+
+  async function setAudience(
+    domain: Domain,
+    facet: VisibilityFacet,
+    audience: VisibilityAudience,
+  ) {
+    if (!settings) return;
+    saving = true;
+    try {
+      settings = await updatePrivacySettings({
+        settings: [{ domain, facet, audience }],
+      });
+    } finally {
+      saving = false;
+    }
+  }
+
+  async function setDefaultReviewVisibility(v: ReviewVisibility) {
+    if (
+      savingDefaultReviewVisibility ||
+      auth.user?.defaultReviewVisibility === v
+    )
+      return;
+    savingDefaultReviewVisibility = true;
+    try {
+      await updateMe({ defaultReviewVisibility: v });
+    } finally {
+      savingDefaultReviewVisibility = false;
+    }
+  }
+
+  let isPrivate = $derived(settings?.profileAccess !== ProfileAccess.PUBLIC);
+</script>
+
+{#if appConfig.socialEnabled && settings}
+  <section class="card mb-5 p-5 md:p-6">
+    <h2 class="font-display mb-1 text-lg font-bold">Confidentialité</h2>
+    <p class="text-dim text-sm">
+      Qui peut vous trouver, et ce que les autres voient de vous.
+    </p>
+
+    <div class="my-8">
+      <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <p class="font-semibold">Visibilité du profil</p>
+        <button
+          type="button"
+          class="text-dim decoration-dim/50 cursor-pointer text-xs underline decoration-dotted underline-offset-4"
+          onclick={() => (showModesModal = true)}>
+          En savoir plus
+        </button>
+      </div>
+      <Combobox
+        label="Profil"
+        options={ACCESS_OPTIONS.map((a) => ({ label: a.label, value: a.id }))}
+        values={settings.profileAccess ? [settings.profileAccess] : []}
+        onChange={(v) => setAccess(v[0] as ProfileAccess)} />
+    </div>
+
+    {#if settings.profileAccess !== ProfileAccess.GHOST}
+      <!-- Visibility matrix: the authZ layer, per domain × facet. -->
+      <div class="divide-border divide-y">
+        {#each DOMAINS as d (d.id)}
+          <div class="py-4 first:pt-0">
+            <p class="mb-2 font-semibold">{d.label}</p>
+            <div class="space-y-2">
+              {#each FACETS as f (f.id)}
+                {@const current = audienceOf(d.id, f.id)}
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <span class="text-dim text-sm">{f.label}</span>
+                  <Combobox
+                    label={f.label}
+                    options={AUDIENCES.map((a) => ({
+                      label: a.label,
+                      value: a.id,
+                    }))}
+                    values={[current]}
+                    disabledValues={isPrivate
+                      ? [VisibilityAudience.PUBLIC]
+                      : []}
+                    disabledHint="Un profil privé ne peut pas exposer au public."
+                    onChange={(v) =>
+                      setAudience(d.id, f.id, v[0] as VisibilityAudience)} />
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/each}
+      </div>
+
+      {#if auth.user}
+        <div class="border-border mt-5 border-y py-5">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p class="font-semibold">
+                Portée par défaut des nouvelles reviews
+              </p>
+              <p class="text-dim text-sm">
+                Utilisée quand vous notez une œuvre sans préciser la portée.
+              </p>
+            </div>
+            <Combobox
+              label="Portée"
+              options={[
+                { label: "Amis", value: "FRIENDS" },
+                { label: "Public", value: "PUBLIC" },
+              ]}
+              values={[auth.user.defaultReviewVisibility]}
+              onChange={(v) =>
+                setDefaultReviewVisibility(v[0] as ReviewVisibility)} />
+          </div>
+        </div>
+      {/if}
+    {/if}
+
+    <p class="text-dim mt-4 text-xs">
+      Vos notes privées restent toujours privées. Les reviews et commentaires
+      que vous publiez ont leur propre portée, choisie à la publication.
+    </p>
+  </section>
+{/if}
+
+{#if showModesModal}
+  <Modal
+    title="Les 3 modes de confidentialité"
+    wide
+    onclose={() => (showModesModal = false)}>
+    <div class="space-y-3">
+      {#each ACCESS as a (a.id)}
+        <div>
+          <p class="font-semibold">{a.label}</p>
+          <p class="text-dim text-sm">{a.desc}</p>
+        </div>
+      {/each}
+    </div>
+    <div class="mt-5 overflow-x-auto">
+      <table class="w-full text-left text-sm">
+        <thead>
+          <tr class="border-border border-b">
+            <th class="py-2 pr-3 font-semibold">Action</th>
+            <th class="px-3 py-2 font-semibold">Public</th>
+            <th class="px-3 py-2 font-semibold">Privé</th>
+            <th class="py-2 pl-3 font-semibold">Figurant</th>
+          </tr>
+        </thead>
+        <tbody class="divide-border divide-y">
+          {#each MODE_MATRIX as row (row.action)}
+            <tr>
+              <td class="text-dim py-2 pr-3">{row.action}</td>
+              <td class="px-3 py-2">{row.public}</td>
+              <td class="px-3 py-2">{row.private}</td>
+              <td class="py-2 pl-3">{row.ghost}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+  </Modal>
+{/if}

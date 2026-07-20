@@ -64,7 +64,7 @@ export function deleteLibraryEntry(entryId: string): Promise<void> {
 }
 
 export function watchEpisode(episodeId: string): Promise<EpisodeWatchDto> {
-  return request(`/library/episodes/${episodeId}/watches`, {
+  request(`/library/episodes/${episodeId}/watches`, {
     method: "POST",
     body: {},
   });

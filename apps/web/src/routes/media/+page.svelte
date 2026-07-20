@@ -4,8 +4,9 @@
   import type { LibraryLoadParams } from "$lib/components/LibraryBrowser.svelte";
   import LibraryBrowser from "$lib/components/LibraryBrowser.svelte";
   import PosterCard from "$lib/components/PosterCard.svelte";
+  import MediaSearchPanel from "$lib/components/search/MediaSearchPanel.svelte";
   import type { LibraryEntryDto, MediaType } from "@tracklore/shared";
-  import { isDormant } from "@tracklore/shared";
+  import { Domain, isDormant } from "@tracklore/shared";
 
   const STATUS_OPTIONS = [
     { label: "En cours", value: "WATCHING" },
@@ -68,6 +69,7 @@
   title="Vidéo"
   subtitle={(n) => `${n} titre${n > 1 ? "s" : ""}`}
   noun="titre"
+  domain={Domain.MEDIA}
   {load}
   keyOf={(e) => e.id}
   statusOptions={STATUS_OPTIONS}
@@ -83,6 +85,9 @@
       options={TYPE_OPTIONS}
       values={types}
       onChange={(v) => (types = v as MediaType[])} />
+  {/snippet}
+  {#snippet catalogPreview(query: string, onResults: (n: number) => void)}
+    <MediaSearchPanel {query} limit={10} {onResults} />
   {/snippet}
   {#snippet card(entry: LibraryEntryDto)}
     <PosterCard

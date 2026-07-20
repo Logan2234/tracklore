@@ -171,20 +171,18 @@
 
   {#if loading}
     <div class="mb-10 flex flex-col gap-10">
-      {#each { length: 2 } as _, i (i)}
-        <div>
-          <div class="skeleton mb-4 h-3 w-20 rounded"></div>
-          <div class="skeleton mb-3 h-6 w-32 rounded"></div>
-          <div class="flex gap-4 overflow-hidden">
-            {#each { length: 4 } as _, j (j)}
-              <div class="w-32 shrink-0 sm:w-36">
-                <div class="skeleton aspect-2/3 w-full rounded-xl"></div>
-                <div class="skeleton mt-2 h-3 w-4/5 rounded"></div>
-              </div>
-            {/each}
-          </div>
+      <div>
+        <div class="skeleton mb-4 h-3 w-20 rounded"></div>
+        <div class="skeleton mb-3 h-6 w-32 rounded"></div>
+        <div class="flex gap-4 overflow-hidden">
+          {#each { length: 4 } as _, j (j)}
+            <div class="w-32 shrink-0 sm:w-36">
+              <div class="skeleton aspect-2/3 w-full rounded-xl"></div>
+              <div class="skeleton mt-2 h-3 w-4/5 rounded"></div>
+            </div>
+          {/each}
         </div>
-      {/each}
+      </div>
     </div>
   {:else if nothing}
     <EmptyState class="mb-10">
@@ -378,12 +376,12 @@
     </a>
 
     <a
-      href="/account"
+      href="/settings"
       class="card hover:border-accent flex items-center justify-between p-5 transition-[border-color]">
       <div class="flex items-center gap-3">
-        <Icon name="user" class="text-accent h-6 w-6" />
+        <Icon name="gear" class="text-accent h-6 w-6" />
         <div>
-          <p class="font-display font-bold">Mon compte</p>
+          <p class="font-display font-bold">Paramètres</p>
           <p class="text-dim text-sm">Profil, préférences et notifications.</p>
         </div>
       </div>

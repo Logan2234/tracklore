@@ -17,10 +17,8 @@
   import NoteField from "$lib/components/NoteField.svelte";
   import OwnershipField from "$lib/components/OwnershipField.svelte";
   import Poster from "$lib/components/Poster.svelte";
-  import RatingPips from "$lib/components/RatingPips.svelte";
   import RelatedCarousel from "$lib/components/RelatedCarousel.svelte";
-  import ReviewCritique from "$lib/components/ReviewCritique.svelte";
-  import WorkReviews from "$lib/components/WorkReviews.svelte";
+  import ReviewsSection from "$lib/components/ReviewsSection.svelte";
   import TrackingPanel from "$lib/components/TrackingPanel.svelte";
   import { createLibraryEntryActions } from "$lib/library-entry";
   import {
@@ -439,24 +437,6 @@
           {/if}
         </div>
 
-        <hr class="border-border" />
-
-        <RatingPips
-          value={entry.rating}
-          onChange={(v) => patch({ rating: v })} />
-
-        <ReviewCritique
-          targetType="MEDIA"
-          targetId={entry.mediaItem.id}
-          rating={entry.rating} />
-
-        <NoteField
-          value={entry.notes}
-          placeholder="Une réplique, un souvenir…"
-          onChange={(v) => patch({ notes: v })} />
-
-        <hr class="border-border" />
-
         <OwnershipField
           status={entry.ownershipStatus}
           source={entry.ownershipSource}
@@ -467,6 +447,13 @@
               ownershipStatus: status as typeof entry.ownershipStatus,
               ownershipSource: source,
             })} />
+
+        <hr class="border-border" />
+
+        <NoteField
+          value={entry.notes}
+          placeholder="Une réplique, un souvenir…"
+          onChange={(v) => patch({ notes: v })} />
       </TrackingPanel>
     {/if}
 
@@ -517,10 +504,6 @@
         source={type === "ANIME" ? "anilist" : "tmdb"} />
     {/if}
 
-    {#if entry}
-      <WorkReviews targetType="MEDIA" targetId={entry.mediaItem.id} />
-    {/if}
-
     {#if extras}
       <RelatedCarousel
         title="Titres similaires"
@@ -530,6 +513,13 @@
           cover: s.posterUrl,
           title: s.title,
         }))} />
+    {/if}
+
+    {#if entry}
+      <ReviewsSection
+        targetType="MEDIA"
+        targetId={entry.mediaItem.id}
+        workTitle={detail.title} />
     {/if}
   </div>
 

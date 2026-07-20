@@ -8,7 +8,7 @@
     Retrouve ta bibliothèque en l'important depuis une autre appli.
   </p>
   <a
-    href="/account/import"
+    href="/settings/import"
     class="border-border bg-bg hover:border-accent hover:bg-surface-2 flex items-center gap-3 rounded-lg border p-4 transition-colors">
     <Icon name="download" class="text-accent h-6 w-6" />
     <span class="flex-1">

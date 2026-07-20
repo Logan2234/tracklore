@@ -48,7 +48,7 @@
 
   // Only query the domains the user keeps enabled — the API 403s the others.
   // Waits for the profile so a disabled domain is never fetched. Re-runs when a
-  // domain is toggled in /account.
+  // domain is toggled in /settings.
   $effect(() => {
     if (!auth.user) return;
     loading = true;

@@ -38,7 +38,7 @@ export class AdminSystemController {
     private readonly backup: BackupService,
   ) {}
 
-  /** The running app's version (monorepo root package.json), for the admin/account footer. */
+  /** The running app's version (monorepo root package.json), for the admin/settings footer. */
   @Get("version")
   async getVersion(): Promise<AdminVersionDto> {
     const raw = await readFile(ROOT_PACKAGE_JSON, "utf-8");

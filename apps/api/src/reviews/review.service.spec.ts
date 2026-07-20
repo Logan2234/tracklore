@@ -110,3 +110,83 @@ describe("ReviewService.listForTarget", () => {
     ).toHaveLength(0);
   });
 });
+
+function makeForWrite(
+  existing: { rating: number; text: string | null } | null,
+) {
+  const row = {
+    id: "r1",
+    rating: 8,
+    text: null,
+    visibility: "FRIENDS",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+  const revisionCreate = jest.fn().mockResolvedValue({});
+  const prisma = {
+    review: {
+      findUnique: jest.fn().mockResolvedValue(existing),
+      upsert: jest.fn().mockResolvedValue(row),
+      update: jest.fn().mockResolvedValue(row),
+      create: jest.fn().mockResolvedValue(row),
+    },
+    reviewRevision: { create: revisionCreate },
+    user: {
+      findUniqueOrThrow: jest
+        .fn()
+        .mockResolvedValue({ defaultReviewVisibility: "FRIENDS" }),
+    },
+  } as unknown as PrismaService;
+  const activity = { emit: jest.fn() } as unknown as ActivityService;
+  const visibility = {} as unknown as VisibilityService;
+  const svc = new ReviewService(prisma, visibility, activity);
+  return { svc, revisionCreate };
+}
+
+describe("ReviewService.upsert — revision snapshotting", () => {
+  it("creates a revision when the review is new", async () => {
+    const { svc, revisionCreate } = makeForWrite(null);
+    await svc.upsert("u1", "MEDIA" as never, "m1", { rating: 8, text: null });
+    expect(revisionCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("creates a revision when rating or text changed", async () => {
+    const { svc, revisionCreate } = makeForWrite({ rating: 6, text: null });
+    await svc.upsert("u1", "MEDIA" as never, "m1", { rating: 8, text: null });
+    expect(revisionCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips the revision when nothing changed", async () => {
+    const { svc, revisionCreate } = makeForWrite({ rating: 8, text: null });
+    await svc.upsert("u1", "MEDIA" as never, "m1", {
+      rating: 8,
+      text: null,
+      visibility: "PUBLIC",
+    });
+    expect(revisionCreate).not.toHaveBeenCalled();
+  });
+
+  it("skips the revision when only the visibility changed", async () => {
+    const { svc, revisionCreate } = makeForWrite({ rating: 8, text: "hey" });
+    await svc.upsert("u1", "MEDIA" as never, "m1", {
+      rating: 8,
+      text: "hey",
+      visibility: "PUBLIC",
+    });
+    expect(revisionCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe("ReviewService.setRating — revision snapshotting", () => {
+  it("skips the revision when the rating is unchanged", async () => {
+    const { svc, revisionCreate } = makeForWrite({ rating: 8, text: null });
+    await svc.setRating("u1", "MEDIA" as never, "m1", 8);
+    expect(revisionCreate).not.toHaveBeenCalled();
+  });
+
+  it("creates a revision when the rating changed", async () => {
+    const { svc, revisionCreate } = makeForWrite({ rating: 6, text: null });
+    await svc.setRating("u1", "MEDIA" as never, "m1", 8);
+    expect(revisionCreate).toHaveBeenCalledTimes(1);
+  });
+});

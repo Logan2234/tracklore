@@ -2,6 +2,7 @@
   import { ApiError, updateMe } from "$lib/api/client";
   import { auth } from "$lib/auth.svelte";
   import { disablePush, enablePush, isPushSupported } from "$lib/push";
+  import Switch from "$lib/components/Switch.svelte";
 
   let notifyError = $state("");
 
@@ -65,12 +66,10 @@
           <p class="font-semibold">Notifications dans l'app</p>
           <p class="text-dim text-sm">Alerte quand un épisode suivi sort.</p>
         </div>
-        <button
-          class="chip shrink-0"
-          class:chip-on={auth.user.notifyInApp}
-          onclick={() => toggleNotify("notifyInApp")}>
-          {auth.user.notifyInApp ? "Activé" : "Désactivé"}
-        </button>
+        <Switch
+          label="Notifications dans l'app"
+          checked={auth.user.notifyInApp}
+          onChange={() => toggleNotify("notifyInApp")} />
       </div>
       <div class="flex items-center justify-between gap-4 py-3">
         <div>
@@ -79,12 +78,10 @@
             Alerte par email quand un épisode suivi sort.
           </p>
         </div>
-        <button
-          class="chip shrink-0"
-          class:chip-on={auth.user.notifyEmail}
-          onclick={() => toggleNotify("notifyEmail")}>
-          {auth.user.notifyEmail ? "Activé" : "Désactivé"}
-        </button>
+        <Switch
+          label="Notifications par email"
+          checked={auth.user.notifyEmail}
+          onChange={() => toggleNotify("notifyEmail")} />
       </div>
       <div class="flex items-center justify-between gap-4 py-3 last:pb-0">
         <div>
@@ -97,13 +94,11 @@
             {/if}
           </p>
         </div>
-        <button
-          class="chip shrink-0"
-          class:chip-on={auth.user.notifyPush}
+        <Switch
+          label="Notifications push"
+          checked={auth.user.notifyPush}
           disabled={!pushSupported || pushBusy}
-          onclick={togglePush}>
-          {pushBusy ? "…" : auth.user.notifyPush ? "Activé" : "Désactivé"}
-        </button>
+          onChange={togglePush} />
       </div>
     </div>
     {#if notifyError}

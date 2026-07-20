@@ -30,7 +30,7 @@
   import PosterGrid from "$lib/components/PosterGrid.svelte";
   import PosterGridSkeleton from "$lib/components/PosterGridSkeleton.svelte";
   import { debounce } from "$lib/debounce";
-  import type { PagedResult } from "@tracklore/shared";
+  import type { Domain, PagedResult } from "@tracklore/shared";
   import type { ComponentProps, Snippet } from "svelte";
 
   type IconName = ComponentProps<typeof Icon>["name"];
@@ -45,6 +45,7 @@
     title,
     subtitle,
     noun,
+    domain,
     load,
     keyOf,
     statusOptions,
@@ -55,6 +56,7 @@
     extraActive = false,
     extra,
     onClearExtra,
+    catalogPreview,
   }: {
     icon: IconName;
     title: string;
@@ -62,6 +64,8 @@
     subtitle: (count: number) => string;
     /** Masculine noun for the empty-state copy: "livre", "jeu", "titre". */
     noun: string;
+    /** This library's domain, to preselect the right tab on /search. */
+    domain: Domain;
     load: (params: LibraryLoadParams) => Promise<PagedResult<T>>;
     /** Stable key for the poster grid's keyed each. */
     keyOf: (entry: T) => string;
@@ -78,7 +82,15 @@
     extra?: unknown;
     /** Reset the extra filter when clearing all filters. */
     onClearExtra?: () => void;
+    /** Renders a capped catalogue-search preview for the current query, when a
+     * library search comes up empty (no filters). Receives the trimmed query
+     * and a callback to report back how many catalogue results it found. */
+    catalogPreview?: Snippet<[string, (count: number) => void]>;
   } = $props();
+
+  // Result count reported by `catalogPreview`, reset whenever the query
+  // changes so a stale count never lingers across searches.
+  let previewCount = $state<number | null>(null);
 
   let items = $state<T[]>([]);
   let total = $state(0);
@@ -188,6 +200,7 @@
       value={query}
       oninput={(e) => {
         query = e.currentTarget.value;
+        previewCount = null;
         debouncedRun.call();
       }}
       class="input pl-10" />
@@ -243,22 +256,47 @@
     <Banner variant="error">{error}</Banner>
   {:else if loading}
     <PosterGridSkeleton />
+  {:else if items.length === 0 && hasQuery && !hasFilters}
+    <!-- No local match: a live catalogue preview instead of only a link out
+         to /search — `previewCount` (reported by the panel) decides whether
+         we're still waiting, have suggestions, or truly found nothing. -->
+    {#if catalogPreview}
+      {#if previewCount === 0}
+        <p class="text-dim py-10 text-center text-sm">
+          Aucun {noun} ne correspond à « {query.trim()} », ni dans ta bibliothèque
+          ni dans le catalogue.
+        </p>
+      {:else if previewCount !== null}
+        <p class="text-dim mb-3 text-xs font-semibold tracking-wide uppercase">
+          Suggestions du catalogue — pas encore dans ta bibliothèque
+        </p>
+      {/if}
+      {@render catalogPreview(query.trim(), (n) => (previewCount = n))}
+      {#if previewCount !== null && previewCount > 0}
+        <div class="mt-4 text-center">
+          <a
+            href={`/search?query=${encodeURIComponent(query.trim())}&type=${domain}`}
+            class="btn btn-ghost inline-flex">
+            Voir plus dans le catalogue <Icon
+              name="chevron-right"
+              class="h-4 w-4" />
+          </a>
+        </div>
+      {/if}
+    {:else}
+      <p class="text-dim py-10 text-center text-sm">
+        Aucun {noun} ne correspond à « {query.trim()} » dans ta bibliothèque.
+      </p>
+    {/if}
   {:else if items.length === 0}
     <EmptyState>
       {#if !hasFilters && !hasQuery}
         <p>Tu n'as encore aucun {noun} dans ta bibliothèque.</p>
-        <a href="/search" class="btn btn-primary mt-4 inline-flex">
+        <a
+          href={`/search?type=${domain}`}
+          class="btn btn-primary mt-4 inline-flex">
           <Icon name="search" class="h-4 w-4" /> Chercher un {noun}
         </a>
-      {:else if hasQuery && !hasFilters}
-        <p>
-          Aucun {noun} ne correspond à « {query.trim()} » dans ta bibliothèque.
-          <a
-            href={`/search?query=${encodeURIComponent(query.trim())}`}
-            class="link-accent">
-            Le chercher dans le catalogue →
-          </a>
-        </p>
       {:else}
         <p>
           {#if hasQuery}
@@ -280,7 +318,7 @@
     </PosterGrid>
     {#if !done}
       <!-- Sentinel: entering the viewport triggers the next page. -->
-      <div bind:this={sentinel} class="h-10"></div>
+      <div bind:this={sentinel} class="absolute h-10"></div>
     {/if}
     {#if loadingMore}
       <div class="mt-4">
