@@ -106,6 +106,29 @@ export class ProfileService {
     };
   }
 
+  /**
+   * Resolves a profile for its activity timeline: the target `{ id,
+   * profileAccess }` when the viewer may see its content, `null` when the
+   * profile is only a locked preview (reachable identity, no content), and a
+   * 404 when it must stay hidden (GHOST or a block).
+   */
+  async resolveTimelineTarget(
+    viewerId: string,
+    username: string,
+  ): Promise<{ id: string; profileAccess: string } | null> {
+    const target = await this.prisma.user.findUnique({
+      where: { username },
+      select: { id: true, profileAccess: true },
+    });
+    if (!target) throw new NotFoundException();
+
+    const relation = await this.visibility.getRelation(viewerId, target);
+    const visibility = resolveProfileVisibility(target.profileAccess, relation);
+    if (visibility === "hidden") throw new NotFoundException();
+    if (visibility === "locked") return null;
+    return target;
+  }
+
   /** Directory search. Excludes self, GHOSTs and anyone who blocked the viewer. */
   async search(
     viewerId: string,

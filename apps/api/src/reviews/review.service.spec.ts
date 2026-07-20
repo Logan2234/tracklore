@@ -1,4 +1,5 @@
 import type { PrismaService } from "../prisma/prisma.service";
+import type { ActivityService } from "../social/activity.service";
 import type { VisibilityService } from "../social/visibility.service";
 import type { ViewerRelation } from "../social/visibility.util";
 import { ReviewService } from "./review.service";
@@ -50,7 +51,8 @@ function make(rows: unknown[], relations: Record<string, ViewerRelation>) {
       Promise.resolve(relations[target.id] ?? relation({})),
     ),
   } as unknown as VisibilityService;
-  return new ReviewService(prisma, visibility);
+  const activity = { emit: jest.fn() } as unknown as ActivityService;
+  return new ReviewService(prisma, visibility, activity);
 }
 
 describe("ReviewService.listForTarget", () => {

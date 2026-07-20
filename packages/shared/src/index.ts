@@ -1,4 +1,5 @@
 export * from "./enums";
+export * from "./dto/activity";
 export * from "./dto/admin";
 export * from "./dto/config";
 export * from "./dto/social";

@@ -130,7 +130,7 @@
                       {@const capped =
                         isPrivate && aud.id === VisibilityAudience.PUBLIC}
                       <button
-                        class="chip !px-3 !py-1 text-xs"
+                        class="chip px-3! py-1! text-xs"
                         class:chip-on={current === aud.id}
                         disabled={saving || capped}
                         title={capped

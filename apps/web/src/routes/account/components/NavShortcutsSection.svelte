@@ -113,7 +113,7 @@
               aria-label="Descendre"
               disabled={saving || i === selected.length - 1}
               onclick={() => move(i, 1)}>
-              <Icon name="chevron-left" class="h-4 w-4 rotate-[270deg]" />
+              <Icon name="chevron-left" class="h-4 w-4 rotate-270" />
             </button>
             <button
               type="button"

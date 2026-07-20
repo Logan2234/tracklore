@@ -9,10 +9,22 @@ import {
   type UpsertReviewDto,
   type UserSummaryDto,
 } from "@tracklore/shared";
+import { ActivityType, type Domain } from "@tracklore/shared";
 import { canonicalExternalId } from "../common/external-id.util";
 import { PrismaService } from "../prisma/prisma.service";
+import { ActivityService } from "../social/activity.service";
 import { computeIsFriend } from "../social/visibility.util";
 import { VisibilityService } from "../social/visibility.service";
+
+/** Feed domain for a review target ("GAME" work lives in the GAMES domain…). */
+const DOMAIN_BY_TARGET: Record<string, Domain> = {
+  MEDIA: "MEDIA",
+  SEASON: "MEDIA",
+  EPISODE: "MEDIA",
+  GAME: "GAMES",
+  BOOK: "BOOKS",
+  MUSIC: "MUSIC",
+};
 
 type ReviewRow = {
   id: string;
@@ -37,6 +49,7 @@ export class ReviewService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly visibility: VisibilityService,
+    private readonly activity: ActivityService,
   ) {}
 
   private toDto(row: ReviewRow, author: UserSummaryDto): ReviewDto {
@@ -99,6 +112,8 @@ export class ReviewService {
     await this.prisma.reviewRevision.create({
       data: { reviewId: row.id, rating: dto.rating, text },
     });
+
+    await this.emitReviewed(userId, targetType, targetId, dto.rating);
 
     return this.toDto(row, await this.author(userId));
   }
@@ -460,6 +475,42 @@ export class ReviewService {
         data: { reviewId: row.id, rating },
       });
     }
+
+    await this.emitReviewed(userId, targetType, targetId, rating);
+  }
+
+  /**
+   * Records a REVIEWED activity event for a review write (from either the full
+   * editor or the quick-rating path). A work-level review is a home-feed
+   * milestone; season/episode reviews stay on the profile timeline (per the
+   * feed matrix). No-op for unknown target types.
+   */
+  private async emitReviewed(
+    userId: string,
+    targetType: ReviewTargetType,
+    targetId: string,
+    rating: number,
+  ): Promise<void> {
+    const domain = DOMAIN_BY_TARGET[targetType];
+    if (!domain) return;
+
+    const level =
+      targetType === "SEASON"
+        ? "SEASON"
+        : targetType === "EPISODE"
+          ? "EPISODE"
+          : "WORK";
+
+    await this.activity.emit({
+      userId,
+      type: ActivityType.REVIEWED,
+      domain,
+      targetType,
+      targetId,
+      level,
+      homeFeed: level === "WORK",
+      data: { rating },
+    });
   }
 
   private async author(userId: string): Promise<UserSummaryDto> {

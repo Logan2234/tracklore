@@ -52,6 +52,31 @@ export const NotificationType = {
 export type NotificationType =
   (typeof NotificationType)[keyof typeof NotificationType];
 
+/**
+ * Activity-feed event kinds (P4). Stored as a plain string on
+ * `ActivityEvent.type`. Which ones reach the home feed vs a profile timeline is
+ * decided at emit time (the `homeFeed` flag), per the feed matrix.
+ */
+export const ActivityType = {
+  /** Added a work to the library. */
+  ADDED: "ADDED",
+  /** Started watching/playing/reading/listening. */
+  STARTED: "STARTED",
+  /** Finished a work. */
+  FINISHED: "FINISHED",
+  /** Dropped a work. */
+  DROPPED: "DROPPED",
+  /** Started a rewatch/replay/reread. */
+  REWATCHED: "REWATCHED",
+  /** Watched an episode / made reading or play progress. */
+  PROGRESS: "PROGRESS",
+  /** Marked a work as favourite. */
+  FAVORITED: "FAVORITED",
+  /** Published or updated a review. */
+  REVIEWED: "REVIEWED",
+} as const;
+export type ActivityType = (typeof ActivityType)[keyof typeof ActivityType];
+
 /** Kind of media. MOVIE/SERIES come from TMDB, ANIME from AniList. */
 export const MediaType = {
   MOVIE: "MOVIE",

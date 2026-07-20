@@ -25,11 +25,13 @@ import type {
   ProgressDto,
   StatsDto,
 } from "@tracklore/shared";
-import { isDormant, ReviewTargetType } from "@tracklore/shared";
+import { ActivityType, isDormant, ReviewTargetType } from "@tracklore/shared";
 import { MediaItemService } from "../catalog/media-item.service";
 import { canonicalExternalId } from "../common/external-id.util";
 import { PrismaService } from "../prisma/prisma.service";
 import { ReviewService } from "../reviews/review.service";
+import { classifyStatusTransition } from "../social/activity-transition.util";
+import { ActivityService } from "../social/activity.service";
 import { AgeGateService } from "../users/age-gate.service";
 import { UpdateEntryDto } from "./dto/update-entry.dto";
 import { UpsertEntryDto } from "./dto/upsert-entry.dto";
@@ -137,6 +139,7 @@ export class LibraryService {
     private readonly mediaItemService: MediaItemService,
     private readonly ageGate: AgeGateService,
     private readonly reviews: ReviewService,
+    private readonly activity: ActivityService,
   ) {}
 
   /** First touch of a media persists it (on-demand cache), then upserts the entry. */
@@ -150,6 +153,11 @@ export class LibraryService {
       dto.type,
     );
 
+    const before = await this.prisma.libraryEntry.findUnique({
+      where: { userId_mediaItemId: { userId, mediaItemId: mediaItem.id } },
+      select: { status: true, favorite: true },
+    });
+
     const changes = {
       status: dto.status,
       notes: dto.notes,
@@ -160,6 +168,13 @@ export class LibraryService {
       update: changes,
       create: { userId, mediaItemId: mediaItem.id, ...changes },
       include: ENTRY_INCLUDE,
+    });
+
+    await this.emitEntryActivity(userId, mediaItem.id, {
+      prevStatus: before?.status ?? null,
+      nextStatus: entry.status,
+      prevFavorite: before?.favorite ?? false,
+      nextFavorite: entry.favorite,
     });
 
     // The /10 rating lives in Review (the single source of truth).
@@ -276,6 +291,11 @@ export class LibraryService {
   ): Promise<LibraryEntryDto> {
     await this.assertEntryOwnership(userId, entryId);
 
+    const before = await this.prisma.libraryEntry.findUnique({
+      where: { id: entryId },
+      select: { status: true, favorite: true },
+    });
+
     const entry = await this.prisma.libraryEntry.update({
       where: { id: entryId },
       data: {
@@ -292,6 +312,13 @@ export class LibraryService {
         ownershipSource: dto.ownershipSource,
       },
       include: ENTRY_INCLUDE,
+    });
+
+    await this.emitEntryActivity(userId, entry.mediaItemId, {
+      prevStatus: before?.status ?? null,
+      nextStatus: entry.status,
+      prevFavorite: before?.favorite ?? false,
+      nextFavorite: entry.favorite,
     });
 
     if (dto.rating !== undefined) {
@@ -318,6 +345,50 @@ export class LibraryService {
   async deleteEntry(userId: string, entryId: string): Promise<void> {
     await this.assertEntryOwnership(userId, entryId);
     await this.prisma.libraryEntry.delete({ where: { id: entryId } });
+  }
+
+  /**
+   * Emits the activity events for a media entry write: a status milestone (via
+   * the shared transition rules) and, separately, a FAVORITED event when a work
+   * is newly favourited (profile-timeline only, per the matrix).
+   */
+  private async emitEntryActivity(
+    userId: string,
+    mediaItemId: string,
+    change: {
+      prevStatus: string | null;
+      nextStatus: string;
+      prevFavorite: boolean;
+      nextFavorite: boolean;
+    },
+  ): Promise<void> {
+    const transition = classifyStatusTransition(
+      "MEDIA",
+      change.prevStatus,
+      change.nextStatus,
+    );
+
+    if (transition) {
+      await this.activity.emit({
+        userId,
+        type: transition.type,
+        domain: "MEDIA",
+        targetType: ReviewTargetType.MEDIA,
+        targetId: mediaItemId,
+        homeFeed: transition.homeFeed,
+      });
+    }
+
+    if (change.nextFavorite && !change.prevFavorite) {
+      await this.activity.emit({
+        userId,
+        type: ActivityType.FAVORITED,
+        domain: "MEDIA",
+        targetType: ReviewTargetType.MEDIA,
+        targetId: mediaItemId,
+        homeFeed: false,
+      });
+    }
   }
 
   /** Persisted seasons/episodes of an entry's media, with the user's watch counts. */

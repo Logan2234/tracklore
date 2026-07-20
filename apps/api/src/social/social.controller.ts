@@ -8,6 +8,8 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import type {
+  ActivityEventDto,
+  ActivityFeedDto,
   FollowRequestDto,
   RelationshipDto,
   SocialProfileDto,
@@ -18,6 +20,7 @@ import {
   type JwtPayload,
   CurrentUser,
 } from "../auth/decorators/current-user.decorator";
+import { ActivityService } from "./activity.service";
 import { FollowService } from "./follow.service";
 import { ProfileService } from "./profile.service";
 import { SocialFeatureGuard } from "./social-feature.guard";
@@ -29,7 +32,39 @@ export class SocialController {
   constructor(
     private readonly follow: FollowService,
     private readonly profiles: ProfileService,
+    private readonly activity: ActivityService,
   ) {}
+
+  /** Home feed: aggregated milestones from the users you follow. */
+  @Get("feed")
+  feed(
+    @CurrentUser() user: JwtPayload,
+    @Query("cursor") cursor?: string,
+  ): Promise<ActivityFeedDto> {
+    return this.activity.homeFeed(user.sub, cursor);
+  }
+
+  /** A short home-page teaser of the home feed. */
+  @Get("feed/preview")
+  feedPreview(@CurrentUser() user: JwtPayload): Promise<ActivityEventDto[]> {
+    return this.activity.homePreview(user.sub);
+  }
+
+  /** A user's detailed activity timeline (visibility-filtered). */
+  @Get("users/:username/activity")
+  async userActivity(
+    @CurrentUser() user: JwtPayload,
+    @Param("username") username: string,
+    @Query("cursor") cursor?: string,
+  ): Promise<ActivityFeedDto> {
+    const target = await this.profiles.resolveTimelineTarget(
+      user.sub,
+      username,
+    );
+    // A locked (private, unfollowed) profile exposes no activity.
+    if (!target) return { events: [], nextCursor: null };
+    return this.activity.profileTimeline(user.sub, target, cursor);
+  }
 
   @Get("search")
   search(

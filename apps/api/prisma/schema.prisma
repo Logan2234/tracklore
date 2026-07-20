@@ -264,6 +264,7 @@ model User {
   blocking            Block[]              @relation("UserBlocking")
   blockedBy           Block[]              @relation("UserBlockedBy")
   reviews             Review[]
+  activityEvents      ActivityEvent[]
 }
 
 // Social (P4): per-user, per-domain, per-facet audience. One row overrides the
@@ -397,6 +398,47 @@ model Notification {
 
   @@unique([userId, dedupeKey])
   @@index([userId, createdAt])
+}
+
+// Social (P4): materialised activity feed. Append-only log of a user's actions
+// (started/finished/rated a work…). Two surfaces read from it: the home feed
+// (followed users, `homeFeed = true` milestones only) and a user's profile
+// timeline (everything, gated by their Activité visibility). The target work is
+// denormalised (title/imageUrl/href) so a feed page needn't fan out across the
+// four domain tables on every read. `data` carries kind-specific extras
+// (rating, episode code, aggregation count).
+model ActivityEvent {
+  id         String   @id @default(cuid())
+  // The actor.
+  userId     String
+  // ActivityType: ADDED, STARTED, FINISHED, DROPPED, REWATCHED, PROGRESS,
+  // FAVORITED, REVIEWED. A string so new kinds need no migration.
+  type       String
+  // Domain enum value (MEDIA/GAMES/BOOKS/MUSIC) — used to gate the profile
+  // timeline against the actor's Activité audience for that domain.
+  domain     String
+  // Polymorphic work: ReviewTargetType-style ("MEDIA"/"GAME"/"BOOK"/"MUSIC")
+  // + the internal item id.
+  targetType String
+  targetId   String
+  // WORK / SEASON / EPISODE — the granularity, per the feed matrix.
+  level      String   @default("WORK")
+  // Whether this event surfaces on followers' home feed (matrix milestone).
+  homeFeed   Boolean  @default(false)
+  // Denormalised display snapshot of the target at emit time.
+  title      String
+  imageUrl   String?
+  href       String?
+  // Kind-specific extras: { rating } for REVIEWED, { seasonNumber, episodeNumber }
+  // for PROGRESS, etc.
+  data       Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Home feed: recent events of followed users, filtered on homeFeed.
+  @@index([userId, createdAt])
+  @@index([homeFeed, createdAt])
 }
 
 // One row per execution of a scheduled/admin-triggered job (notification scan,

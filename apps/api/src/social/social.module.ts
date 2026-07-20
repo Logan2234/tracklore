@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { NotificationModule } from "../notifications/notification.module";
+import { ActivityService } from "./activity.service";
 import { FollowService } from "./follow.service";
 import { PrivacyController } from "./privacy.controller";
 import { PrivacyService } from "./privacy.service";
@@ -12,7 +13,13 @@ import { VisibilityService } from "./visibility.service";
 @Module({
   imports: [NotificationModule],
   controllers: [SocialController, PrivacyController],
-  providers: [VisibilityService, FollowService, ProfileService, PrivacyService],
-  exports: [VisibilityService],
+  providers: [
+    VisibilityService,
+    FollowService,
+    ProfileService,
+    PrivacyService,
+    ActivityService,
+  ],
+  exports: [VisibilityService, ActivityService],
 })
 export class SocialModule {}
