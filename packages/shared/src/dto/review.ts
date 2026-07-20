@@ -18,6 +18,12 @@ export interface ReviewDto {
 export interface ReviewTargetSummaryDto {
   title: string;
   imageUrl: string | null;
+  /**
+   * Client route to the work's detail page (e.g. `/games/1234`), or null when
+   * the target has no browsable page yet (SEASON/EPISODE). Built server-side
+   * from the canonical source id so the client needn't know the URL scheme.
+   */
+  href: string | null;
 }
 
 /** A review plus its resolved target, for the "Mes reviews" screen. */

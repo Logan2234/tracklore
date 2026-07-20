@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   Param,
+  Post,
   Put,
   UseGuards,
 } from "@nestjs/common";
@@ -19,6 +20,10 @@ import {
   CurrentUser,
 } from "../auth/decorators/current-user.decorator";
 import { SocialFeatureGuard } from "../social/social-feature.guard";
+import {
+  BatchDeleteReviewsBody,
+  BatchVisibilityBody,
+} from "./dto/batch-reviews.dto";
 import { UpsertReviewBody } from "./dto/upsert-review.dto";
 import { ReviewService } from "./review.service";
 
@@ -39,6 +44,28 @@ export class ReviewController {
   @Get("me")
   listMine(@CurrentUser() user: JwtPayload): Promise<MyReviewDto[]> {
     return this.reviews.listMine(user.sub);
+  }
+
+  @Post("me/batch/delete")
+  async removeMany(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: BatchDeleteReviewsBody,
+  ): Promise<{ count: number }> {
+    return { count: await this.reviews.removeMany(user.sub, body.ids) };
+  }
+
+  @Post("me/batch/visibility")
+  async setVisibilityMany(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: BatchVisibilityBody,
+  ): Promise<{ count: number }> {
+    return {
+      count: await this.reviews.setVisibilityMany(
+        user.sub,
+        body.ids,
+        body.visibility,
+      ),
+    };
   }
 
   @Get("me/:type/:id")

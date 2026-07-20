@@ -14,6 +14,13 @@ this point beyond the roadmap phases already documented in the README.
 
 - CI pipeline (GitHub Actions): lint/build/test/e2e/Docker build gates,
   Dependabot, CodeQL, Codecov.
+- Social follow-ups (P4): private profiles now return a locked identity-only
+  preview (with a request/cancel affordance) instead of a 404 — GHOST/blocked
+  still 404, and no content leaves the server. A "Mon profil" nav entry opens
+  your own profile as others see it. "Mes reviews" rows link to the work and
+  support bulk delete / audience changes; the revision history shows each
+  version's text. `/people` gained a followers/following network view so the
+  page is no longer empty before searching.
 
 ## 0.5.0 — P4: social foundation & reviews
 

@@ -53,6 +53,13 @@ export interface SocialProfileDto {
   followingCount: number;
   relationship: RelationshipDto;
   domains: ProfileDomainStatDto[];
+  /**
+   * A PRIVATE profile the viewer can't see yet: only identity + `relationship`
+   * are populated (bio/counts/domains withheld server-side). The client shows a
+   * locked preview with a follow-request affordance. GHOST/blocked never reach
+   * the client — they 404.
+   */
+  locked: boolean;
 }
 
 /** A search hit in the user directory. */

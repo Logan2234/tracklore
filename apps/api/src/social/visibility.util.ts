@@ -43,16 +43,35 @@ export function computeIsFriend(
   return following && followsYou;
 }
 
-/** Whether the viewer may open the target's profile at all. */
+/**
+ * Three-state gate for opening a profile:
+ * - `hidden`: must read as not-found — nothing, not even identity, is revealed
+ *   (GHOST, or a block in either direction).
+ * - `locked`: the profile exists and is discoverable but its content is
+ *   withheld (a PRIVATE profile the viewer doesn't follow yet). Only identity +
+ *   the follow-request affordance are exposed; no library, counts or bio.
+ * - `full`: the viewer may see the profile and its facet-filtered content.
+ */
+export type ProfileVisibility = "hidden" | "locked" | "full";
+
+export function resolveProfileVisibility(
+  access: ProfileAccess,
+  relation: ViewerRelation,
+): ProfileVisibility {
+  if (relation.isSelf) return "full";
+  if (relation.blocking || relation.blockedByTarget) return "hidden";
+  if (access === ProfileAccess.GHOST) return "hidden";
+  if (access === ProfileAccess.PUBLIC) return "full";
+  // PRIVATE: approved followers see everything, others get a locked preview.
+  return relation.following ? "full" : "locked";
+}
+
+/** Whether the viewer may see the target's profile *content* (facets aside). */
 export function canAccessProfile(
   access: ProfileAccess,
   relation: ViewerRelation,
 ): boolean {
-  if (relation.isSelf) return true;
-  if (relation.blocking || relation.blockedByTarget) return false;
-  if (access === ProfileAccess.GHOST) return false;
-  if (access === ProfileAccess.PUBLIC) return true;
-  return relation.following; // PRIVATE: only an approved follower.
+  return resolveProfileVisibility(access, relation) === "full";
 }
 
 /**

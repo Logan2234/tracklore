@@ -9,7 +9,7 @@ import {
 } from "@tracklore/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SOCIAL_DOMAINS } from "./social.constants";
-import { canAccessProfile, resolveFacet } from "./visibility.util";
+import { resolveFacet, resolveProfileVisibility } from "./visibility.util";
 import { VisibilityService } from "./visibility.service";
 
 const SEARCH_LIMIT = 20;
@@ -40,10 +40,29 @@ export class ProfileService {
     if (!target) throw new NotFoundException();
 
     const relation = await this.visibility.getRelation(viewerId, target);
+    const visibility = resolveProfileVisibility(target.profileAccess, relation);
 
-    if (!canAccessProfile(target.profileAccess, relation)) {
-      // Unreachable profiles (GHOST, a private stranger, a block) are 404.
+    if (visibility === "hidden") {
+      // GHOST or a block in either direction: the profile must not exist.
       throw new NotFoundException();
+    }
+
+    if (visibility === "locked") {
+      // PRIVATE stranger: expose identity + the follow-request affordance only.
+      // No content (bio, counts, library) ever leaves the server here.
+      return {
+        id: target.id,
+        username: target.username,
+        displayName: target.displayName,
+        bio: null,
+        profileAccess: target.profileAccess as ProfileAccess,
+        createdAt: target.createdAt.toISOString(),
+        followerCount: 0,
+        followingCount: 0,
+        relationship: this.visibility.toRelationshipDto(relation),
+        domains: [],
+        locked: true,
+      };
     }
 
     const [followerCount, followingCount, settings] = await Promise.all([
@@ -83,6 +102,7 @@ export class ProfileService {
       followingCount,
       relationship: this.visibility.toRelationshipDto(relation),
       domains,
+      locked: false,
     };
   }
 

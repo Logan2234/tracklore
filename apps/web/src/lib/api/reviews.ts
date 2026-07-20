@@ -3,6 +3,7 @@ import type {
   ReviewDto,
   ReviewRevisionDto,
   ReviewTargetType,
+  ReviewVisibility,
   UpsertReviewDto,
 } from "@tracklore/shared";
 import { request } from "./core";
@@ -38,4 +39,20 @@ export function getReviewRevisions(
   return request(
     `/reviews/me/${targetType}/${encodeURIComponent(targetId)}/revisions`,
   );
+}
+
+/** Bulk-delete the given reviews (by review id). Returns the count deleted. */
+export function batchDeleteReviews(ids: string[]): Promise<{ count: number }> {
+  return request("/reviews/me/batch/delete", { method: "POST", body: { ids } });
+}
+
+/** Bulk-set the audience of the given reviews. Returns the count updated. */
+export function batchSetReviewVisibility(
+  ids: string[],
+  visibility: ReviewVisibility,
+): Promise<{ count: number }> {
+  return request("/reviews/me/batch/visibility", {
+    method: "POST",
+    body: { ids, visibility },
+  });
 }

@@ -14,6 +14,7 @@ type NavIcon =
   | "boardgame"
   | "bell"
   | "user"
+  | "users"
   | "shield"
   | "star";
 
@@ -126,9 +127,16 @@ export const NAVIGATION: NavSection[] = [
         match: (p) => p.startsWith("/reviews"),
       },
       {
+        href: "/u/me",
+        label: "Mon profil",
+        icon: "user",
+        social: true,
+        match: (p) => p === "/u/me",
+      },
+      {
         href: "/people",
         label: "Communauté",
-        icon: "user",
+        icon: "users",
         social: true,
         match: (p) => p.startsWith("/people") || p.startsWith("/u/"),
       },
@@ -161,6 +169,7 @@ export type MobileNavId =
   | "calendar"
   | "stats"
   | "reviews"
+  | "profile"
   | "people"
   | "notifications"
   | "account"
@@ -277,11 +286,19 @@ const MOBILE_DESTINATIONS: Record<MobileNavId, MobileDestination> = {
     icon: "star",
     match: (p) => p.startsWith("/reviews"),
   },
+  profile: {
+    id: "profile",
+    href: "/u/me",
+    label: "Mon profil",
+    icon: "user",
+    social: true,
+    match: (p) => p === "/u/me",
+  },
   people: {
     id: "people",
     href: "/people",
     label: "Communauté",
-    icon: "user",
+    icon: "users",
     social: true,
     match: (p) => p.startsWith("/people") || p.startsWith("/u/"),
   },
@@ -321,6 +338,7 @@ const MENU_GROUPS: { label: string; ids: MobileNavId[] }[] = [
       "calendar",
       "stats",
       "reviews",
+      "profile",
       "people",
       "notifications",
       "account",

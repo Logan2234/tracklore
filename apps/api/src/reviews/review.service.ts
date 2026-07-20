@@ -9,6 +9,7 @@ import {
   type UpsertReviewDto,
   type UserSummaryDto,
 } from "@tracklore/shared";
+import { canonicalExternalId } from "../common/external-id.util";
 import { PrismaService } from "../prisma/prisma.service";
 import { computeIsFriend } from "../social/visibility.util";
 import { VisibilityService } from "../social/visibility.service";
@@ -102,6 +103,35 @@ export class ReviewService {
     return this.toDto(row, await this.author(userId));
   }
 
+  /**
+   * Bulk-deletes several of the user's reviews by review id (revisions
+   * cascade). Scoped to `userId`, so unknown/foreign ids are silently ignored.
+   * Returns the number actually deleted.
+   */
+  async removeMany(userId: string, ids: string[]): Promise<number> {
+    const { count } = await this.prisma.review.deleteMany({
+      where: { id: { in: ids }, userId },
+    });
+    return count;
+  }
+
+  /**
+   * Bulk-changes the audience of several of the user's reviews by review id.
+   * Visibility isn't part of the revision snapshot (which tracks rating/text),
+   * so no revision is recorded. Returns the number actually updated.
+   */
+  async setVisibilityMany(
+    userId: string,
+    ids: string[],
+    visibility: ReviewVisibility,
+  ): Promise<number> {
+    const { count } = await this.prisma.review.updateMany({
+      where: { id: { in: ids }, userId },
+      data: { visibility },
+    });
+    return count;
+  }
+
   /** Deletes the user's review for a target (revisions cascade). */
   async remove(
     userId: string,
@@ -169,13 +199,26 @@ export class ReviewService {
     }
 
     const map = new Map<string, ReviewTargetSummaryDto>();
+    const canonicalExternalIdInclude = {
+      canonicalSource: true,
+      externalIds: { select: { source: true, externalId: true } },
+    } as const;
 
     const add = (
       type: string,
-      items: { id: string; title: string; image: string | null }[],
+      items: {
+        id: string;
+        title: string;
+        image: string | null;
+        href: string | null;
+      }[],
     ) => {
       for (const i of items) {
-        map.set(`${type}:${i.id}`, { title: i.title, imageUrl: i.image });
+        map.set(`${type}:${i.id}`, {
+          title: i.title,
+          imageUrl: i.image,
+          href: i.href,
+        });
       }
     };
 
@@ -184,11 +227,26 @@ export class ReviewService {
     if (mediaIds?.length) {
       const items = await this.prisma.mediaItem.findMany({
         where: { id: { in: mediaIds } },
-        select: { id: true, title: true, posterUrl: true },
+        select: {
+          id: true,
+          title: true,
+          posterUrl: true,
+          type: true,
+          ...canonicalExternalIdInclude,
+        },
       });
       add(
         ReviewTargetType.MEDIA,
-        items.map((i) => ({ id: i.id, title: i.title, image: i.posterUrl })),
+        items.map((i) => ({
+          id: i.id,
+          title: i.title,
+          image: i.posterUrl,
+          href: this.detailHref(
+            "media",
+            canonicalExternalId(i, i.externalIds),
+            i.type.toLowerCase(),
+          ),
+        })),
       );
     }
 
@@ -197,11 +255,21 @@ export class ReviewService {
     if (gameIds?.length) {
       const items = await this.prisma.gameItem.findMany({
         where: { id: { in: gameIds } },
-        select: { id: true, title: true, coverUrl: true },
+        select: {
+          id: true,
+          title: true,
+          coverUrl: true,
+          ...canonicalExternalIdInclude,
+        },
       });
       add(
         ReviewTargetType.GAME,
-        items.map((i) => ({ id: i.id, title: i.title, image: i.coverUrl })),
+        items.map((i) => ({
+          id: i.id,
+          title: i.title,
+          image: i.coverUrl,
+          href: this.detailHref("games", canonicalExternalId(i, i.externalIds)),
+        })),
       );
     }
 
@@ -210,11 +278,21 @@ export class ReviewService {
     if (bookIds?.length) {
       const items = await this.prisma.bookItem.findMany({
         where: { id: { in: bookIds } },
-        select: { id: true, title: true, coverUrl: true },
+        select: {
+          id: true,
+          title: true,
+          coverUrl: true,
+          ...canonicalExternalIdInclude,
+        },
       });
       add(
         ReviewTargetType.BOOK,
-        items.map((i) => ({ id: i.id, title: i.title, image: i.coverUrl })),
+        items.map((i) => ({
+          id: i.id,
+          title: i.title,
+          image: i.coverUrl,
+          href: this.detailHref("books", canonicalExternalId(i, i.externalIds)),
+        })),
       );
     }
 
@@ -223,15 +301,41 @@ export class ReviewService {
     if (musicIds?.length) {
       const items = await this.prisma.musicItem.findMany({
         where: { id: { in: musicIds } },
-        select: { id: true, title: true, coverUrl: true },
+        select: {
+          id: true,
+          title: true,
+          coverUrl: true,
+          ...canonicalExternalIdInclude,
+        },
       });
       add(
         ReviewTargetType.MUSIC,
-        items.map((i) => ({ id: i.id, title: i.title, image: i.coverUrl })),
+        items.map((i) => ({
+          id: i.id,
+          title: i.title,
+          image: i.coverUrl,
+          href: this.detailHref("music", canonicalExternalId(i, i.externalIds)),
+        })),
       );
     }
 
     return map;
+  }
+
+  /**
+   * Builds the client route to a work's detail page from its canonical source
+   * id. Media nests the type (`/media/movie/42`); the others are flat. Returns
+   * null when the source id is missing (no browsable target).
+   */
+  private detailHref(
+    domain: "media" | "games" | "books" | "music",
+    sourceId: string,
+    mediaType?: string,
+  ): string | null {
+    if (!sourceId) return null;
+    return domain === "media"
+      ? `/media/${mediaType}/${sourceId}`
+      : `/${domain}/${sourceId}`;
   }
 
   /**

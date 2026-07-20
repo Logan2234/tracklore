@@ -3,6 +3,7 @@ import {
   canAccessProfile,
   computeIsFriend,
   resolveFacet,
+  resolveProfileVisibility,
   type ViewerRelation,
 } from "./visibility.util";
 
@@ -62,6 +63,50 @@ describe("canAccessProfile", () => {
         relation({ blockedByTarget: true }),
       ),
     ).toBe(false);
+  });
+});
+
+describe("resolveProfileVisibility", () => {
+  it("self and PUBLIC are full", () => {
+    expect(
+      resolveProfileVisibility(
+        ProfileAccess.PRIVATE,
+        relation({ isSelf: true }),
+      ),
+    ).toBe("full");
+    expect(resolveProfileVisibility(ProfileAccess.PUBLIC, relation())).toBe(
+      "full",
+    );
+  });
+
+  it("PRIVATE stranger is locked, approved follower is full", () => {
+    expect(resolveProfileVisibility(ProfileAccess.PRIVATE, relation())).toBe(
+      "locked",
+    );
+    expect(
+      resolveProfileVisibility(
+        ProfileAccess.PRIVATE,
+        relation({ following: true }),
+      ),
+    ).toBe("full");
+  });
+
+  it("GHOST and blocks are hidden (never locked)", () => {
+    expect(resolveProfileVisibility(ProfileAccess.GHOST, relation())).toBe(
+      "hidden",
+    );
+    expect(
+      resolveProfileVisibility(
+        ProfileAccess.PRIVATE,
+        relation({ blockedByTarget: true }),
+      ),
+    ).toBe("hidden");
+    expect(
+      resolveProfileVisibility(
+        ProfileAccess.PUBLIC,
+        relation({ blocking: true }),
+      ),
+    ).toBe("hidden");
   });
 });
 

@@ -124,6 +124,49 @@
       </p>
       <a href="/people" class="btn btn-ghost mt-2">Rechercher des membres</a>
     </div>
+  {:else if profile.locked}
+    <!-- Private profile the viewer can't see yet: identity only, under embargo.
+         The server withholds bio/counts/library entirely. -->
+    <section class="card flex flex-col items-center gap-4 p-8 text-center">
+      <div class="relative">
+        <div class="blur-[6px] select-none" aria-hidden="true">
+          <Avatar seed={profile.username} size={88} />
+        </div>
+        <div
+          class="absolute inset-0 flex items-center justify-center"
+          aria-hidden="true">
+          <svg
+            class="text-dim h-8 w-8"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+        </div>
+      </div>
+      <div>
+        <h1 class="font-display text-2xl font-extrabold md:text-3xl">
+          {profile.displayName}
+        </h1>
+        <p class="timecode mt-0.5 text-sm">@{profile.username}</p>
+      </div>
+      <p class="text-dim max-w-sm text-sm leading-relaxed">
+        Ce profil est privé. Demandez à suivre {profile.displayName} pour voir sa
+        bibliothèque et son activité.
+      </p>
+      {#if rel && !rel.isSelf}
+        <button
+          class="btn {rel.requested ? 'btn-ghost' : 'btn-primary'}"
+          disabled={busy}
+          onclick={toggleFollow}>
+          {rel.requested ? "Annuler la demande" : "Demander à suivre"}
+        </button>
+      {/if}
+    </section>
   {:else}
     <!-- Billing block: the person credited, handle set like a film credit. -->
     <section class="card p-5 md:p-6">

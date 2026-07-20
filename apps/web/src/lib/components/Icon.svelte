@@ -7,6 +7,7 @@
     | "calendar"
     | "stats"
     | "user"
+    | "users"
     | "menu"
     | "sun"
     | "moon"
@@ -69,6 +70,10 @@
   {:else if name === "user"}
     <circle cx="12" cy="8" r="4" />
     <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
+  {:else if name === "users"}
+    <circle cx="9" cy="8" r="3.2" />
+    <path d="M3 19c0-3.3 2.7-5 6-5s6 1.7 6 5" />
+    <path d="M16 5.2a3.2 3.2 0 0 1 0 5.9M17.5 14.2c2 .6 3.5 2 3.5 4.8" />
   {:else if name === "menu"}
     <path d="M4 6h16M4 12h16M4 18h16" />
   {:else if name === "sun"}

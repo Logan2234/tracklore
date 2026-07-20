@@ -2,7 +2,7 @@ import type { PublicConfigDto } from "@tracklore/shared";
 import { appConfig } from "../config.svelte";
 import { request } from "./core";
 
-export function getPublicConfig(): Promise<PublicConfigDto> {
+function getPublicConfig(): Promise<PublicConfigDto> {
   return request<PublicConfigDto>("/config", { withAuth: false });
 }
 
