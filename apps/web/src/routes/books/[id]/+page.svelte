@@ -11,6 +11,7 @@
   } from "$lib/api/client";
   import { toCarouselItems } from "$lib/carousel";
   import Banner from "$lib/components/Banner.svelte";
+  import CommentThread from "$lib/components/CommentThread.svelte";
   import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
   import DetailHeroSkeleton from "$lib/components/DetailHeroSkeleton.svelte";
   import Icon from "$lib/components/Icon.svelte";
@@ -22,6 +23,7 @@
   import ReviewsSection from "$lib/components/ReviewsSection.svelte";
   import SegmentedStatusControl from "$lib/components/SegmentedStatusControl.svelte";
   import TrackingPanel from "$lib/components/TrackingPanel.svelte";
+  import { appConfig } from "$lib/config.svelte";
   import { formatDate } from "$lib/format";
   import { createLibraryEntryActions } from "$lib/library-entry";
   import {
@@ -373,6 +375,9 @@
             targetType="BOOK"
             targetId={id}
             workTitle={detail.title} />
+          {#if appConfig.socialEnabled}
+            <CommentThread targetType="BOOK" targetId={id} />
+          {/if}
         {/if}
       </div>
 

@@ -89,6 +89,43 @@ enum ReviewVisibility {
   PUBLIC
 }
 
+// What a comment thread targets. Same shape as ReviewTargetType (a comment
+// under a work, or one of its seasons/episodes).
+enum CommentTargetType {
+  MEDIA
+  SEASON
+  EPISODE
+  GAME
+  BOOK
+  MUSIC
+}
+
+// Fixed reaction set for comments (backlog: a full emoji picker). Display
+// glyphs live in shared code (COMMENT_EMOTE_DISPLAY) — this enum stores the
+// identifier, not the glyph.
+enum CommentEmote {
+  LIKE
+  LOVE
+  LAUGH
+  WOW
+  SAD
+  DISLIKE
+}
+
+// What a report targets. COMMENT is the only kind produced today; REVIEW/USER
+// are modelled now so a future "report a review/profile" needs no migration.
+enum ReportTargetType {
+  COMMENT
+  REVIEW
+  USER
+}
+
+enum ReportStatus {
+  PENDING
+  RESOLVED
+  DISMISSED
+}
+
 // Sources we actually fetch from (canonical).
 enum CatalogSource {
   TMDB
@@ -265,6 +302,10 @@ model User {
   blockedBy           Block[]              @relation("UserBlockedBy")
   reviews             Review[]
   activityEvents      ActivityEvent[]
+  comments            Comment[]
+  commentReactions    CommentReaction[]
+  reportsFiled        Report[]             @relation("ReportsFiled")
+  reportsResolved     Report[]             @relation("ReportsResolved")
 }
 
 // Social (P4): per-user, per-domain, per-facet audience. One row overrides the
@@ -351,6 +392,73 @@ model ReviewRevision {
   review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
 
   @@index([reviewId, createdAt])
+}
+
+// Social (P4): a comment/reply on an item (work, season or episode —
+// CommentTargetType mirrors ReviewTargetType). Flat + one reply level: a
+// reply's parentId always points at a top-level comment (never chained), the
+// UI enforces this by only offering "reply" on top-level comments. Deletion is
+// soft (text cleared, deletedAt set) so replies stay attached and readable —
+// hard-deleting a parent would orphan or lose the whole sub-thread.
+model Comment {
+  id         String            @id @default(cuid())
+  targetType CommentTargetType
+  targetId   String
+  authorId   String
+  parentId   String?
+  text       String?
+  // Author-set manual spoiler tag. Combined at read time with the auto
+  // progression-based gate (see CommentService) into a per-viewer "masked"
+  // hint — the raw tag itself is what the edit form prefills.
+  spoilerTag Boolean           @default(false)
+  edited     Boolean           @default(false)
+  deletedAt  DateTime?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  author    User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent    Comment?          @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[]         @relation("CommentReplies")
+  reactions CommentReaction[]
+
+  @@index([targetType, targetId, createdAt])
+  @@index([parentId])
+}
+
+// One active reaction per (user, comment) — posting a new emote replaces it
+// (upsert on the unique pair), not a multi-emote-per-user model.
+model CommentReaction {
+  id        String       @id @default(cuid())
+  commentId String
+  userId    String
+  emote     CommentEmote
+  createdAt DateTime     @default(now())
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+}
+
+// Social (P4): a user-submitted report against a polymorphic target — a
+// comment today, extensible to reviews/profiles later without a new table
+// (targetType/targetId, same pattern as Review/ActivityEvent). Feeds the admin
+// moderation queue (/admin/reports). targetId is not a FK (polymorphic).
+model Report {
+  id           String           @id @default(cuid())
+  targetType   ReportTargetType
+  targetId     String
+  reporterId   String
+  reason       String?
+  status       ReportStatus     @default(PENDING)
+  createdAt    DateTime         @default(now())
+  resolvedAt   DateTime?
+  resolvedById String?
+
+  reporter   User  @relation("ReportsFiled", fields: [reporterId], references: [id], onDelete: Cascade)
+  resolvedBy User? @relation("ReportsResolved", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
 }
 
 // One row per browser/device push subscription (Web Push). endpoint is the

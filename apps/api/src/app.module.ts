@@ -8,6 +8,7 @@ import { AuthModule } from "./auth/auth.module";
 import { JwtAuthGuard } from "./auth/guards/jwt-auth.guard";
 import { BooksModule } from "./books/books.module";
 import { CatalogModule } from "./catalog/catalog.module";
+import { CommentsModule } from "./comments/comments.module";
 import { CommonModule } from "./common/common.module";
 import { RuntimeConfigModule } from "./config/config.module";
 import { GamesModule } from "./games/games.module";
@@ -46,6 +47,7 @@ import { UsersModule } from "./users/users.module";
     HealthModule,
     SocialModule,
     ReviewsModule,
+    CommentsModule,
   ],
   controllers: [],
   providers: [

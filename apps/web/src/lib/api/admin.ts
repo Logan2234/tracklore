@@ -18,6 +18,7 @@ import type {
   Domain,
   JobListResponseDto,
   JobStatus,
+  ReportPageDto,
   MailTemplateListResponseDto,
   MailTemplatePreviewDto,
   Role,
@@ -267,4 +268,29 @@ export function getAdminSecurityEvents(
     params.set("page", String(filters.page));
   const suffix = params.size > 0 ? `?${params}` : "";
   return request(`/admin/security${suffix}`);
+}
+
+/** The comment/review/user moderation queue, filterable by status, cursor-paginated. */
+export function getAdminReports(
+  filters: { status?: string; cursor?: string } = {},
+): Promise<ReportPageDto> {
+  const params = new URLSearchParams();
+  if (filters.status) params.set("status", filters.status);
+  if (filters.cursor) params.set("cursor", filters.cursor);
+  const suffix = params.size > 0 ? `?${params}` : "";
+  return request(`/admin/reports${suffix}`);
+}
+
+export function getAdminReportsPendingCount(): Promise<{ count: number }> {
+  return request("/admin/reports/pending-count");
+}
+
+export function resolveAdminReport(
+  id: string,
+  status: "RESOLVED" | "DISMISSED",
+): Promise<void> {
+  return request(`/admin/reports/${id}/resolve`, {
+    method: "POST",
+    body: { status },
+  });
 }

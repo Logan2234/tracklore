@@ -6,8 +6,12 @@
     watchSeason,
     watchThrough,
   } from "$lib/api/client";
+  import CommentThread from "$lib/components/CommentThread.svelte";
   import Icon from "$lib/components/Icon.svelte";
+  import Modal from "$lib/components/Modal.svelte";
+  import { appConfig } from "$lib/config.svelte";
   import type {
+    CommentTargetType,
     LibraryEntryDto,
     MediaDetailSeasonDto,
   } from "@tracklore/shared";
@@ -38,6 +42,14 @@
   let menu = $state<{ episodeId: string; top: number; right: number } | null>(
     null,
   );
+
+  // Each season/episode has its own comment thread (per the target-type
+  // granularity), opened in a modal rather than inlined in every row.
+  let commentTarget = $state<{
+    type: CommentTargetType;
+    id: string;
+    label: string;
+  } | null>(null);
 
   const seasonWatched = (season: MediaDetailSeasonDto) =>
     season.episodes.length > 0 &&
@@ -209,6 +221,21 @@
             </button>
           {/if}
         {/if}
+        {#if appConfig.socialEnabled && season.id}
+          <button
+            class="text-dim hover:text-fg hover:bg-surface-2 grid h-7 w-7 shrink-0 place-items-center rounded-full"
+            aria-label="Commentaires de la saison"
+            onclick={(e) => {
+              e.preventDefault();
+              commentTarget = {
+                type: "SEASON",
+                id: season.id!,
+                label: season.title ?? `Saison ${season.number}`,
+              };
+            }}>
+            <Icon name="message" class="h-4 w-4" />
+          </button>
+        {/if}
       </summary>
       <ul>
         {#each season.episodes as episode (episode.number)}
@@ -232,6 +259,20 @@
                   <Icon name="check" class="h-4 w-4" />
                   {dateFmt.format(new Date(episode.watches[0].watchedAt))}
                 </span>
+              {/if}
+              {#if appConfig.socialEnabled && episode.id}
+                <button
+                  class="text-dim hover:text-fg hover:bg-surface-2 grid h-7 w-7 shrink-0 place-items-center rounded-full"
+                  aria-label="Commentaires de l'épisode"
+                  onclick={() => {
+                    commentTarget = {
+                      type: "EPISODE",
+                      id: episode.id!,
+                      label: `S${String(season.number).padStart(2, "0")}E${String(episode.number).padStart(2, "0")}`,
+                    };
+                  }}>
+                  <Icon name="message" class="h-4 w-4" />
+                </button>
               {/if}
               {#if entry && episode.id}
                 {@const upcoming = !watched && upcomingLabel(episode.airDate)}
@@ -315,4 +356,14 @@
       </button>
     {/if}
   </div>
+{/if}
+
+{#if commentTarget}
+  <Modal
+    title={`Commentaires · ${commentTarget.label}`}
+    onclose={() => (commentTarget = null)}>
+    <CommentThread
+      targetType={commentTarget.type}
+      targetId={commentTarget.id} />
+  </Modal>
 {/if}

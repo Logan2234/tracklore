@@ -1,5 +1,6 @@
 <script lang="ts">
   import { ADMIN_NAV } from "$lib/admin-nav";
+  import { adminReports } from "$lib/admin-reports.svelte";
   import { getAdminVersion } from "$lib/api/client";
   import { auth } from "$lib/auth.svelte";
   import Icon from "$lib/components/Icon.svelte";
@@ -30,8 +31,14 @@
           class="bg-accent/10 text-accent grid h-10 w-10 shrink-0 place-items-center rounded-lg">
           <Icon name={item.icon} class="h-5 w-5" />
         </span>
-        <div class="min-w-0">
+        <div class="min-w-0 flex-1">
           <span class="text-fg font-semibold">{item.label}</span>
+          {#if item.href === "/admin/reports" && adminReports.pending > 0}
+            <span
+              class="bg-accent text-accent-fg ml-2 inline-block rounded-full px-1.5 py-0.5 text-[0.65rem] font-bold">
+              {adminReports.pending}
+            </span>
+          {/if}
           <p class="text-dim mt-0.5 text-sm">{item.description}</p>
         </div>
       </a>

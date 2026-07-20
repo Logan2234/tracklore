@@ -36,4 +36,7 @@ export type IconName =
   | "refresh"
   | "gear"
   | "pin"
-  | "pin-filled";
+  | "pin-filled"
+  | "message"
+  | "flag"
+  | "reply";

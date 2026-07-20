@@ -48,6 +48,12 @@ export const NotificationType = {
   FOLLOW_REQUEST: "FOLLOW_REQUEST",
   /** Someone approved your follow request. */
   FOLLOW_ACCEPTED: "FOLLOW_ACCEPTED",
+  /** Someone replied to your comment. */
+  COMMENT_REPLY: "COMMENT_REPLY",
+  /** Someone @mentioned you in a comment. */
+  COMMENT_MENTION: "COMMENT_MENTION",
+  /** Your comment crossed the reaction notification threshold. */
+  COMMENT_REACTIONS: "COMMENT_REACTIONS",
 } as const;
 export type NotificationType =
   (typeof NotificationType)[keyof typeof NotificationType];
@@ -349,3 +355,66 @@ export type ReviewVisibility =
 
 /** Max length of a review's optional text (frontend + backend DTO). */
 export const REVIEW_TEXT_MAX_LENGTH = 2000;
+
+/**
+ * What a comment thread targets. Same shape as ReviewTargetType — a comment
+ * lives under a work or one of its seasons/episodes, each a distinct thread.
+ */
+export const CommentTargetType = {
+  MEDIA: "MEDIA",
+  SEASON: "SEASON",
+  EPISODE: "EPISODE",
+  GAME: "GAME",
+  BOOK: "BOOK",
+  MUSIC: "MUSIC",
+} as const;
+export type CommentTargetType =
+  (typeof CommentTargetType)[keyof typeof CommentTargetType];
+
+/** Fixed reaction set for comments (a full emoji picker is backlog). */
+export const CommentEmote = {
+  LIKE: "LIKE",
+  LOVE: "LOVE",
+  LAUGH: "LAUGH",
+  WOW: "WOW",
+  SAD: "SAD",
+  DISLIKE: "DISLIKE",
+} as const;
+export type CommentEmote = (typeof CommentEmote)[keyof typeof CommentEmote];
+
+/** Display glyph for each CommentEmote, in a fixed picker order. */
+export const COMMENT_EMOTE_DISPLAY: Record<CommentEmote, string> = {
+  LIKE: "👍",
+  LOVE: "❤️",
+  LAUGH: "😂",
+  WOW: "😮",
+  SAD: "😢",
+  DISLIKE: "👎",
+};
+
+/** Max length of a comment's text (frontend + backend DTO). */
+export const COMMENT_TEXT_MAX_LENGTH = 1000;
+
+/** How many reactions on one comment trigger the aggregated notification. */
+export const COMMENT_REACTION_NOTIFY_THRESHOLD = 10;
+
+/**
+ * What a report targets. COMMENT is the only kind produced today; REVIEW/USER
+ * are modelled now so reporting a review or a profile later needs no
+ * migration, just a new emitter.
+ */
+export const ReportTargetType = {
+  COMMENT: "COMMENT",
+  REVIEW: "REVIEW",
+  USER: "USER",
+} as const;
+export type ReportTargetType =
+  (typeof ReportTargetType)[keyof typeof ReportTargetType];
+
+/** Lifecycle of a report in the admin moderation queue. */
+export const ReportStatus = {
+  PENDING: "PENDING",
+  RESOLVED: "RESOLVED",
+  DISMISSED: "DISMISSED",
+} as const;
+export type ReportStatus = (typeof ReportStatus)[keyof typeof ReportStatus];

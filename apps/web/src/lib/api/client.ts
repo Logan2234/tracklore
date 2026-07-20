@@ -16,3 +16,4 @@ export * from "./import";
 export * from "./social";
 export * from "./reviews";
 export * from "./activity";
+export * from "./comments";

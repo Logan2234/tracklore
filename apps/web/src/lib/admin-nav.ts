@@ -92,4 +92,11 @@ export const ADMIN_NAV: AdminNavItem[] = [
     icon: "shield",
     match: (p) => p.startsWith("/admin/security"),
   },
+  {
+    href: "/admin/reports",
+    label: "Signalements",
+    description: "File de modération des commentaires signalés.",
+    icon: "flag",
+    match: (p) => p.startsWith("/admin/reports"),
+  },
 ];

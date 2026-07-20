@@ -4,6 +4,8 @@ export * from "./dto/admin";
 export * from "./dto/config";
 export * from "./dto/social";
 export * from "./dto/review";
+export * from "./dto/comment";
+export * from "./dto/report";
 export * from "./dto/auth";
 export * from "./dto/book";
 export * from "./dto/catalog";

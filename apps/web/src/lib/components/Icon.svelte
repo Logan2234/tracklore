@@ -140,5 +140,14 @@
       d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21Z"
       fill="currentColor"
       stroke="none" />
+  {:else if name === "message"}
+    <path
+      d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8A2.5 2.5 0 0 1 17.5 16H9l-4.5 4v-4H6.5A2.5 2.5 0 0 1 4 13.5Z" />
+  {:else if name === "flag"}
+    <path d="M5 21V4" />
+    <path d="M5 5c2-1.5 4-1.5 6 0s4 1.5 6 0v9c-2 1.5-4 1.5-6 0s-4-1.5-6 0Z" />
+  {:else if name === "reply"}
+    <path d="M10 5 3 12l7 7" />
+    <path d="M3 12h9c4 0 8 2 8 7" />
   {/if}
 </svg>

@@ -7,6 +7,7 @@ import { JobsModule } from "../jobs/jobs.module";
 import { MailModule } from "../mail/mail.module";
 import { MusicModule } from "../music/music.module";
 import { NotificationModule } from "../notifications/notification.module";
+import { ReportsModule } from "../reports/reports.module";
 import { SecurityModule } from "../security/security.module";
 import { UsersModule } from "../users/users.module";
 import { AdminCacheController } from "./admin-cache.controller";
@@ -14,6 +15,7 @@ import { AdminEmailsController } from "./admin-emails.controller";
 import { AdminImportsController } from "./admin-imports.controller";
 import { AdminJobsController } from "./admin-jobs.controller";
 import { AdminPushController } from "./admin-push.controller";
+import { AdminReportsController } from "./admin-reports.controller";
 import { AdminSecurityController } from "./admin-security.controller";
 import { AdminSystemController } from "./admin-system.controller";
 import { AdminUsersController } from "./admin-users.controller";
@@ -34,6 +36,7 @@ import { BackupService } from "./backup.service";
     JobsModule,
     SecurityModule,
     UsersModule,
+    ReportsModule,
   ],
   controllers: [
     AdminSystemController,
@@ -44,6 +47,7 @@ import { BackupService } from "./backup.service";
     AdminPushController,
     AdminCacheController,
     AdminImportsController,
+    AdminReportsController,
   ],
   providers: [AdminService, AdminGuard, AdminStatsService, BackupService],
 })
