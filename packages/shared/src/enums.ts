@@ -34,6 +34,24 @@ export const Role = {
 } as const;
 export type Role = (typeof Role)[keyof typeof Role];
 
+/**
+ * In-app notification kinds. Stored as a plain string on `Notification.type`
+ * (new kinds need no migration); this list is the shared vocabulary the API
+ * emits and the web renders.
+ */
+export const NotificationType = {
+  /** A new episode of a tracked show aired. */
+  NEW_EPISODE: "NEW_EPISODE",
+  /** Someone started following you (public profile). */
+  FOLLOW: "FOLLOW",
+  /** Someone asked to follow your private profile. */
+  FOLLOW_REQUEST: "FOLLOW_REQUEST",
+  /** Someone approved your follow request. */
+  FOLLOW_ACCEPTED: "FOLLOW_ACCEPTED",
+} as const;
+export type NotificationType =
+  (typeof NotificationType)[keyof typeof NotificationType];
+
 /** Kind of media. MOVIE/SERIES come from TMDB, ANIME from AniList. */
 export const MediaType = {
   MOVIE: "MOVIE",

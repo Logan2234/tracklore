@@ -370,28 +370,32 @@ model PushSubscription {
 
 // In-app notifications (currently only "new episode out" of a tracked show).
 // Payload is denormalised so a notification survives catalogue-cache refreshes.
+// Generic in-app notification. Kinds ("NEW_EPISODE", "FOLLOW",
+// "FOLLOW_REQUEST", "FOLLOW_ACCEPTED"…) share one shape: a title, an optional
+// body/link, and a `data` bag for kind-specific display extras (episode airDate,
+// the social actor's username/avatar seed…). A string `type` means new kinds
+// need no migration.
 model Notification {
-  id            String    @id @default(cuid())
-  userId        String
-  // Only "NEW_EPISODE" today; a string so new kinds need no migration.
-  type          String    @default("NEW_EPISODE")
-  mediaTitle    String
-  mediaType     MediaType
-  sourceId      String
-  seasonNumber  Int
-  episodeNumber Int
-  episodeTitle  String?
-  // The episode this is about — the dedup key (not a FK, kept simple).
-  episodeId     String
-  // The episode's real air date — shown to the user instead of `createdAt`,
-  // which is only when the scan happened to run (can lag behind by days).
-  airDate       DateTime
-  readAt        DateTime?
-  createdAt     DateTime  @default(now())
+  id        String    @id @default(cuid())
+  userId    String
+  type      String    @default("NEW_EPISODE")
+  title     String
+  body      String?
+  // Client-side deep link (e.g. /media/movie/42 or /u/alice).
+  url       String?
+  // Stable idempotency key so re-scans / re-follows don't duplicate a row:
+  //   "episode:<episodeId>", "follow:<actorId>", "request:<actorId>",
+  //   "accept:<actorId>". Null means "never deduped".
+  dedupeKey String?
+  // Kind-specific extras. For NEW_EPISODE: { airDate }. For social kinds:
+  // { actorUsername, actorDisplayName } (drives the Avatar + name in the feed).
+  data      Json      @default("{}")
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, episodeId])
+  @@unique([userId, dedupeKey])
   @@index([userId, createdAt])
 }
 

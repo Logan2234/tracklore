@@ -5,10 +5,12 @@ import {
 } from "@nestjs/common";
 import {
   type FollowRequestDto,
+  NotificationType,
   ProfileAccess,
   type RelationshipDto,
   type UserSummaryDto,
 } from "@tracklore/shared";
+import { NotificationService } from "../notifications/notification.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { VisibilityService } from "./visibility.service";
 
@@ -24,6 +26,7 @@ export class FollowService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly visibility: VisibilityService,
+    private readonly notifications: NotificationService,
   ) {}
 
   /**
@@ -73,14 +76,33 @@ export class FollowService {
     const status =
       target.profileAccess === ProfileAccess.PUBLIC ? "ACCEPTED" : "PENDING";
 
-    await this.prisma.follow.upsert({
+    const follow = await this.prisma.follow.upsert({
       where: {
         followerId_followeeId: { followerId: viewerId, followeeId: target.id },
       },
       // Never silently downgrade an accepted follow back to pending.
       update: {},
       create: { followerId: viewerId, followeeId: target.id, status },
+      select: { status: true },
     });
+
+    // Notify the target — a new accepted follow, or a pending request to review.
+    // Deduped per actor so a re-follow doesn't repost. (In-app only for now.)
+    if (follow.status === "ACCEPTED") {
+      await this.notifyActor(target.id, viewerId, {
+        type: NotificationType.FOLLOW,
+        body: "vous suit",
+        dedupeKey: `follow:${viewerId}`,
+        urlToActor: true,
+      });
+    } else {
+      await this.notifyActor(target.id, viewerId, {
+        type: NotificationType.FOLLOW_REQUEST,
+        body: "souhaite vous suivre",
+        dedupeKey: `request:${viewerId}`,
+        url: "/people",
+      });
+    }
 
     return this.relationship(viewerId, username);
   }
@@ -111,6 +133,51 @@ export class FollowService {
     await this.prisma.follow.update({
       where: { id: followId },
       data: { status: "ACCEPTED" },
+    });
+
+    // Tell the requester their request was approved (they can now see us).
+    await this.notifyActor(follow.followerId, userId, {
+      type: NotificationType.FOLLOW_ACCEPTED,
+      body: "a accepté votre demande",
+      dedupeKey: `accept:${userId}`,
+      urlToActor: true,
+    });
+  }
+
+  /**
+   * Posts a social notification to `recipientId` about `actorId`. The actor's
+   * identity is embedded in the payload so the feed can render their avatar and
+   * (optionally) link to their profile.
+   */
+  private async notifyActor(
+    recipientId: string,
+    actorId: string,
+    opts: {
+      type: NotificationType;
+      body: string;
+      dedupeKey: string;
+      /** Link to the actor's profile, or a fixed url, or neither. */
+      urlToActor?: boolean;
+      url?: string;
+    },
+  ): Promise<void> {
+    const actor = await this.prisma.user.findUnique({
+      where: { id: actorId },
+      select: { username: true, displayName: true },
+    });
+    if (!actor) return;
+
+    await this.notifications.create({
+      userId: recipientId,
+      type: opts.type,
+      title: actor.displayName,
+      body: opts.body,
+      url: opts.urlToActor ? `/u/${actor.username}` : (opts.url ?? null),
+      dedupeKey: opts.dedupeKey,
+      data: {
+        actorUsername: actor.username,
+        actorDisplayName: actor.displayName,
+      },
     });
   }
 

@@ -1,10 +1,11 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import type { Notification } from "@prisma/client";
-import type {
-  MediaType,
-  NotificationDto,
-  NotificationFeedDto,
+import { type Notification, Prisma } from "@prisma/client";
+import {
+  type MediaType,
+  type NotificationDto,
+  type NotificationFeedDto,
+  NotificationType,
 } from "@tracklore/shared";
 import { canonicalExternalId } from "../common/external-id.util";
 import { MailService } from "../mail/mail.service";
@@ -143,11 +144,17 @@ export class NotificationService {
     if (episodes.length === 0) return 0;
 
     const existing = await this.prisma.notification.findMany({
-      where: { userId, episodeId: { in: episodes.map((e) => e.id) } },
-      select: { episodeId: true },
+      where: {
+        userId,
+        dedupeKey: { in: episodes.map((e) => `episode:${e.id}`) },
+      },
+      select: { dedupeKey: true },
     });
 
-    const alreadyNotified = new Set(existing.map((n) => n.episodeId));
+    const alreadyNotified = new Set(
+      // Strip the "episode:" prefix back to the bare episode id the util keys on.
+      existing.map((n) => n.dedupeKey!.slice("episode:".length)),
+    );
 
     const toCreate = selectNewEpisodeNotifications(
       episodes.map((e) => ({
@@ -171,7 +178,15 @@ export class NotificationService {
     if (toCreate.length === 0) return 0;
 
     await this.prisma.notification.createMany({
-      data: toCreate.map((n) => ({ userId, ...n })),
+      data: toCreate.map((n) => ({
+        userId,
+        type: NotificationType.NEW_EPISODE,
+        title: n.mediaTitle,
+        body: notificationBody(n),
+        url: notificationUrl(n),
+        dedupeKey: `episode:${n.episodeId}`,
+        data: { airDate: n.airDate.toISOString() },
+      })),
       skipDuplicates: true,
     });
 
@@ -201,6 +216,36 @@ export class NotificationService {
     }
 
     return toCreate.length;
+  }
+
+  /**
+   * Creates one in-app notification. Idempotent per `dedupeKey` (a re-follow or
+   * a re-scan won't duplicate a row). Used by other domains (e.g. social) to
+   * post notifications without knowing the storage shape.
+   */
+  async create(input: {
+    userId: string;
+    type: NotificationType;
+    title: string;
+    body?: string | null;
+    url?: string | null;
+    dedupeKey?: string | null;
+    data?: Record<string, unknown>;
+  }): Promise<void> {
+    await this.prisma.notification.createMany({
+      data: [
+        {
+          userId: input.userId,
+          type: input.type,
+          title: input.title,
+          body: input.body ?? null,
+          url: input.url ?? null,
+          dedupeKey: input.dedupeKey ?? null,
+          data: (input.data ?? {}) as Prisma.InputJsonValue,
+        },
+      ],
+      skipDuplicates: true,
+    });
   }
 
   async feed(userId: string): Promise<NotificationFeedDto> {
@@ -235,17 +280,18 @@ export class NotificationService {
 }
 
 function toDto(n: Notification): NotificationDto {
+  const data = (n.data ?? {}) as Record<string, unknown>;
+  // NEW_EPISODE stores the real air date to show instead of the scan time.
+  const airDate = typeof data.airDate === "string" ? data.airDate : null;
   return {
     id: n.id,
     type: n.type,
-    mediaTitle: n.mediaTitle,
-    mediaType: n.mediaType as MediaType,
-    sourceId: n.sourceId,
-    seasonNumber: n.seasonNumber,
-    episodeNumber: n.episodeNumber,
-    episodeTitle: n.episodeTitle,
+    title: n.title,
+    body: n.body,
+    url: n.url,
+    data,
     read: n.readAt !== null,
-    airDate: n.airDate.toISOString(),
+    timestamp: airDate ?? n.createdAt.toISOString(),
     createdAt: n.createdAt.toISOString(),
   };
 }
