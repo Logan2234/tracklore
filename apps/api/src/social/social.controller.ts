@@ -13,7 +13,6 @@ import type {
   FollowRequestDto,
   RelationshipDto,
   SocialProfileDto,
-  UserSearchResultDto,
   UserSummaryDto,
 } from "@tracklore/shared";
 import {
@@ -66,14 +65,6 @@ export class SocialController {
     return this.activity.profileTimeline(user.sub, target, cursor);
   }
 
-  @Get("search")
-  search(
-    @CurrentUser() user: JwtPayload,
-    @Query("q") q = "",
-  ): Promise<UserSearchResultDto[]> {
-    return this.profiles.search(user.sub, q);
-  }
-
   @Get("requests")
   requests(@CurrentUser() user: JwtPayload): Promise<FollowRequestDto[]> {
     return this.follow.listRequests(user.sub);
@@ -93,16 +84,6 @@ export class SocialController {
     @Param("id") id: string,
   ): Promise<void> {
     return this.follow.rejectRequest(user.sub, id);
-  }
-
-  @Get("me/followers")
-  myFollowers(@CurrentUser() user: JwtPayload): Promise<UserSummaryDto[]> {
-    return this.follow.listFollowers(user.sub);
-  }
-
-  @Get("me/following")
-  myFollowing(@CurrentUser() user: JwtPayload): Promise<UserSummaryDto[]> {
-    return this.follow.listFollowing(user.sub);
   }
 
   /** A user's followers (gated like their profile content). */

@@ -62,12 +62,6 @@ export interface SocialProfileDto {
   locked: boolean;
 }
 
-/** A search hit in the user directory. */
-export interface UserSearchResultDto extends UserSummaryDto {
-  bio: string | null;
-  relationship: RelationshipDto;
-}
-
 /** A pending incoming follow request the user can approve/reject. */
 export interface FollowRequestDto {
   /** The Follow row id. */
