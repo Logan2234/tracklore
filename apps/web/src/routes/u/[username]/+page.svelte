@@ -162,13 +162,15 @@
               <span class="timecode text-fg text-lg font-bold"
                 >{profile.followerCount}</span>
               <span class="text-dim ml-1 text-xs tracking-wide uppercase"
-                >abonnés</span>
+                >{profile.followerCount > 1 ? "abonnés" : "abonné"}</span>
             </div>
             <div>
               <span class="timecode text-fg text-lg font-bold"
                 >{profile.followingCount}</span>
               <span class="text-dim ml-1 text-xs tracking-wide uppercase"
-                >abonnements</span>
+                >{profile.followingCount > 1
+                  ? "abonnements"
+                  : "abonnement"}</span>
             </div>
           </div>
         </div>
