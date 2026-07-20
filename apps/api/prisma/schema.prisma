@@ -72,6 +72,23 @@ enum FollowStatus {
   ACCEPTED
 }
 
+// What a review targets. Works (MEDIA/GAME/BOOK/MUSIC) plus finer media levels.
+enum ReviewTargetType {
+  MEDIA
+  SEASON
+  EPISODE
+  GAME
+  BOOK
+  MUSIC
+}
+
+// A review's audience (no PRIVATE — a review is at least FRIENDS). Only felt
+// when social is enabled.
+enum ReviewVisibility {
+  FRIENDS
+  PUBLIC
+}
+
 // Sources we actually fetch from (canonical).
 enum CatalogSource {
   TMDB
@@ -210,6 +227,8 @@ model User {
   // default (nothing exposed to the public without an accepted follow). The
   // per-domain/facet audiences live in VisibilitySetting.
   profileAccess     ProfileAccess @default(PRIVATE)
+  // Default audience applied to a new review unless overridden at publication.
+  defaultReviewVisibility ReviewVisibility @default(FRIENDS)
   // Open-core seam: feature flags granted to this user (empty in self-host MVP).
   // NOT used for admin permission — see `role` below.
   entitlements      Json      @default("[]")
@@ -244,6 +263,7 @@ model User {
   followers           Follow[]             @relation("UserFollowers")
   blocking            Block[]              @relation("UserBlocking")
   blockedBy           Block[]              @relation("UserBlockedBy")
+  reviews             Review[]
 }
 
 // Social (P4): per-user, per-domain, per-facet audience. One row overrides the
@@ -295,6 +315,41 @@ model Block {
 
   @@unique([blockerId, blockedId])
   @@index([blockedId])
+}
+
+// Social (P4): the single source of truth for a user's /10 rating on a target
+// (a work, or a media season/episode). Rating is mandatory, text optional.
+// Editing your own review always works (even with social off — it's your
+// rating); reading others' and the FRIENDS/PUBLIC audience are social-gated.
+// One review per (user, target); edits are historised in ReviewRevision.
+// targetId is not a FK (polymorphic across item/season/episode tables).
+model Review {
+  id         String           @id @default(cuid())
+  userId     String
+  targetType ReviewTargetType
+  targetId   String
+  rating     Float
+  text       String?
+  visibility ReviewVisibility @default(FRIENDS)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revisions  ReviewRevision[]
+
+  @@unique([userId, targetType, targetId])
+  @@index([targetType, targetId])
+}
+
+// One immutable snapshot per review edit (V1, V2, …), newest by createdAt.
+model ReviewRevision {
+  id        String   @id @default(cuid())
+  reviewId  String
+  rating    Float
+  text      String?
+  createdAt DateTime @default(now())
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId, createdAt])
 }
 
 // One row per browser/device push subscription (Web Push). endpoint is the

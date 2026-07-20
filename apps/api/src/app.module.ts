@@ -18,6 +18,7 @@ import { MailModule } from "./mail/mail.module";
 import { MusicModule } from "./music/music.module";
 import { NotificationModule } from "./notifications/notification.module";
 import { PrismaModule } from "./prisma/prisma.module";
+import { ReviewsModule } from "./reviews/reviews.module";
 import { SocialModule } from "./social/social.module";
 import { UsersModule } from "./users/users.module";
 
@@ -44,6 +45,7 @@ import { UsersModule } from "./users/users.module";
     NotificationModule,
     HealthModule,
     SocialModule,
+    ReviewsModule,
   ],
   controllers: [],
   providers: [

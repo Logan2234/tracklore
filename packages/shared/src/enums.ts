@@ -275,3 +275,31 @@ export const FollowStatus = {
   ACCEPTED: "ACCEPTED",
 } as const;
 export type FollowStatus = (typeof FollowStatus)[keyof typeof FollowStatus];
+
+/**
+ * What a review targets. A review carries a mandatory /10 rating + optional
+ * text. Works span the four domains; SEASON/EPISODE add finer media levels.
+ */
+export const ReviewTargetType = {
+  MEDIA: "MEDIA",
+  SEASON: "SEASON",
+  EPISODE: "EPISODE",
+  GAME: "GAME",
+  BOOK: "BOOK",
+  MUSIC: "MUSIC",
+} as const;
+export type ReviewTargetType =
+  (typeof ReviewTargetType)[keyof typeof ReviewTargetType];
+
+/**
+ * A review's own audience, chosen at publication (there is no PRIVATE — a
+ * review is at least FRIENDS). The effect is only felt when social is enabled;
+ * self-host keeps rating locally with nothing exposed. Reading others' reviews
+ * and this audience are gated by the social flag.
+ */
+export const ReviewVisibility = {
+  FRIENDS: "FRIENDS",
+  PUBLIC: "PUBLIC",
+} as const;
+export type ReviewVisibility =
+  (typeof ReviewVisibility)[keyof typeof ReviewVisibility];
