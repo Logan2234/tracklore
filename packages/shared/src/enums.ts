@@ -34,6 +34,24 @@ export const Role = {
 } as const;
 export type Role = (typeof Role)[keyof typeof Role];
 
+/**
+ * In-app notification kinds. Stored as a plain string on `Notification.type`
+ * (new kinds need no migration); this list is the shared vocabulary the API
+ * emits and the web renders.
+ */
+export const NotificationType = {
+  /** A new episode of a tracked show aired. */
+  NEW_EPISODE: "NEW_EPISODE",
+  /** Someone started following you (public profile). */
+  FOLLOW: "FOLLOW",
+  /** Someone asked to follow your private profile. */
+  FOLLOW_REQUEST: "FOLLOW_REQUEST",
+  /** Someone approved your follow request. */
+  FOLLOW_ACCEPTED: "FOLLOW_ACCEPTED",
+} as const;
+export type NotificationType =
+  (typeof NotificationType)[keyof typeof NotificationType];
+
 /** Kind of media. MOVIE/SERIES come from TMDB, ANIME from AniList. */
 export const MediaType = {
   MOVIE: "MOVIE",
@@ -215,3 +233,91 @@ export const SecurityEventType = {
 } as const;
 export type SecurityEventType =
   (typeof SecurityEventType)[keyof typeof SecurityEventType];
+
+// ---------------------------------------------------------------------------
+// Social (P4). All of it is gated behind the runtime `SOCIAL_ENABLED` flag.
+// ---------------------------------------------------------------------------
+
+/**
+ * How reachable a user's profile is — the "authentication" layer of visibility.
+ * Acts as a cap over the per-facet audience settings (see VisibilityAudience):
+ * a PRIVATE profile can never expose anything as PUBLIC.
+ * - PUBLIC:  anyone can reach the profile and follow it (asymmetric).
+ * - PRIVATE: content is reachable only through an accepted (reciprocal) follow.
+ * - GHOST ("Figurant"): unfindable, unfollowable, activity private. The user can
+ *   still consume/participate anonymously (follow public profiles, comment,
+ *   react, review under a per-thread pseudonym) but is never exposed.
+ */
+export const ProfileAccess = {
+  PUBLIC: "PUBLIC",
+  PRIVATE: "PRIVATE",
+  GHOST: "GHOST",
+} as const;
+export type ProfileAccess = (typeof ProfileAccess)[keyof typeof ProfileAccess];
+
+/**
+ * Who may see a given passive-content facet — the "authorization" layer.
+ * Ordered NONE < FRIENDS < PUBLIC; the effective audience is capped by
+ * ProfileAccess (a PRIVATE profile tops out at FRIENDS).
+ */
+export const VisibilityAudience = {
+  PUBLIC: "PUBLIC",
+  FRIENDS: "FRIENDS",
+  NONE: "NONE",
+} as const;
+export type VisibilityAudience =
+  (typeof VisibilityAudience)[keyof typeof VisibilityAudience];
+
+/**
+ * The passive-content facets whose visibility a user tunes per domain. Kept
+ * deliberately coarse (2 facets) to keep the privacy screen legible; can be
+ * split later without breaking the model.
+ * - LIBRARY:  presence + status + progress + favorites for that domain.
+ * - ACTIVITY: appearance in the activity feed for that domain.
+ * Published content (reviews, comments) is NOT a facet — reviews carry their
+ * own explicit scope, comments are public by nature.
+ */
+export const VisibilityFacet = {
+  LIBRARY: "LIBRARY",
+  ACTIVITY: "ACTIVITY",
+} as const;
+export type VisibilityFacet =
+  (typeof VisibilityFacet)[keyof typeof VisibilityFacet];
+
+/**
+ * State of a directed follow. A follow of a PUBLIC profile is ACCEPTED at once;
+ * a follow of a PRIVATE profile is PENDING until the followee approves it.
+ */
+export const FollowStatus = {
+  PENDING: "PENDING",
+  ACCEPTED: "ACCEPTED",
+} as const;
+export type FollowStatus = (typeof FollowStatus)[keyof typeof FollowStatus];
+
+/**
+ * What a review targets. A review carries a mandatory /10 rating + optional
+ * text. Works span the four domains; SEASON/EPISODE add finer media levels.
+ */
+export const ReviewTargetType = {
+  MEDIA: "MEDIA",
+  SEASON: "SEASON",
+  EPISODE: "EPISODE",
+  GAME: "GAME",
+  BOOK: "BOOK",
+  MUSIC: "MUSIC",
+} as const;
+export type ReviewTargetType =
+  (typeof ReviewTargetType)[keyof typeof ReviewTargetType];
+
+/**
+ * A review's own audience, chosen at publication (there is no PRIVATE — a
+ * review is at least FRIENDS). The effect is only felt when social is enabled;
+ * self-host keeps rating locally with nothing exposed. Reading others' reviews
+ * and this audience are gated by the social flag.
+ */
+export const ReviewVisibility = {
+  FRIENDS: "FRIENDS",
+  PUBLIC: "PUBLIC",
+} as const;
+export type ReviewVisibility =
+  (typeof ReviewVisibility)[keyof typeof ReviewVisibility];

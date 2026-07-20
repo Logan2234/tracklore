@@ -1,4 +1,4 @@
-import type { Domain, Role } from "../enums";
+import type { Domain, ReviewVisibility, Role } from "../enums";
 
 export interface RegisterRequestDto {
   email: string;
@@ -50,6 +50,10 @@ export interface UserDto {
    * admin role happens at render time. See the web `navigation.ts`.
    */
   mobileNavShortcuts: string[];
+  /** Short free-form profile bio (social); null when unset. */
+  bio: string | null;
+  /** Default audience applied to new reviews (social). See `ReviewVisibility`. */
+  defaultReviewVisibility: ReviewVisibility;
   /** ISO datetime the account was created — shown as "member since". */
   createdAt: string;
 }
@@ -66,6 +70,10 @@ export interface UpdateUserRequestDto {
   enabledDomains?: Domain[];
   /** Ordered mobile bottom-bar shortcut ids (3–7 entries, must include "menu"). */
   mobileNavShortcuts?: string[];
+  /** Profile bio (social); pass null or "" to clear it. */
+  bio?: string | null;
+  /** Default audience for new reviews (social). */
+  defaultReviewVisibility?: ReviewVisibility;
 }
 
 export interface UpdateUsernameRequestDto {

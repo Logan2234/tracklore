@@ -14,6 +14,38 @@ this point beyond the roadmap phases already documented in the README.
 
 - CI pipeline (GitHub Actions): lint/build/test/e2e/Docker build gates,
   Dependabot, CodeQL, Codecov.
+- Social follow-ups (P4): private profiles now return a locked identity-only
+  preview (with a request/cancel affordance) instead of a 404 — GHOST/blocked
+  still 404, and no content leaves the server. A "Mon profil" nav entry opens
+  your own profile as others see it. "Mes reviews" rows link to the work and
+  support bulk delete / audience changes; the revision history shows each
+  version's text. `/people` gained a followers/following network view so the
+  page is no longer empty before searching.
+- Social notifications: a generic `Notification` model powers in-app alerts for
+  new followers, follow requests and approvals (alongside new-episode alerts).
+- Reviews on detail pages: rate + write a critique (with audience) and read the
+  community's reviews directly on each media/game/book/album page. The default
+  review audience is now configurable from "Mes reviews".
+- Profile bio is now editable from account settings (it was displayed but had
+  no input).
+
+## 0.5.0 — P4: social foundation & reviews
+
+All of it is gated behind the runtime `SOCIAL_ENABLED` flag (off by default; a
+single Docker image serves both modes), exposed to the web via `GET /api/config`.
+
+- **Foundation**: `User.bio`/`profileAccess` (PUBLIC/PRIVATE/GHOST) and a
+  `VisibilitySetting` matrix (per-domain × facet audience).
+- **Social graph & profiles**: `Follow` (with private-profile approval) + `Block`,
+  a central `VisibilityService`, public profiles at `/u/:username`, member search,
+  and the account "Confidentialité" screen. Reusable identicon `Avatar`.
+- **Reviews**: a `Review` model (mandatory /10 rating + optional text + audience)
+  with edit history is now the single source of truth for ratings — the `rating`
+  column was removed from every entry and projected from `Review` instead
+  (rating your own items still works with social off). A "Mes reviews" management
+  screen (`/reviews`) lists, edits and deletes them.
+- Deferred within P4: social notifications (needs a generic `Notification` model),
+  bio-editing UI, and the activity feed / comments / lists / Figurant increments.
 
 ## 0.4.0 — P3: games, books & music
 

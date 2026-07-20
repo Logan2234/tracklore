@@ -18,8 +18,10 @@ import type {
   MusicStatsDto,
   PagedResult,
 } from "@tracklore/shared";
+import { ReviewTargetType } from "@tracklore/shared";
 import { canonicalExternalId } from "../common/external-id.util";
 import { PrismaService } from "../prisma/prisma.service";
+import { ReviewService } from "../reviews/review.service";
 import { UpdateMusicEntryDto } from "./dto/update-music-entry.dto";
 import { UpsertMusicEntryDto } from "./dto/upsert-music-entry.dto";
 import { MusicItemService } from "./music-item.service";
@@ -94,6 +96,7 @@ export class MusicLibraryService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly musicItemService: MusicItemService,
+    private readonly reviews: ReviewService,
   ) {}
 
   /** First touch of an album persists it (on-demand cache), then upserts the entry. */
@@ -108,7 +111,6 @@ export class MusicLibraryService {
 
     const changes = {
       status: dto.status,
-      rating: dto.rating,
       notes: dto.notes,
       favorite: dto.favorite,
     };
@@ -119,7 +121,23 @@ export class MusicLibraryService {
       include: ENTRY_INCLUDE,
     });
 
-    return toEntryDto(entry);
+    if (dto.rating !== undefined) {
+      await this.reviews.setRating(
+        userId,
+        ReviewTargetType.MUSIC,
+        musicItem.id,
+        dto.rating,
+      );
+    }
+
+    return toEntryDto(
+      entry,
+      await this.reviews.getRating(
+        userId,
+        ReviewTargetType.MUSIC,
+        musicItem.id,
+      ),
+    );
   }
 
   async listEntries(
@@ -138,7 +156,14 @@ export class MusicLibraryService {
       orderBy: { updatedAt: "desc" },
     });
 
-    let dtos = entries.map(toEntryDto);
+    const ratings = await this.reviews.getRatings(
+      userId,
+      ReviewTargetType.MUSIC,
+      entries.map((e) => e.musicItemId),
+    );
+    let dtos = entries.map((e) =>
+      toEntryDto(e, ratings.get(e.musicItemId) ?? null),
+    );
 
     const q = filters.q?.trim().toLowerCase();
     dtos = dtos.filter((dto) => {
@@ -171,7 +196,14 @@ export class MusicLibraryService {
       where: { id: entryId },
       include: ENTRY_INCLUDE,
     });
-    return toEntryDto(entry);
+    return toEntryDto(
+      entry,
+      await this.reviews.getRating(
+        userId,
+        ReviewTargetType.MUSIC,
+        entry.musicItemId,
+      ),
+    );
   }
 
   async updateEntry(
@@ -185,7 +217,6 @@ export class MusicLibraryService {
       where: { id: entryId },
       data: {
         status: dto.status,
-        rating: dto.rating,
         notes: dto.notes,
         favorite: dto.favorite,
         startedAt:
@@ -200,7 +231,23 @@ export class MusicLibraryService {
       include: ENTRY_INCLUDE,
     });
 
-    return toEntryDto(entry);
+    if (dto.rating !== undefined) {
+      await this.reviews.setRating(
+        userId,
+        ReviewTargetType.MUSIC,
+        entry.musicItemId,
+        dto.rating,
+      );
+    }
+
+    return toEntryDto(
+      entry,
+      await this.reviews.getRating(
+        userId,
+        ReviewTargetType.MUSIC,
+        entry.musicItemId,
+      ),
+    );
   }
 
   async deleteEntry(userId: string, entryId: string): Promise<void> {
@@ -257,7 +304,19 @@ export class MusicLibraryService {
         })
       : null;
 
-    return { ...details, entry: entryRow ? toEntryDto(entryRow) : null };
+    return {
+      ...details,
+      entry: entryRow
+        ? toEntryDto(
+            entryRow,
+            await this.reviews.getRating(
+              userId,
+              ReviewTargetType.MUSIC,
+              entryRow.musicItemId,
+            ),
+          )
+        : null,
+    };
   }
 
   private async assertEntryOwnership(
@@ -294,12 +353,15 @@ function toMusicItemDto(
   };
 }
 
-function toEntryDto(entry: EntryWithAlbum): MusicEntryDto {
+function toEntryDto(
+  entry: EntryWithAlbum,
+  rating: number | null,
+): MusicEntryDto {
   return {
     id: entry.id,
     album: toMusicItemDto(entry.musicItem),
     status: entry.status,
-    rating: entry.rating,
+    rating,
     notes: entry.notes,
     favorite: entry.favorite,
     startedAt: entry.startedAt?.toISOString() ?? null,

@@ -35,8 +35,13 @@ function makeService() {
     musicEntry: { findMany: jest.fn().mockResolvedValue([]) },
     notification: { findMany: jest.fn().mockResolvedValue([]) },
   } as unknown as PrismaService;
+  // Ratings live in Review now; the export projects them but these tests don't
+  // assert the value, so an empty projection is enough.
+  const reviews = {
+    getRatings: jest.fn(() => Promise.resolve(new Map())),
+  } as unknown as import("../reviews/review.service").ReviewService;
 
-  return { service: new DataExportService(prisma), prisma };
+  return { service: new DataExportService(prisma, reviews), prisma };
 }
 
 describe("DataExportService.buildExport", () => {
@@ -166,12 +171,10 @@ describe("DataExportService.buildExport", () => {
     (prisma.notification.findMany as jest.Mock).mockResolvedValue([
       {
         type: "NEW_EPISODE",
-        mediaTitle: "Show",
-        mediaType: "SERIES",
-        seasonNumber: 1,
-        episodeNumber: 2,
-        episodeTitle: "Pilot",
-        airDate: new Date("2026-01-05T00:00:00.000Z"),
+        title: "Show",
+        body: "S1E2 · Pilot",
+        url: "/media/series/42",
+        data: { airDate: "2026-01-05T00:00:00.000Z" },
         readAt: null,
         createdAt: new Date("2026-01-06T00:00:00.000Z"),
       },
@@ -180,7 +183,7 @@ describe("DataExportService.buildExport", () => {
     const result = await service.buildExport("user-1");
 
     expect(result.notifications).toEqual([
-      expect.objectContaining({ mediaTitle: "Show", episodeNumber: 2 }),
+      expect.objectContaining({ title: "Show", body: "S1E2 · Pilot" }),
     ]);
   });
 });

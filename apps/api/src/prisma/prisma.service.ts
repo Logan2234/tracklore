@@ -9,7 +9,13 @@ export class PrismaService
 {
   constructor() {
     const connectionString = process.env.DATABASE_URL;
-    const adapter = new PrismaPg({ connectionString });
+    // The pg driver ignores Prisma's `?schema=` query param, so extract it and
+    // pass it to the adapter explicitly — otherwise every query defaults to the
+    // `public` schema (this is what isolates the e2e suite in its own schema).
+    const schema = connectionString
+      ? (new URL(connectionString).searchParams.get("schema") ?? undefined)
+      : undefined;
+    const adapter = new PrismaPg({ connectionString }, { schema });
 
     super({
       adapter,

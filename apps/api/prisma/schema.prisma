@@ -42,6 +42,53 @@ enum Role {
   ADMIN
 }
 
+// --- Social (P4) — all gated behind the runtime SOCIAL_ENABLED flag. ---
+// Mirror of packages/shared/src/enums.ts; see there for the full rationale.
+
+// How reachable a profile is (the authN layer). Caps the per-facet audience.
+enum ProfileAccess {
+  PUBLIC
+  PRIVATE
+  GHOST // "Figurant": invisible but can participate anonymously.
+}
+
+// Who may see a passive-content facet (the authZ layer). NONE < FRIENDS < PUBLIC.
+enum VisibilityAudience {
+  PUBLIC
+  FRIENDS
+  NONE
+}
+
+// Passive-content facets tuned per domain. Coarse on purpose (splittable later).
+enum VisibilityFacet {
+  LIBRARY // presence + status + progress + favorites
+  ACTIVITY // appearance in the activity feed
+}
+
+// State of a directed follow. A follow of a PUBLIC profile is created ACCEPTED
+// immediately; a follow of a PRIVATE profile starts PENDING until approved.
+enum FollowStatus {
+  PENDING
+  ACCEPTED
+}
+
+// What a review targets. Works (MEDIA/GAME/BOOK/MUSIC) plus finer media levels.
+enum ReviewTargetType {
+  MEDIA
+  SEASON
+  EPISODE
+  GAME
+  BOOK
+  MUSIC
+}
+
+// A review's audience (no PRIVATE — a review is at least FRIENDS). Only felt
+// when social is enabled.
+enum ReviewVisibility {
+  FRIENDS
+  PUBLIC
+}
+
 // Sources we actually fetch from (canonical).
 enum CatalogSource {
   TMDB
@@ -174,6 +221,14 @@ model User {
   // Set once the verification email's link has been opened. Informational only
   // in self-host (no feature is gated on it) — see UserToken.
   emailVerified     Boolean   @default(false)
+  // Free-form public bio shown on the social profile (P4). Null until set.
+  bio               String?
+  // Social (P4): how reachable this profile is. Default PRIVATE — the safe
+  // default (nothing exposed to the public without an accepted follow). The
+  // per-domain/facet audiences live in VisibilitySetting.
+  profileAccess     ProfileAccess @default(PRIVATE)
+  // Default audience applied to a new review unless overridden at publication.
+  defaultReviewVisibility ReviewVisibility @default(FRIENDS)
   // Open-core seam: feature flags granted to this user (empty in self-host MVP).
   // NOT used for admin permission — see `role` below.
   entitlements      Json      @default("[]")
@@ -203,6 +258,98 @@ model User {
   emailChangeRequests EmailChangeRequest[]
   securityEvents      SecurityEvent[]
   importRuns          ImportRun[]
+  visibilitySettings  VisibilitySetting[]
+  following           Follow[]             @relation("UserFollowing")
+  followers           Follow[]             @relation("UserFollowers")
+  blocking            Block[]              @relation("UserBlocking")
+  blockedBy           Block[]              @relation("UserBlockedBy")
+  reviews             Review[]
+}
+
+// Social (P4): per-user, per-domain, per-facet audience. One row overrides the
+// coded default (FRIENDS) for a (domain, facet) pair; absence = default. Only
+// the two passive-content facets are stored here — reviews carry their own
+// scope and comments are public by nature. Effective visibility is still capped
+// by User.profileAccess at read time.
+model VisibilitySetting {
+  id       String             @id @default(cuid())
+  userId   String
+  domain   Domain
+  facet    VisibilityFacet
+  audience VisibilityAudience
+  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, domain, facet])
+}
+
+// Social (P4): directed follow edge. `followerId` follows `followeeId`.
+// Friendship (the "Amis" audience) is a reciprocal pair of ACCEPTED follows.
+// On a PRIVATE followee the edge is PENDING until the followee approves it;
+// an accepted follow of a PRIVATE profile grants friend-level visibility
+// (Instagram-style approval), while on a PUBLIC profile friend-level requires
+// the follow to be mutual. See VisibilityService.
+model Follow {
+  id         String       @id @default(cuid())
+  followerId String
+  followeeId String
+  status     FollowStatus
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  follower   User         @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  followee   User         @relation("UserFollowers", fields: [followeeId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followeeId])
+  @@index([followeeId, status])
+}
+
+// Social (P4): a hard block. Removes any follow edges between the two, prevents
+// re-following and content access, and neutralizes comments/mentions from the
+// blocked user. Directed: `blockerId` blocked `blockedId`.
+model Block {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  blocker   User     @relation("UserBlocking", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("UserBlockedBy", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+}
+
+// Social (P4): the single source of truth for a user's /10 rating on a target
+// (a work, or a media season/episode). Rating is mandatory, text optional.
+// Editing your own review always works (even with social off — it's your
+// rating); reading others' and the FRIENDS/PUBLIC audience are social-gated.
+// One review per (user, target); edits are historised in ReviewRevision.
+// targetId is not a FK (polymorphic across item/season/episode tables).
+model Review {
+  id         String           @id @default(cuid())
+  userId     String
+  targetType ReviewTargetType
+  targetId   String
+  rating     Float
+  text       String?
+  visibility ReviewVisibility @default(FRIENDS)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revisions  ReviewRevision[]
+
+  @@unique([userId, targetType, targetId])
+  @@index([targetType, targetId])
+}
+
+// One immutable snapshot per review edit (V1, V2, …), newest by createdAt.
+model ReviewRevision {
+  id        String   @id @default(cuid())
+  reviewId  String
+  rating    Float
+  text      String?
+  createdAt DateTime @default(now())
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId, createdAt])
 }
 
 // One row per browser/device push subscription (Web Push). endpoint is the
@@ -223,28 +370,32 @@ model PushSubscription {
 
 // In-app notifications (currently only "new episode out" of a tracked show).
 // Payload is denormalised so a notification survives catalogue-cache refreshes.
+// Generic in-app notification. Kinds ("NEW_EPISODE", "FOLLOW",
+// "FOLLOW_REQUEST", "FOLLOW_ACCEPTED"…) share one shape: a title, an optional
+// body/link, and a `data` bag for kind-specific display extras (episode airDate,
+// the social actor's username/avatar seed…). A string `type` means new kinds
+// need no migration.
 model Notification {
-  id            String    @id @default(cuid())
-  userId        String
-  // Only "NEW_EPISODE" today; a string so new kinds need no migration.
-  type          String    @default("NEW_EPISODE")
-  mediaTitle    String
-  mediaType     MediaType
-  sourceId      String
-  seasonNumber  Int
-  episodeNumber Int
-  episodeTitle  String?
-  // The episode this is about — the dedup key (not a FK, kept simple).
-  episodeId     String
-  // The episode's real air date — shown to the user instead of `createdAt`,
-  // which is only when the scan happened to run (can lag behind by days).
-  airDate       DateTime
-  readAt        DateTime?
-  createdAt     DateTime  @default(now())
+  id        String    @id @default(cuid())
+  userId    String
+  type      String    @default("NEW_EPISODE")
+  title     String
+  body      String?
+  // Client-side deep link (e.g. /media/movie/42 or /u/alice).
+  url       String?
+  // Stable idempotency key so re-scans / re-follows don't duplicate a row:
+  //   "episode:<episodeId>", "follow:<actorId>", "request:<actorId>",
+  //   "accept:<actorId>". Null means "never deduped".
+  dedupeKey String?
+  // Kind-specific extras. For NEW_EPISODE: { airDate }. For social kinds:
+  // { actorUsername, actorDisplayName } (drives the Avatar + name in the feed).
+  data      Json      @default("{}")
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, episodeId])
+  @@unique([userId, dedupeKey])
   @@index([userId, createdAt])
 }
 
@@ -478,8 +629,6 @@ model LibraryEntry {
   userId          String
   mediaItemId     String
   status          EntryStatus          @default(PLANNED)
-  // 0–10, half-points allowed.
-  rating          Float?
   notes           String?
   favorite        Boolean              @default(false)
   startedAt       DateTime?
@@ -550,8 +699,6 @@ model GameEntry {
   userId          String
   gameItemId      String
   status          GameStatus          @default(BACKLOG)
-  // 0–10, half-points allowed.
-  rating          Float?
   notes           String?
   favorite        Boolean             @default(false)
   // Total time played, in minutes. Imported from Steam (playtime_forever);
@@ -627,8 +774,6 @@ model BookEntry {
   userId          String
   bookItemId      String
   status          BookStatus          @default(TO_READ)
-  // 0–10, half-points allowed.
-  rating          Float?
   notes           String?
   favorite        Boolean             @default(false)
   // Current reading position, in pages. No session history — running position.
@@ -701,8 +846,6 @@ model MusicEntry {
   userId          String
   musicItemId     String
   status          MusicStatus          @default(TO_LISTEN)
-  // 0–10, half-points allowed.
-  rating          Float?
   notes           String?
   favorite        Boolean              @default(false)
   startedAt       DateTime?

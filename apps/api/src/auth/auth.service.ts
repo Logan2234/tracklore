@@ -450,6 +450,9 @@ export function toUserDto(user: User): UserDto {
     role: user.role,
     enabledDomains: user.enabledDomains,
     mobileNavShortcuts: user.mobileNavShortcuts,
+    bio: user.bio,
+    defaultReviewVisibility:
+      user.defaultReviewVisibility as UserDto["defaultReviewVisibility"],
     createdAt: user.createdAt.toISOString(),
   };
 }

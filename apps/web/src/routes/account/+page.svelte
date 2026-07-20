@@ -10,6 +10,7 @@
   import IdentityHeader from "./components/IdentityHeader.svelte";
   import ImportSection from "./components/ImportSection.svelte";
   import NavShortcutsSection from "./components/NavShortcutsSection.svelte";
+  import PrivacySection from "./components/PrivacySection.svelte";
   import ProfileSection from "./components/ProfileSection.svelte";
   import SecuritySection from "./components/SecuritySection.svelte";
 
@@ -32,6 +33,7 @@
     <IdentityHeader />
     <SecuritySection />
     <ProfileSection />
+    <PrivacySection />
     <DomainsSection />
     <NavShortcutsSection />
     <CommunicationsSection />

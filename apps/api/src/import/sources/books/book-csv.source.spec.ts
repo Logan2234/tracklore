@@ -74,16 +74,18 @@ function setup(
       .mockResolvedValue(overrides.allowAdult ?? true),
   };
 
+  const reviews = { setRating: jest.fn().mockResolvedValue(undefined) };
   const source = new StoryGraphImportSource(
     prisma as unknown as PrismaService,
     bookItemService as unknown as BookItemService,
     ageGate as unknown as AgeGateService,
+    reviews as unknown as import("../../../reviews/review.service").ReviewService,
   );
   const service = new ImportJobService(
     [source],
     prisma as unknown as PrismaService,
   );
-  return { service, bookItemService, upsert, createMany, deleteMany };
+  return { service, bookItemService, upsert, createMany, deleteMany, reviews };
 }
 
 async function runToEnd(
@@ -236,7 +238,7 @@ describe("BookCsvSource (via StoryGraphImportSource)", () => {
       releaseDate: null,
       externalIds: [{ source: "GOOGLE_BOOKS", externalId: "G-1" }],
     });
-    const { service, bookItemService, upsert, createMany } = setup({
+    const { service, bookItemService, upsert, createMany, reviews } = setup({
       getDetails,
       resolveByIsbns: jest.fn().mockResolvedValue({
         matches: new Map([["9782228937597", summary({ sourceId: "G-1" })]]),
@@ -263,12 +265,18 @@ describe("BookCsvSource (via StoryGraphImportSource)", () => {
     const data = upsert.mock.calls[0][0].create;
     expect(data).toMatchObject({
       status: "READ",
-      rating: 8,
       notes: "loved it",
       currentPage: 320,
       ownershipStatus: "PHYSICAL",
     });
     expect(data.finishedAt).toEqual(new Date("2025-03-31T00:00:00.000Z"));
+    // The rating now lands in Review (source of truth), not on the entry.
+    expect(reviews.setRating).toHaveBeenCalledWith(
+      "user-1",
+      "BOOK",
+      expect.any(String),
+      8,
+    );
     // Read Count 3 → 2 backfilled replays on a first-time import.
     expect(createMany).toHaveBeenCalledWith({
       data: [

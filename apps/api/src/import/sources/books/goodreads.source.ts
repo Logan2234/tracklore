@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../../prisma/prisma.service";
+import { ReviewService } from "../../../reviews/review.service";
 import { AgeGateService } from "../../../users/age-gate.service";
 import { BookItemService } from "../../../books/book-item.service";
 import { BookCsvSource } from "./book-csv.source";
@@ -17,8 +18,9 @@ export class GoodreadsImportSource extends BookCsvSource<ParsedGoodreadsRow> {
     prisma: PrismaService,
     bookItemService: BookItemService,
     ageGate: AgeGateService,
+    reviews: ReviewService,
   ) {
-    super(prisma, bookItemService, ageGate);
+    super(prisma, bookItemService, ageGate, reviews);
   }
 
   protected parseCsv(csv: string): ParsedGoodreadsRow[] {

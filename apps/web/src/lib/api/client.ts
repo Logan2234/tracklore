@@ -4,6 +4,7 @@
 
 export * from "./core";
 export * from "./auth";
+export * from "./config";
 export * from "./admin";
 export * from "./catalog";
 export * from "./library";
@@ -12,3 +13,5 @@ export * from "./books";
 export * from "./music";
 export * from "./notifications";
 export * from "./import";
+export * from "./social";
+export * from "./reviews";
