@@ -18,10 +18,12 @@ import type {
   MusicStatsDto,
   PagedResult,
 } from "@tracklore/shared";
-import { ReviewTargetType } from "@tracklore/shared";
+import { ActivityType, ReviewTargetType } from "@tracklore/shared";
 import { canonicalExternalId } from "../common/external-id.util";
 import { PrismaService } from "../prisma/prisma.service";
 import { ReviewService } from "../reviews/review.service";
+import { classifyStatusTransition } from "../social/activity-transition.util";
+import { ActivityService } from "../social/activity.service";
 import { UpdateMusicEntryDto } from "./dto/update-music-entry.dto";
 import { UpsertMusicEntryDto } from "./dto/upsert-music-entry.dto";
 import { MusicItemService } from "./music-item.service";
@@ -97,7 +99,48 @@ export class MusicLibraryService {
     private readonly prisma: PrismaService,
     private readonly musicItemService: MusicItemService,
     private readonly reviews: ReviewService,
+    private readonly activity: ActivityService,
   ) {}
+
+  /** Emits the status milestone + FAVORITED events for a music entry write. */
+  private async emitEntryActivity(
+    userId: string,
+    musicItemId: string,
+    change: {
+      prevStatus: string | null;
+      nextStatus: string;
+      prevFavorite: boolean;
+      nextFavorite: boolean;
+    },
+  ): Promise<void> {
+    const transition = classifyStatusTransition(
+      "MUSIC",
+      change.prevStatus,
+      change.nextStatus,
+    );
+
+    if (transition) {
+      await this.activity.emit({
+        userId,
+        type: transition.type,
+        domain: "MUSIC",
+        targetType: ReviewTargetType.MUSIC,
+        targetId: musicItemId,
+        homeFeed: transition.homeFeed,
+      });
+    }
+
+    if (change.nextFavorite && !change.prevFavorite) {
+      await this.activity.emit({
+        userId,
+        type: ActivityType.FAVORITED,
+        domain: "MUSIC",
+        targetType: ReviewTargetType.MUSIC,
+        targetId: musicItemId,
+        homeFeed: false,
+      });
+    }
+  }
 
   /** First touch of an album persists it (on-demand cache), then upserts the entry. */
   async upsertEntry(
@@ -109,6 +152,11 @@ export class MusicLibraryService {
       dto.sourceId,
     );
 
+    const before = await this.prisma.musicEntry.findUnique({
+      where: { userId_musicItemId: { userId, musicItemId: musicItem.id } },
+      select: { status: true, favorite: true },
+    });
+
     const changes = {
       status: dto.status,
       notes: dto.notes,
@@ -119,6 +167,13 @@ export class MusicLibraryService {
       update: changes,
       create: { userId, musicItemId: musicItem.id, ...changes },
       include: ENTRY_INCLUDE,
+    });
+
+    await this.emitEntryActivity(userId, musicItem.id, {
+      prevStatus: before?.status ?? null,
+      nextStatus: entry.status,
+      prevFavorite: before?.favorite ?? false,
+      nextFavorite: entry.favorite,
     });
 
     if (dto.rating !== undefined) {
@@ -213,6 +268,11 @@ export class MusicLibraryService {
   ): Promise<MusicEntryDto> {
     await this.assertEntryOwnership(userId, entryId);
 
+    const before = await this.prisma.musicEntry.findUnique({
+      where: { id: entryId },
+      select: { status: true, favorite: true },
+    });
+
     const entry = await this.prisma.musicEntry.update({
       where: { id: entryId },
       data: {
@@ -229,6 +289,13 @@ export class MusicLibraryService {
         ownershipSource: dto.ownershipSource,
       },
       include: ENTRY_INCLUDE,
+    });
+
+    await this.emitEntryActivity(userId, entry.musicItemId, {
+      prevStatus: before?.status ?? null,
+      nextStatus: entry.status,
+      prevFavorite: before?.favorite ?? false,
+      nextFavorite: entry.favorite,
     });
 
     if (dto.rating !== undefined) {

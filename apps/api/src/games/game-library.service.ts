@@ -20,10 +20,12 @@ import type {
   GameStatsDto,
   PagedResult,
 } from "@tracklore/shared";
-import { ReviewTargetType } from "@tracklore/shared";
+import { ActivityType, ReviewTargetType } from "@tracklore/shared";
 import { canonicalExternalId } from "../common/external-id.util";
 import { PrismaService } from "../prisma/prisma.service";
 import { ReviewService } from "../reviews/review.service";
+import { classifyStatusTransition } from "../social/activity-transition.util";
+import { ActivityService } from "../social/activity.service";
 import { AgeGateService } from "../users/age-gate.service";
 import { filterAdultContent } from "../users/age.util";
 import { GameItemService } from "./game-item.service";
@@ -110,7 +112,48 @@ export class GameLibraryService {
     private readonly gameItemService: GameItemService,
     private readonly ageGate: AgeGateService,
     private readonly reviews: ReviewService,
+    private readonly activity: ActivityService,
   ) {}
+
+  /** Emits the status milestone + FAVORITED events for a game entry write. */
+  private async emitEntryActivity(
+    userId: string,
+    gameItemId: string,
+    change: {
+      prevStatus: string | null;
+      nextStatus: string;
+      prevFavorite: boolean;
+      nextFavorite: boolean;
+    },
+  ): Promise<void> {
+    const transition = classifyStatusTransition(
+      "GAMES",
+      change.prevStatus,
+      change.nextStatus,
+    );
+
+    if (transition) {
+      await this.activity.emit({
+        userId,
+        type: transition.type,
+        domain: "GAMES",
+        targetType: ReviewTargetType.GAME,
+        targetId: gameItemId,
+        homeFeed: transition.homeFeed,
+      });
+    }
+
+    if (change.nextFavorite && !change.prevFavorite) {
+      await this.activity.emit({
+        userId,
+        type: ActivityType.FAVORITED,
+        domain: "GAMES",
+        targetType: ReviewTargetType.GAME,
+        targetId: gameItemId,
+        homeFeed: false,
+      });
+    }
+  }
 
   /** First touch of a game persists it (on-demand cache), then upserts the entry. */
   async upsertEntry(
@@ -122,6 +165,11 @@ export class GameLibraryService {
       dto.sourceId,
     );
 
+    const before = await this.prisma.gameEntry.findUnique({
+      where: { userId_gameItemId: { userId, gameItemId: gameItem.id } },
+      select: { status: true, favorite: true },
+    });
+
     const changes = {
       status: dto.status,
       notes: dto.notes,
@@ -132,6 +180,13 @@ export class GameLibraryService {
       update: changes,
       create: { userId, gameItemId: gameItem.id, ...changes },
       include: ENTRY_INCLUDE,
+    });
+
+    await this.emitEntryActivity(userId, gameItem.id, {
+      prevStatus: before?.status ?? null,
+      nextStatus: entry.status,
+      prevFavorite: before?.favorite ?? false,
+      nextFavorite: entry.favorite,
     });
 
     if (dto.rating !== undefined) {
@@ -222,6 +277,11 @@ export class GameLibraryService {
   ): Promise<GameEntryDto> {
     await this.assertEntryOwnership(userId, entryId);
 
+    const before = await this.prisma.gameEntry.findUnique({
+      where: { id: entryId },
+      select: { status: true, favorite: true },
+    });
+
     const entry = await this.prisma.gameEntry.update({
       where: { id: entryId },
       data: {
@@ -239,6 +299,13 @@ export class GameLibraryService {
         ownershipSource: dto.ownershipSource,
       },
       include: ENTRY_INCLUDE,
+    });
+
+    await this.emitEntryActivity(userId, entry.gameItemId, {
+      prevStatus: before?.status ?? null,
+      nextStatus: entry.status,
+      prevFavorite: before?.favorite ?? false,
+      nextFavorite: entry.favorite,
     });
 
     if (dto.rating !== undefined) {

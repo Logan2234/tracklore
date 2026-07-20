@@ -20,10 +20,12 @@ import type {
   BookStatsDto,
   PagedResult,
 } from "@tracklore/shared";
-import { ReviewTargetType } from "@tracklore/shared";
+import { ActivityType, ReviewTargetType } from "@tracklore/shared";
 import { canonicalExternalId } from "../common/external-id.util";
 import { PrismaService } from "../prisma/prisma.service";
 import { ReviewService } from "../reviews/review.service";
+import { classifyStatusTransition } from "../social/activity-transition.util";
+import { ActivityService } from "../social/activity.service";
 import { AgeGateService } from "../users/age-gate.service";
 import { filterAdultContent } from "../users/age.util";
 import { BookItemService } from "./book-item.service";
@@ -131,7 +133,48 @@ export class BookLibraryService {
     private readonly bookItemService: BookItemService,
     private readonly ageGate: AgeGateService,
     private readonly reviews: ReviewService,
+    private readonly activity: ActivityService,
   ) {}
+
+  /** Emits the status milestone + FAVORITED events for a book entry write. */
+  private async emitEntryActivity(
+    userId: string,
+    bookItemId: string,
+    change: {
+      prevStatus: string | null;
+      nextStatus: string;
+      prevFavorite: boolean;
+      nextFavorite: boolean;
+    },
+  ): Promise<void> {
+    const transition = classifyStatusTransition(
+      "BOOKS",
+      change.prevStatus,
+      change.nextStatus,
+    );
+
+    if (transition) {
+      await this.activity.emit({
+        userId,
+        type: transition.type,
+        domain: "BOOKS",
+        targetType: ReviewTargetType.BOOK,
+        targetId: bookItemId,
+        homeFeed: transition.homeFeed,
+      });
+    }
+
+    if (change.nextFavorite && !change.prevFavorite) {
+      await this.activity.emit({
+        userId,
+        type: ActivityType.FAVORITED,
+        domain: "BOOKS",
+        targetType: ReviewTargetType.BOOK,
+        targetId: bookItemId,
+        homeFeed: false,
+      });
+    }
+  }
 
   /** First touch of a book persists it (on-demand cache), then upserts the entry. */
   async upsertEntry(
@@ -143,6 +186,11 @@ export class BookLibraryService {
       dto.sourceId,
     );
 
+    const before = await this.prisma.bookEntry.findUnique({
+      where: { userId_bookItemId: { userId, bookItemId: bookItem.id } },
+      select: { status: true, favorite: true },
+    });
+
     const changes = {
       status: dto.status,
       notes: dto.notes,
@@ -153,6 +201,13 @@ export class BookLibraryService {
       update: changes,
       create: { userId, bookItemId: bookItem.id, ...changes },
       include: ENTRY_INCLUDE,
+    });
+
+    await this.emitEntryActivity(userId, bookItem.id, {
+      prevStatus: before?.status ?? null,
+      nextStatus: entry.status,
+      prevFavorite: before?.favorite ?? false,
+      nextFavorite: entry.favorite,
     });
 
     if (dto.rating !== undefined) {
@@ -243,6 +298,11 @@ export class BookLibraryService {
   ): Promise<BookEntryDto> {
     await this.assertEntryOwnership(userId, entryId);
 
+    const before = await this.prisma.bookEntry.findUnique({
+      where: { id: entryId },
+      select: { status: true, favorite: true },
+    });
+
     const entry = await this.prisma.bookEntry.update({
       where: { id: entryId },
       data: {
@@ -260,6 +320,13 @@ export class BookLibraryService {
         ownershipSource: dto.ownershipSource,
       },
       include: ENTRY_INCLUDE,
+    });
+
+    await this.emitEntryActivity(userId, entry.bookItemId, {
+      prevStatus: before?.status ?? null,
+      nextStatus: entry.status,
+      prevFavorite: before?.favorite ?? false,
+      nextFavorite: entry.favorite,
     });
 
     if (dto.rating !== undefined) {
