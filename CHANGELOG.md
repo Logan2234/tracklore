@@ -21,6 +21,13 @@ this point beyond the roadmap phases already documented in the README.
   support bulk delete / audience changes; the revision history shows each
   version's text. `/people` gained a followers/following network view so the
   page is no longer empty before searching.
+- Social notifications: a generic `Notification` model powers in-app alerts for
+  new followers, follow requests and approvals (alongside new-episode alerts).
+- Reviews on detail pages: rate + write a critique (with audience) and read the
+  community's reviews directly on each media/game/book/album page. The default
+  review audience is now configurable from "Mes reviews".
+- Profile bio is now editable from account settings (it was displayed but had
+  no input).
 
 ## 0.5.0 — P4: social foundation & reviews
 

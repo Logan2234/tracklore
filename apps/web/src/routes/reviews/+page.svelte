@@ -5,8 +5,10 @@
     deleteReview,
     getMyReviews,
     getReviewRevisions,
+    updateMe,
     upsertReview,
   } from "$lib/api/client";
+  import { auth } from "$lib/auth.svelte";
   import { appConfig } from "$lib/config.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import Modal from "$lib/components/Modal.svelte";
@@ -65,6 +67,17 @@
       clearSelection();
     } finally {
       batchBusy = false;
+    }
+  }
+
+  let savingDefault = $state(false);
+  async function setDefaultVisibility(v: ReviewVisibility) {
+    if (savingDefault || auth.user?.defaultReviewVisibility === v) return;
+    savingDefault = true;
+    try {
+      await updateMe({ defaultReviewVisibility: v });
+    } finally {
+      savingDefault = false;
     }
   }
 
@@ -157,6 +170,28 @@
     icon="star"
     title="Mes reviews"
     subtitle="Toutes vos notes et critiques, à gérer d'un seul endroit." />
+
+  {#if appConfig.socialEnabled && auth.user}
+    <!-- Default audience for reviews created from the quick-rating path. -->
+    <div class="mb-4 flex flex-wrap items-center gap-2">
+      <span class="text-dim text-sm"
+        >Portée par défaut des nouvelles reviews&nbsp;:</span>
+      <button
+        class="chip"
+        class:chip-on={auth.user.defaultReviewVisibility === "FRIENDS"}
+        disabled={savingDefault}
+        onclick={() => setDefaultVisibility("FRIENDS")}>
+        Amis
+      </button>
+      <button
+        class="chip"
+        class:chip-on={auth.user.defaultReviewVisibility === "PUBLIC"}
+        disabled={savingDefault}
+        onclick={() => setDefaultVisibility("PUBLIC")}>
+        Public
+      </button>
+    </div>
+  {/if}
 
   {#if loading}
     <div class="space-y-2">

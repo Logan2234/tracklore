@@ -1,5 +1,6 @@
 <script lang="ts">
   import { getMyReview, upsertReview } from "$lib/api/client";
+  import { auth } from "$lib/auth.svelte";
   import { appConfig } from "$lib/config.svelte";
   import type { ReviewTargetType, ReviewVisibility } from "@tracklore/shared";
 
@@ -32,7 +33,9 @@
     void getMyReview(type, id)
       .then((r) => {
         text = r?.text ?? "";
-        visibility = r?.visibility ?? "FRIENDS";
+        // Fall back to the user's configured default for a not-yet-created review.
+        visibility =
+          r?.visibility ?? auth.user?.defaultReviewVisibility ?? "FRIENDS";
       })
       .finally(() => (loaded = true));
   });
