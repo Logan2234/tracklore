@@ -20,8 +20,10 @@ import type {
   GameStatsDto,
   PagedResult,
 } from "@tracklore/shared";
+import { ReviewTargetType } from "@tracklore/shared";
 import { canonicalExternalId } from "../common/external-id.util";
 import { PrismaService } from "../prisma/prisma.service";
+import { ReviewService } from "../reviews/review.service";
 import { AgeGateService } from "../users/age-gate.service";
 import { filterAdultContent } from "../users/age.util";
 import { GameItemService } from "./game-item.service";
@@ -107,6 +109,7 @@ export class GameLibraryService {
     private readonly prisma: PrismaService,
     private readonly gameItemService: GameItemService,
     private readonly ageGate: AgeGateService,
+    private readonly reviews: ReviewService,
   ) {}
 
   /** First touch of a game persists it (on-demand cache), then upserts the entry. */
@@ -121,7 +124,6 @@ export class GameLibraryService {
 
     const changes = {
       status: dto.status,
-      rating: dto.rating,
       notes: dto.notes,
       favorite: dto.favorite,
     };
@@ -132,7 +134,19 @@ export class GameLibraryService {
       include: ENTRY_INCLUDE,
     });
 
-    return toEntryDto(entry);
+    if (dto.rating !== undefined) {
+      await this.reviews.setRating(
+        userId,
+        ReviewTargetType.GAME,
+        gameItem.id,
+        dto.rating,
+      );
+    }
+
+    return toEntryDto(
+      entry,
+      await this.reviews.getRating(userId, ReviewTargetType.GAME, gameItem.id),
+    );
   }
 
   async listEntries(
@@ -151,7 +165,14 @@ export class GameLibraryService {
       orderBy: { updatedAt: "desc" },
     });
 
-    let dtos = entries.map(toEntryDto);
+    const ratings = await this.reviews.getRatings(
+      userId,
+      ReviewTargetType.GAME,
+      entries.map((e) => e.gameItemId),
+    );
+    let dtos = entries.map((e) =>
+      toEntryDto(e, ratings.get(e.gameItemId) ?? null),
+    );
 
     const q = filters.q?.trim().toLowerCase();
     dtos = dtos.filter((dto) => {
@@ -184,7 +205,14 @@ export class GameLibraryService {
       where: { id: entryId },
       include: ENTRY_INCLUDE,
     });
-    return toEntryDto(entry);
+    return toEntryDto(
+      entry,
+      await this.reviews.getRating(
+        userId,
+        ReviewTargetType.GAME,
+        entry.gameItemId,
+      ),
+    );
   }
 
   async updateEntry(
@@ -198,7 +226,6 @@ export class GameLibraryService {
       where: { id: entryId },
       data: {
         status: dto.status,
-        rating: dto.rating,
         notes: dto.notes,
         favorite: dto.favorite,
         playtimeMinutes: dto.playtimeMinutes,
@@ -214,7 +241,23 @@ export class GameLibraryService {
       include: ENTRY_INCLUDE,
     });
 
-    return toEntryDto(entry);
+    if (dto.rating !== undefined) {
+      await this.reviews.setRating(
+        userId,
+        ReviewTargetType.GAME,
+        entry.gameItemId,
+        dto.rating,
+      );
+    }
+
+    return toEntryDto(
+      entry,
+      await this.reviews.getRating(
+        userId,
+        ReviewTargetType.GAME,
+        entry.gameItemId,
+      ),
+    );
   }
 
   async deleteEntry(userId: string, entryId: string): Promise<void> {
@@ -241,7 +284,14 @@ export class GameLibraryService {
       where: { id: entryId },
       include: ENTRY_INCLUDE,
     });
-    return toEntryDto(entry);
+    return toEntryDto(
+      entry,
+      await this.reviews.getRating(
+        userId,
+        ReviewTargetType.GAME,
+        entry.gameItemId,
+      ),
+    );
   }
 
   async deleteReplay(userId: string, replayId: string): Promise<void> {
@@ -315,7 +365,19 @@ export class GameLibraryService {
         })
       : null;
 
-    return { ...details, entry: entryRow ? toEntryDto(entryRow) : null };
+    return {
+      ...details,
+      entry: entryRow
+        ? toEntryDto(
+            entryRow,
+            await this.reviews.getRating(
+              userId,
+              ReviewTargetType.GAME,
+              entryRow.gameItemId,
+            ),
+          )
+        : null,
+    };
   }
 
   private async assertEntryOwnership(
@@ -350,12 +412,12 @@ function toGameItemDto(
   };
 }
 
-function toEntryDto(entry: EntryWithGame): GameEntryDto {
+function toEntryDto(entry: EntryWithGame, rating: number | null): GameEntryDto {
   return {
     id: entry.id,
     game: toGameItemDto(entry.gameItem),
     status: entry.status,
-    rating: entry.rating,
+    rating,
     notes: entry.notes,
     favorite: entry.favorite,
     playtimeMinutes: entry.playtimeMinutes,

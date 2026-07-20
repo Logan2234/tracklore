@@ -1,16 +1,37 @@
 import { Domain } from "@tracklore/shared";
 import type { PrismaService } from "../prisma/prisma.service";
+import type { ReviewService } from "../reviews/review.service";
 import { CsvExportService } from "./csv-export.service";
 
-function makePrisma(model: string, rows: unknown[]) {
-  return {
+const ITEM_ID_FIELD: Record<string, string> = {
+  libraryEntry: "mediaItemId",
+  gameEntry: "gameItemId",
+  bookEntry: "bookItemId",
+  musicEntry: "musicItemId",
+};
+
+// Ratings now come from Review: tag each row with an item id and mock the
+// ReviewService so getRatings projects the row's rating back into the export.
+function makeService(model: string, rows: Record<string, unknown>[]) {
+  const idField = ITEM_ID_FIELD[model];
+  rows.forEach((r, i) => (r[idField] = `${model}-${i}`));
+  const prisma = {
     [model]: { findMany: jest.fn().mockResolvedValue(rows) },
   } as unknown as PrismaService;
+  const ratings = new Map(
+    rows
+      .filter((r) => r.rating !== null)
+      .map((r) => [r[idField] as string, r.rating as number]),
+  );
+  const reviews = {
+    getRatings: jest.fn(() => Promise.resolve(ratings)),
+  } as unknown as ReviewService;
+  return new CsvExportService(prisma, reviews);
 }
 
 describe("CsvExportService.buildCsv", () => {
   it("builds a MEDIA CSV with the expected header and one row per entry", async () => {
-    const prisma = makePrisma("libraryEntry", [
+    const service = makeService("libraryEntry", [
       {
         status: "WATCHING",
         rating: 8,
@@ -28,7 +49,6 @@ describe("CsvExportService.buildCsv", () => {
         },
       },
     ]);
-    const service = new CsvExportService(prisma);
 
     const csv = await service.buildCsv("user-1", Domain.MEDIA);
     const [header, row] = csv.split("\r\n");
@@ -42,7 +62,7 @@ describe("CsvExportService.buildCsv", () => {
   });
 
   it("builds a GAMES CSV including playtime and replay count", async () => {
-    const prisma = makePrisma("gameEntry", [
+    const service = makeService("gameEntry", [
       {
         status: "PLAYING",
         rating: null,
@@ -62,7 +82,6 @@ describe("CsvExportService.buildCsv", () => {
         replays: [{}, {}],
       },
     ]);
-    const service = new CsvExportService(prisma);
 
     const csv = await service.buildCsv("user-1", Domain.GAMES);
     const [, row] = csv.split("\r\n");
@@ -73,7 +92,7 @@ describe("CsvExportService.buildCsv", () => {
   });
 
   it("builds a BOOKS CSV including page progress", async () => {
-    const prisma = makePrisma("bookEntry", [
+    const service = makeService("bookEntry", [
       {
         status: "READING",
         rating: 9,
@@ -94,7 +113,6 @@ describe("CsvExportService.buildCsv", () => {
         replays: [],
       },
     ]);
-    const service = new CsvExportService(prisma);
 
     const csv = await service.buildCsv("user-1", Domain.BOOKS);
     const [, row] = csv.split("\r\n");
@@ -105,7 +123,7 @@ describe("CsvExportService.buildCsv", () => {
   });
 
   it("builds a MUSIC CSV", async () => {
-    const prisma = makePrisma("musicEntry", [
+    const service = makeService("musicEntry", [
       {
         status: "LISTENED",
         rating: 10,
@@ -123,7 +141,6 @@ describe("CsvExportService.buildCsv", () => {
         },
       },
     ]);
-    const service = new CsvExportService(prisma);
 
     const csv = await service.buildCsv("user-1", Domain.MUSIC);
     const [, row] = csv.split("\r\n");
@@ -134,8 +151,7 @@ describe("CsvExportService.buildCsv", () => {
   });
 
   it("returns just the header row when the user has no entries", async () => {
-    const prisma = makePrisma("libraryEntry", []);
-    const service = new CsvExportService(prisma);
+    const service = makeService("libraryEntry", []);
 
     const csv = await service.buildCsv("user-1", Domain.MEDIA);
 

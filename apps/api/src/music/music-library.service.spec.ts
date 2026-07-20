@@ -34,7 +34,26 @@ function makeService(rows: ReturnType<typeof makeRow>[]) {
   const prisma = {
     musicEntry: { findMany: jest.fn().mockResolvedValue(rows) },
   } as unknown as PrismaService;
-  const service = new MusicLibraryService(prisma, {} as MusicItemService);
+  const reviews = {
+    getRatings: jest.fn(() =>
+      Promise.resolve(
+        new Map(
+          rows
+            .filter((r) => r.rating !== null)
+            .map((r) => [r.musicItemId, r.rating]),
+        ),
+      ),
+    ),
+    getRating: jest.fn((_u: string, _t: string, id: string) =>
+      Promise.resolve(rows.find((r) => r.musicItemId === id)?.rating ?? null),
+    ),
+    setRating: jest.fn(),
+  } as unknown as import("../reviews/review.service").ReviewService;
+  const service = new MusicLibraryService(
+    prisma,
+    {} as MusicItemService,
+    reviews,
+  );
   return { service, prisma };
 }
 

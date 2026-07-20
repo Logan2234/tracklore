@@ -1,7 +1,8 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
-import { Domain } from "@tracklore/shared";
+import { Domain, ReviewTargetType } from "@tracklore/shared";
 import { toCsv } from "../common/csv.util";
 import { PrismaService } from "../prisma/prisma.service";
+import { ReviewService } from "../reviews/review.service";
 
 const isoDate = (d: Date | null): string => d?.toISOString().slice(0, 10) ?? "";
 
@@ -13,7 +14,10 @@ const isoDate = (d: Date | null): string => d?.toISOString().slice(0, 10) ?? "";
  */
 @Injectable()
 export class CsvExportService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly reviews: ReviewService,
+  ) {}
 
   async buildCsv(userId: string, domain: Domain): Promise<string> {
     switch (domain) {
@@ -41,6 +45,11 @@ export class CsvExportService {
       include: { mediaItem: true },
       orderBy: { createdAt: "asc" },
     });
+    const ratings = await this.reviews.getRatings(
+      userId,
+      ReviewTargetType.MEDIA,
+      entries.map((e) => e.mediaItemId),
+    );
 
     return toCsv([
       [
@@ -61,7 +70,7 @@ export class CsvExportService {
         e.mediaItem.title,
         e.mediaItem.type,
         e.status,
-        e.rating,
+        ratings.get(e.mediaItemId) ?? null,
         e.notes,
         e.favorite ? "true" : "false",
         isoDate(e.startedAt),
@@ -80,6 +89,11 @@ export class CsvExportService {
       include: { gameItem: true, replays: true },
       orderBy: { createdAt: "asc" },
     });
+    const ratings = await this.reviews.getRatings(
+      userId,
+      ReviewTargetType.GAME,
+      entries.map((e) => e.gameItemId),
+    );
 
     return toCsv([
       [
@@ -101,7 +115,7 @@ export class CsvExportService {
       ...entries.map((e) => [
         e.gameItem.title,
         e.status,
-        e.rating,
+        ratings.get(e.gameItemId) ?? null,
         e.notes,
         e.favorite ? "true" : "false",
         e.playtimeMinutes,
@@ -123,6 +137,11 @@ export class CsvExportService {
       include: { bookItem: true, replays: true },
       orderBy: { createdAt: "asc" },
     });
+    const ratings = await this.reviews.getRatings(
+      userId,
+      ReviewTargetType.BOOK,
+      entries.map((e) => e.bookItemId),
+    );
 
     return toCsv([
       [
@@ -146,7 +165,7 @@ export class CsvExportService {
         e.bookItem.title,
         e.bookItem.authors.join("; "),
         e.status,
-        e.rating,
+        ratings.get(e.bookItemId) ?? null,
         e.notes,
         e.favorite ? "true" : "false",
         e.currentPage,
@@ -168,6 +187,11 @@ export class CsvExportService {
       include: { musicItem: true },
       orderBy: { createdAt: "asc" },
     });
+    const ratings = await this.reviews.getRatings(
+      userId,
+      ReviewTargetType.MUSIC,
+      entries.map((e) => e.musicItemId),
+    );
 
     return toCsv([
       [
@@ -188,7 +212,7 @@ export class CsvExportService {
         e.musicItem.title,
         e.musicItem.artists.join("; "),
         e.status,
-        e.rating,
+        ratings.get(e.musicItemId) ?? null,
         e.notes,
         e.favorite ? "true" : "false",
         isoDate(e.startedAt),

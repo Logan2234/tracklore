@@ -143,6 +143,9 @@ export class UsersController {
         notifyPush: dto.notifyPush,
         enabledDomains: dto.enabledDomains,
         mobileNavShortcuts: dto.mobileNavShortcuts,
+        // Empty string clears the bio back to null.
+        bio: dto.bio === undefined ? undefined : dto.bio || null,
+        defaultReviewVisibility: dto.defaultReviewVisibility,
       },
     });
     return toUserDto(user);

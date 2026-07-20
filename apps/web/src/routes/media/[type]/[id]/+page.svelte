@@ -19,6 +19,8 @@
   import Poster from "$lib/components/Poster.svelte";
   import RatingPips from "$lib/components/RatingPips.svelte";
   import RelatedCarousel from "$lib/components/RelatedCarousel.svelte";
+  import ReviewCritique from "$lib/components/ReviewCritique.svelte";
+  import WorkReviews from "$lib/components/WorkReviews.svelte";
   import TrackingPanel from "$lib/components/TrackingPanel.svelte";
   import { createLibraryEntryActions } from "$lib/library-entry";
   import {
@@ -443,6 +445,11 @@
           value={entry.rating}
           onChange={(v) => patch({ rating: v })} />
 
+        <ReviewCritique
+          targetType="MEDIA"
+          targetId={entry.mediaItem.id}
+          rating={entry.rating} />
+
         <NoteField
           value={entry.notes}
           placeholder="Une réplique, un souvenir…"
@@ -508,6 +515,10 @@
       <CastSection
         cast={extras.cast}
         source={type === "ANIME" ? "anilist" : "tmdb"} />
+    {/if}
+
+    {#if entry}
+      <WorkReviews targetType="MEDIA" targetId={entry.mediaItem.id} />
     {/if}
 
     {#if extras}

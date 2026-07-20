@@ -9,6 +9,7 @@
   import { ADMIN_NAV } from "$lib/admin-nav";
   import { auth } from "$lib/auth.svelte";
   import Icon from "$lib/components/Icon.svelte";
+  import { appConfig } from "$lib/config.svelte";
   import { isDomainEnabled } from "$lib/domains";
   import { resolveMenuGroups } from "$lib/navigation";
   import { notifications } from "$lib/notifications.svelte";
@@ -22,7 +23,11 @@
   const inAdmin = $derived(page.url.pathname.startsWith("/admin"));
 
   const groups = $derived(
-    resolveMenuGroups({ isDomainEnabled, isAdmin: auth.isAdmin }),
+    resolveMenuGroups({
+      isDomainEnabled,
+      isAdmin: auth.isAdmin,
+      socialEnabled: appConfig.socialEnabled,
+    }),
   );
 
   // JS transitions ignore the global prefers-reduced-motion CSS rule, so gate
