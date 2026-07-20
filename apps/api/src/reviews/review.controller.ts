@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import {
+  type MyReviewDto,
   type ReviewDto,
   type ReviewRevisionDto,
   ReviewTargetType,
@@ -36,7 +37,7 @@ export class ReviewController {
   // --- Own reviews: NOT social-gated (rating your own items always works). ---
 
   @Get("me")
-  listMine(@CurrentUser() user: JwtPayload): Promise<ReviewDto[]> {
+  listMine(@CurrentUser() user: JwtPayload): Promise<MyReviewDto[]> {
     return this.reviews.listMine(user.sub);
   }
 

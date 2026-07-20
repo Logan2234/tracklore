@@ -14,6 +14,17 @@ export interface ReviewDto {
   author: UserSummaryDto;
 }
 
+/** Minimal display info for the work a review targets. */
+export interface ReviewTargetSummaryDto {
+  title: string;
+  imageUrl: string | null;
+}
+
+/** A review plus its resolved target, for the "Mes reviews" screen. */
+export interface MyReviewDto extends ReviewDto {
+  target: ReviewTargetSummaryDto | null;
+}
+
 /** One historised snapshot of a review (V1, V2, …), newest first. */
 export interface ReviewRevisionDto {
   rating: number;

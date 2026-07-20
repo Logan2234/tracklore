@@ -1,7 +1,9 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import {
+  type MyReviewDto,
   type ReviewDto,
   type ReviewRevisionDto,
+  type ReviewTargetSummaryDto,
   ReviewTargetType,
   type ReviewVisibility,
   type UpsertReviewDto,
@@ -134,14 +136,102 @@ export class ReviewService {
     }));
   }
 
-  /** Every review the current user has written (newest first). */
-  async listMine(userId: string): Promise<ReviewDto[]> {
+  /** Every review the current user has written (newest first), with targets. */
+  async listMine(userId: string): Promise<MyReviewDto[]> {
     const rows = await this.prisma.review.findMany({
       where: { userId },
       orderBy: { updatedAt: "desc" },
     });
-    const author = await this.author(userId);
-    return rows.map((r) => this.toDto(r, author));
+    const [author, targets] = await Promise.all([
+      this.author(userId),
+      this.resolveTargets(rows),
+    ]);
+    return rows.map((r) => ({
+      ...this.toDto(r, author),
+      target: targets.get(`${r.targetType}:${r.targetId}`) ?? null,
+    }));
+  }
+
+  /**
+   * Resolves display info (title + image) for the work each review targets,
+   * batched per type. SEASON/EPISODE aren't creatable from the UI yet, so they
+   * fall back to a null target (rendered generically).
+   */
+  private async resolveTargets(
+    rows: { targetType: string; targetId: string }[],
+  ): Promise<Map<string, ReviewTargetSummaryDto>> {
+    const idsByType = new Map<string, string[]>();
+
+    for (const r of rows) {
+      const arr = idsByType.get(r.targetType) ?? [];
+      arr.push(r.targetId);
+      idsByType.set(r.targetType, arr);
+    }
+
+    const map = new Map<string, ReviewTargetSummaryDto>();
+
+    const add = (
+      type: string,
+      items: { id: string; title: string; image: string | null }[],
+    ) => {
+      for (const i of items) {
+        map.set(`${type}:${i.id}`, { title: i.title, imageUrl: i.image });
+      }
+    };
+
+    const mediaIds = idsByType.get(ReviewTargetType.MEDIA);
+
+    if (mediaIds?.length) {
+      const items = await this.prisma.mediaItem.findMany({
+        where: { id: { in: mediaIds } },
+        select: { id: true, title: true, posterUrl: true },
+      });
+      add(
+        ReviewTargetType.MEDIA,
+        items.map((i) => ({ id: i.id, title: i.title, image: i.posterUrl })),
+      );
+    }
+
+    const gameIds = idsByType.get(ReviewTargetType.GAME);
+
+    if (gameIds?.length) {
+      const items = await this.prisma.gameItem.findMany({
+        where: { id: { in: gameIds } },
+        select: { id: true, title: true, coverUrl: true },
+      });
+      add(
+        ReviewTargetType.GAME,
+        items.map((i) => ({ id: i.id, title: i.title, image: i.coverUrl })),
+      );
+    }
+
+    const bookIds = idsByType.get(ReviewTargetType.BOOK);
+
+    if (bookIds?.length) {
+      const items = await this.prisma.bookItem.findMany({
+        where: { id: { in: bookIds } },
+        select: { id: true, title: true, coverUrl: true },
+      });
+      add(
+        ReviewTargetType.BOOK,
+        items.map((i) => ({ id: i.id, title: i.title, image: i.coverUrl })),
+      );
+    }
+
+    const musicIds = idsByType.get(ReviewTargetType.MUSIC);
+
+    if (musicIds?.length) {
+      const items = await this.prisma.musicItem.findMany({
+        where: { id: { in: musicIds } },
+        select: { id: true, title: true, coverUrl: true },
+      });
+      add(
+        ReviewTargetType.MUSIC,
+        items.map((i) => ({ id: i.id, title: i.title, image: i.coverUrl })),
+      );
+    }
+
+    return map;
   }
 
   /**

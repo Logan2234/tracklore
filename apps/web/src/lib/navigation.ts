@@ -14,7 +14,8 @@ type NavIcon =
   | "boardgame"
   | "bell"
   | "user"
-  | "shield";
+  | "shield"
+  | "star";
 
 interface NavItem {
   href: string;
@@ -119,6 +120,12 @@ export const NAVIGATION: NavSection[] = [
         match: (p) => p.startsWith("/stats"),
       },
       {
+        href: "/reviews",
+        label: "Mes reviews",
+        icon: "star",
+        match: (p) => p.startsWith("/reviews"),
+      },
+      {
         href: "/people",
         label: "Communauté",
         icon: "user",
@@ -153,6 +160,7 @@ export type MobileNavId =
   | "boardgames"
   | "calendar"
   | "stats"
+  | "reviews"
   | "people"
   | "notifications"
   | "account"
@@ -262,6 +270,13 @@ const MOBILE_DESTINATIONS: Record<MobileNavId, MobileDestination> = {
     icon: "stats",
     match: (p) => p.startsWith("/stats"),
   },
+  reviews: {
+    id: "reviews",
+    href: "/reviews",
+    label: "Mes reviews",
+    icon: "star",
+    match: (p) => p.startsWith("/reviews"),
+  },
   people: {
     id: "people",
     href: "/people",
@@ -302,7 +317,15 @@ const MENU_GROUPS: { label: string; ids: MobileNavId[] }[] = [
   },
   {
     label: "Suivi & compte",
-    ids: ["calendar", "stats", "people", "notifications", "account", "admin"],
+    ids: [
+      "calendar",
+      "stats",
+      "reviews",
+      "people",
+      "notifications",
+      "account",
+      "admin",
+    ],
   },
 ];
 

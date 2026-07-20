@@ -14,3 +14,4 @@ export * from "./music";
 export * from "./notifications";
 export * from "./import";
 export * from "./social";
+export * from "./reviews";
