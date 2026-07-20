@@ -147,7 +147,6 @@ export type MobileNavId =
   | "reviews"
   | "feed"
   | "profile"
-  | "people"
   | "notifications"
   | "settings"
   | "admin";
@@ -311,7 +310,7 @@ const MENU_GROUPS: { label: string; ids: MobileNavId[] }[] = [
   },
   {
     label: "Suivi",
-    ids: ["calendar", "stats", "reviews", "feed", "people", "notifications"],
+    ids: ["calendar", "stats", "reviews", "feed", "notifications"],
   },
   {
     label: "Compte",
