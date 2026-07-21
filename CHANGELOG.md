@@ -12,6 +12,8 @@ this point beyond the roadmap phases already documented in the README.
 
 ## [Unreleased]
 
+## 0.6.0 — P4: activity feed & comments
+
 - CI pipeline (GitHub Actions): lint/build/test/e2e/Docker build gates,
   Dependabot, CodeQL, Codecov.
 - Social follow-ups (P4): private profiles now return a locked identity-only
@@ -32,6 +34,19 @@ this point beyond the roadmap phases already documented in the README.
   across all four domains. A home feed at `/feed` (people you follow, binge-
   aggregated), a "Dernières activités" teaser on the home page, and a "Activité
   récente" timeline on each profile (visibility-filtered by the Activité facet).
+- Comments (P4, increment 4): threaded discussion (flat + one reply level) on
+  any work and, for series/anime, their individual seasons/episodes. Automatic
+  spoiler masking compares the viewer's own progress (per-episode for
+  season/episode targets, a binary "finished" gate for movies/games/books —
+  albums are never masked, nothing to spoil), stacked with a manual tag; the
+  reader can reveal a single blurred comment or turn off masking for the whole
+  thread. Fixed 6-emote reactions (one per user/comment), @mentions and reply
+  notifications reuse the existing `Notification` model and respect blocks.
+  Reports are a polymorphic `Report` model (comments today, reviews/profiles
+  ready for later) feeding a new `/admin/reports` moderation queue with a
+  pending-count badge. The web app's first shared data-fetching layer,
+  `@tanstack/svelte-query`, drives the thread (5s poll on the open thread only,
+  paused when the tab is backgrounded).
 
 ## 0.5.0 — P4: social foundation & reviews
 

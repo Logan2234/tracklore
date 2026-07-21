@@ -22,6 +22,13 @@ pnpm --filter @tracklore/web check             # svelte-check (type errors in .s
 
 # Self-host stack
 docker compose up -d --build                   # db + api + web (see .env.example)
+
+# Mobile access (phone testing) — docker-compose.ngrok.yml is an OVERRIDE, not
+# standalone: it has no build context of its own (only `environment:` blocks +
+# the Caddy service), so it ALWAYS needs the base file passed alongside it.
+docker compose -f docker-compose.yml -f docker-compose.ngrok.yml up -d --build
+ngrok start tracklore --config ngrok.yml        # separate process; domain from ngrok.yml (gitignored,
+                                                # copy from the example, needs NGROK_DOMAIN in .env too)
 ```
 
 **Git hooks (husky, `.husky/`):** `pre-commit` runs `lint-staged`, which
@@ -94,11 +101,50 @@ state via Svelte 5 runes in `src/lib/auth.svelte.ts` (runes mode is forced in
 `svelte.config.js`). API base URL comes from `PUBLIC_API_URL`
 (`$env/dynamic/public`, resolved at server start, Docker-friendly).
 
+**Data fetching**: most of the app still calls the domain-specific `request()`
+wrappers under `src/lib/api/*` directly from a component's own `$effect` +
+local `$state` — no shared cache. `@tanstack/svelte-query` (`src/lib/queryClient.ts`,
+`QueryClientProvider` wraps the tree in the root `+layout.svelte`) was added
+for the comments feature (P4) as the app's first shared query/cache layer —
+`CommentThread.svelte` is the reference implementation (`createInfiniteQuery`
+
+- `createMutation` + `queryClient.invalidateQueries`, `refetchInterval: 5000`
+  with `refetchIntervalInBackground: false` rather than a websocket). Reach for
+  it, not another local-`$state` pattern, when a mutation needs to invalidate
+  data shown in more than one component.
+
 **Docker:** both Dockerfiles copy _all_ workspace `package.json` manifests plus
 `tsconfig.base.json` before `pnpm install --frozen-lockfile` (a frozen install
 validates every importer in the lockfile). The api image runs
 `prisma migrate deploy` at boot; the web runtime image ships only the
 self-contained adapter-node `build/` output.
+
+**P4 social** (`apps/api/src/social/`, `reviews/`, `comments/`, `reports/`) is
+gated behind the runtime `SOCIAL_ENABLED` env var, read by the web via
+`GET /api/config` (`RuntimeConfigModule`) — self-host defaults to off, the
+hosted/ngrok build turns it on (see `docker-compose.ngrok.yml`).
+`SocialFeatureGuard` 404s every social route when off (never 403 — a
+self-host install shouldn't even advertise the surface exists). Visibility is
+two layers: `User.profileAccess` (PUBLIC/PRIVATE/GHOST) acts as a cap over a
+per-domain, per-facet `VisibilitySetting` audience (LIBRARY/ACTIVITY facets,
+NONE/FRIENDS/PUBLIC). `Follow` is the single relationship primitive (a
+directed edge; friend = reciprocal _accepted_ follow, no separate friendship
+table); `Block` is a hard cut, checked via `VisibilityService.getRelation`
+everywhere a viewer reads another user's data. Content stays split into three
+registers, never conflated: private `notes` (plain text, never leaves the
+server), `Review` (mandatory /10 rating + optional text + explicit audience —
+the single source of truth for ratings; entry `rating` columns were removed
+and are now projected from `Review` via `ReviewService.getRatings`), and
+`Comment` (threaded discussion, flat + one reply level, soft-deleted with a
+tombstone so replies stay attached — targets a work or, for TV/anime, one of
+its seasons/episodes via `CommentTargetType`, the same shape as
+`ReviewTargetType`). `ActivityEvent` is a materialised, append-only feed log —
+two read surfaces, the home feed (followed users' milestones only) and a
+user's full profile timeline. `Report` is a polymorphic moderation target
+(`ReportTargetType`: COMMENT/REVIEW/USER, only COMMENT actually wired yet)
+feeding the admin `/admin/reports` queue. GHOST ("Figurant", ghost/incognito
+mode) is modelled in the enum but not yet behaviourally implemented — planned,
+not built.
 
 ## Conventions
 
@@ -106,18 +152,23 @@ self-contained adapter-node `build/` output.
 - New runtime deps: prefer none — HTTP calls use global `fetch` (Node ≥22).
   pnpm blocks dependency build scripts by default: allow-list them in
   `pnpm-workspace.yaml` (`allowBuilds`) when a package needs a postinstall.
+  One exception so far: `@tanstack/svelte-query` (web only) — see "Data
+  fetching" above. Ask before adding another.
 - Roadmap (README): P1 MVP ✓ → P1.5 TV Time import ✓ → P2 push/Capacitor
   (Web Push ✓, self-host mobile access via PWA + ngrok ✓, native Capacitor
-  TODO) → **P3 games & books (current)** → P4 social → P5 hosted/entitlements.
+  TODO) → P3 games & books ✓ → **P4 social (current — increments 0-4 shipped:
+  foundation/visibility, reviews, activity feed, comments; increments 5
+  "listes" and 6 "Figurant/ghost mode" still open)** → P5 hosted/entitlements.
   Don't implement ahead of the current phase.
 - Versioning: no tagged releases, so the `version` field (root + every
   `apps/*`/`packages/*` package.json, kept in lockstep) is the only record of
   where the app stands. Bump the minor version whenever a roadmap phase above
   advances or a domain/module ships (e.g. 0.1.0 → P1, 0.2.0 → P1.5, 0.3.0 →
-  P2, 0.4.0 → P3 under way with media/games/books/music built); patch for
-  smaller fixes/polish once past 1.0. Add an entry to `CHANGELOG.md` for
-  each version bump. Reserve 1.0.0 for when the roadmap reaches P4+ and the
-  app is stable enough to call finished, not a specific commit.
+  P2, 0.4.0 → P3, 0.5.0 → P4 foundation/reviews, 0.6.0 → P4 activity
+  feed/comments); patch for smaller fixes/polish once past 1.0. Add an entry
+  to `CHANGELOG.md` for each version bump. Reserve 1.0.0 for when the roadmap
+  reaches P4+ and the app is stable enough to call finished, not a specific
+  commit.
 - Mobile: the app installs as a PWA. `docker-compose.ngrok.yml` + `Caddyfile`
   put web+api behind one origin and expose it via ngrok for phone access (set
   `NGROK_DOMAIN` in `.env`); see README "Mobile access". Single-user; a 2nd
