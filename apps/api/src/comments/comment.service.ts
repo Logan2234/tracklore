@@ -122,12 +122,23 @@ export class CommentService {
   }
 
   async create(authorId: string, body: CreateCommentBody): Promise<CommentDto> {
-    let parent: { id: string; authorId: string } | null = null;
+    let parent: {
+      id: string;
+      authorId: string;
+      targetType: CommentTargetType;
+      targetId: string;
+    } | null = null;
 
     if (body.parentId) {
       const found = await this.prisma.comment.findUnique({
         where: { id: body.parentId },
-        select: { id: true, authorId: true, parentId: true },
+        select: {
+          id: true,
+          authorId: true,
+          parentId: true,
+          targetType: true,
+          targetId: true,
+        },
       });
 
       if (!found || found.parentId) {
@@ -136,15 +147,20 @@ export class CommentService {
         throw new NotFoundException("Parent comment not found");
       }
 
-      parent = { id: found.id, authorId: found.authorId };
+      parent = found;
     }
 
-    const spoilerTag = body.targetType === "MUSIC" ? false : !!body.spoilerTag;
+    // A reply always targets whatever its parent targets — trusting the
+    // client's own targetType/targetId here would let a reply's masking rules
+    // (e.g. MUSIC, never masked) diverge from the thread it actually lives in.
+    const targetType = parent?.targetType ?? body.targetType;
+    const targetId = parent?.targetId ?? body.targetId;
+    const spoilerTag = targetType === "MUSIC" ? false : !!body.spoilerTag;
 
     const row = await this.prisma.comment.create({
       data: {
-        targetType: body.targetType,
-        targetId: body.targetId,
+        targetType,
+        targetId,
         parentId: body.parentId ?? null,
         authorId,
         text: body.text,
@@ -195,6 +211,18 @@ export class CommentService {
     if (!existing || existing.deletedAt) throw new NotFoundException();
     if (existing.authorId !== authorId) throw new ForbiddenException();
 
+    await this.softDelete(id);
+  }
+
+  /** Admin takedown (moderation): same tombstone, no ownership check. */
+  async adminRemove(id: string): Promise<void> {
+    const existing = await this.prisma.comment.findUnique({ where: { id } });
+    if (!existing || existing.deletedAt) throw new NotFoundException();
+
+    await this.softDelete(id);
+  }
+
+  private async softDelete(id: string): Promise<void> {
     await this.prisma.comment.update({
       where: { id },
       data: { text: null, deletedAt: new Date() },

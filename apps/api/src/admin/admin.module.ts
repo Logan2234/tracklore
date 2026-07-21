@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module";
 import { BooksModule } from "../books/books.module";
 import { CatalogModule } from "../catalog/catalog.module";
+import { CommentsModule } from "../comments/comments.module";
 import { GamesModule } from "../games/games.module";
 import { JobsModule } from "../jobs/jobs.module";
 import { MailModule } from "../mail/mail.module";
@@ -37,6 +38,7 @@ import { BackupService } from "./backup.service";
     SecurityModule,
     UsersModule,
     ReportsModule,
+    CommentsModule,
   ],
   controllers: [
     AdminSystemController,

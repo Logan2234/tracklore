@@ -39,6 +39,21 @@ export class ReportService {
     return this.prisma.report.count({ where: { status: "PENDING" } });
   }
 
+  async findOne(
+    id: string,
+  ): Promise<{ targetType: ReportTargetType; targetId: string } | null> {
+    const report = await this.prisma.report.findUnique({
+      where: { id },
+      select: { targetType: true, targetId: true },
+    });
+    return report
+      ? {
+          targetType: report.targetType as ReportTargetType,
+          targetId: report.targetId,
+        }
+      : null;
+  }
+
   async list(
     status: "PENDING" | "RESOLVED" | "DISMISSED" | undefined,
     cursor?: string,

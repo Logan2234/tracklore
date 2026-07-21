@@ -9,6 +9,7 @@ function make(
       create: jest.fn(),
       count: jest.fn().mockResolvedValue(0),
       findMany: jest.fn().mockResolvedValue([]),
+      findUnique: jest.fn().mockResolvedValue(null),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       ...overrides.report,
     },
@@ -111,6 +112,27 @@ describe("ReportService.list — target resolution", () => {
     });
     const page = await svc.list(undefined);
     expect(page.reports[0].target?.label).toContain("commentaire supprimé");
+  });
+});
+
+describe("ReportService.findOne", () => {
+  it("returns the target type/id for takedown routing", async () => {
+    const { svc } = make({
+      report: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ targetType: "COMMENT", targetId: "c1" }),
+      },
+    });
+    await expect(svc.findOne("r1")).resolves.toEqual({
+      targetType: "COMMENT",
+      targetId: "c1",
+    });
+  });
+
+  it("returns null for an unknown report", async () => {
+    const { svc } = make();
+    await expect(svc.findOne("missing")).resolves.toBeNull();
   });
 });
 

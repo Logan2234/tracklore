@@ -26,7 +26,9 @@
     type CommentTargetType,
   } from "@tracklore/shared";
   import Avatar from "./Avatar.svelte";
+  import ConfirmationModal from "./ConfirmationModal.svelte";
   import Icon from "./Icon.svelte";
+  import Modal from "./Modal.svelte";
 
   let {
     targetType,
@@ -91,6 +93,9 @@
   let reactingId = $state<string | null>(null);
   let revealed = $state<Set<string>>(new Set());
   let ignoreSpoilers = $state(false);
+  let confirmDeleteId = $state<string | null>(null);
+  let reportingId = $state<string | null>(null);
+  let reportReason = $state("");
 
   const allowSpoilerTag = $derived(targetType !== "MUSIC");
 
@@ -136,9 +141,10 @@
     editingId = null;
   }
 
-  async function remove(id: string) {
-    if (!confirm("Supprimer ce commentaire ?")) return;
-    await deleteMut.mutateAsync(id);
+  async function confirmRemove() {
+    if (!confirmDeleteId) return;
+    await deleteMut.mutateAsync(confirmDeleteId);
+    confirmDeleteId = null;
   }
 
   async function react(id: string, emote: CommentEmote) {
@@ -146,14 +152,20 @@
     await reactMut.mutateAsync({ id, emote });
   }
 
-  async function report(id: string) {
-    const reason =
-      prompt("Pourquoi signaler ce commentaire ? (optionnel)") ?? undefined;
+  function openReport(id: string) {
+    reportingId = id;
+    reportReason = "";
+  }
+
+  async function submitReport() {
+    if (!reportingId) return;
     try {
-      await reportComment(id, reason || undefined);
+      await reportComment(reportingId, reportReason.trim() || undefined);
       toast.success("Commentaire signalé.");
     } catch {
       toast.error("Le signalement a échoué.");
+    } finally {
+      reportingId = null;
     }
   }
 </script>
@@ -206,7 +218,7 @@
       <p class="text-dim text-sm italic">Commentaire supprimé.</p>
     {:else if c.masked && !revealed.has(c.id) && !ignoreSpoilers}
       <button
-        class="text-dim flex w-full items-center gap-2 rounded-lg py-2 text-sm blur-[6px] transition hover:blur-none"
+        class="border-border text-dim hover:text-fg hover:border-accent/40 flex w-full items-center gap-2 rounded-lg border border-dashed py-2 text-sm transition"
         onclick={() => reveal(c.id)}>
         <Icon name="eye-off" class="h-4 w-4 shrink-0" />
         Spoiler potentiel — cliquer pour afficher
@@ -272,12 +284,15 @@
             {#if c.author.id === auth.user?.id}
               <button class="hover:text-fg" onclick={() => startEdit(c)}
                 >Éditer</button>
-              <button class="hover:text-fg" onclick={() => remove(c.id)}
-                >Supprimer</button>
+              <button
+                class="hover:text-fg"
+                onclick={() => (confirmDeleteId = c.id)}>
+                Supprimer
+              </button>
             {:else}
               <button
                 class="hover:text-fg flex items-center gap-1"
-                onclick={() => report(c.id)}>
+                onclick={() => openReport(c.id)}>
                 <Icon name="flag" class="h-3.5 w-3.5" />
                 Signaler
               </button>
@@ -376,3 +391,30 @@
     {/if}
   {/if}
 </section>
+
+{#if confirmDeleteId}
+  <ConfirmationModal
+    title="Supprimer le commentaire"
+    message="Le texte sera retiré ; les réponses éventuelles resteront visibles."
+    confirmLabel="Supprimer"
+    danger
+    busy={deleteMut.isPending}
+    onConfirm={confirmRemove}
+    onCancel={() => (confirmDeleteId = null)} />
+{/if}
+
+{#if reportingId}
+  <Modal title="Signaler ce commentaire" onclose={() => (reportingId = null)}>
+    <textarea
+      class="input min-h-20 resize-y text-sm"
+      placeholder="Raison du signalement (optionnel)…"
+      maxlength={500}
+      bind:value={reportReason}></textarea>
+    <div class="mt-3 flex justify-end gap-2">
+      <button class="btn btn-ghost" onclick={() => (reportingId = null)}>
+        Annuler
+      </button>
+      <button class="btn btn-primary" onclick={submitReport}>Signaler</button>
+    </div>
+  </Modal>
+{/if}

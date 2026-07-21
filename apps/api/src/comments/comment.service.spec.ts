@@ -305,6 +305,38 @@ describe("CommentService.create", () => {
     );
   });
 
+  it("always targets whatever its parent targets, ignoring a mismatched body", async () => {
+    const { svc, prisma } = make({
+      comment: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "root1",
+          authorId: "parentAuthor",
+          parentId: null,
+          targetType: "MEDIA",
+          targetId: "m1",
+        }),
+        create: jest
+          .fn()
+          .mockResolvedValue(
+            commentRow({ id: "reply1", parentId: "root1", authorId: "viewer" }),
+          ),
+      },
+    });
+    await svc.create("viewer", {
+      // A client claiming MUSIC (never masked) on a reply to a MEDIA thread
+      // must not be able to smuggle a different target than its parent.
+      targetType: "MUSIC" as never,
+      targetId: "al1",
+      parentId: "root1",
+      text: "thanks",
+    });
+    expect(prisma.comment.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ targetType: "MEDIA", targetId: "m1" }),
+      }),
+    );
+  });
+
   it("does not notify a reply when the parent author blocked the commenter", async () => {
     const { svc, notifications } = make({
       comment: {
@@ -372,6 +404,36 @@ describe("CommentService.remove", () => {
         data: expect.objectContaining({ text: null }),
       }),
     );
+  });
+});
+
+describe("CommentService.adminRemove", () => {
+  it("soft-deletes without checking ownership (moderation takedown)", async () => {
+    const { svc, prisma } = make({
+      comment: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue(commentRow({ authorId: "someone-else" })),
+      },
+    });
+    await svc.adminRemove("c1");
+    expect(prisma.comment.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "c1" },
+        data: expect.objectContaining({ text: null }),
+      }),
+    );
+  });
+
+  it("404s on an already-deleted comment", async () => {
+    const { svc } = make({
+      comment: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue(commentRow({ deletedAt: new Date() })),
+      },
+    });
+    await expect(svc.adminRemove("c1")).rejects.toThrow();
   });
 });
 

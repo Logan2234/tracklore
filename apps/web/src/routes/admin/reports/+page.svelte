@@ -3,10 +3,12 @@
     ApiError,
     getAdminReports,
     resolveAdminReport,
+    takeDownAdminReport,
   } from "$lib/api/client";
   import { adminReports } from "$lib/admin-reports.svelte";
   import Banner from "$lib/components/Banner.svelte";
   import Combobox from "$lib/components/Combobox.svelte";
+  import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import PageHeader from "$lib/components/PageHeader.svelte";
   import type { ReportDto, ReportStatus } from "@tracklore/shared";
@@ -76,6 +78,24 @@
       error = err instanceof ApiError ? err.message : "L'action a échoué";
     } finally {
       resolvingId = null;
+    }
+  }
+
+  let confirmTakeDownId = $state<string | null>(null);
+
+  async function confirmTakeDown() {
+    if (!confirmTakeDownId) return;
+    const id = confirmTakeDownId;
+    resolvingId = id;
+    try {
+      await takeDownAdminReport(id);
+      reports = reports.filter((r) => r.id !== id);
+      void adminReports.refresh();
+    } catch (err) {
+      error = err instanceof ApiError ? err.message : "L'action a échoué";
+    } finally {
+      resolvingId = null;
+      confirmTakeDownId = null;
     }
   }
 
@@ -149,7 +169,15 @@
           </p>
 
           {#if r.status === "PENDING"}
-            <div class="mt-2 flex gap-2">
+            <div class="mt-2 flex flex-wrap gap-2">
+              {#if r.targetType === "COMMENT" && r.target}
+                <button
+                  class="btn btn-danger btn-sm"
+                  disabled={resolvingId === r.id}
+                  onclick={() => (confirmTakeDownId = r.id)}>
+                  Retirer le contenu
+                </button>
+              {/if}
               <button
                 class="btn btn-primary btn-sm"
                 disabled={resolvingId === r.id}
@@ -178,3 +206,14 @@
     {/if}
   {/if}
 </div>
+
+{#if confirmTakeDownId}
+  <ConfirmationModal
+    title="Retirer le contenu signalé"
+    message="Le commentaire est retiré (tombstone, les réponses restent visibles) et le signalement passe à Résolu."
+    confirmLabel="Retirer"
+    danger
+    busy={resolvingId === confirmTakeDownId}
+    onConfirm={confirmTakeDown}
+    onCancel={() => (confirmTakeDownId = null)} />
+{/if}

@@ -373,10 +373,10 @@
         {#if entry}
           <ReviewsSection
             targetType="BOOK"
-            targetId={id}
+            targetId={entry.book.id}
             workTitle={detail.title} />
           {#if appConfig.socialEnabled}
-            <CommentThread targetType="BOOK" targetId={id} />
+            <CommentThread targetType="BOOK" targetId={entry.book.id} />
           {/if}
         {/if}
       </div>

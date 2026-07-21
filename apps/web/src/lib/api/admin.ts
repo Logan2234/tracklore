@@ -294,3 +294,8 @@ export function resolveAdminReport(
     body: { status },
   });
 }
+
+/** Removes the reported content (comment tombstone) and resolves the report. */
+export function takeDownAdminReport(id: string): Promise<void> {
+  return request(`/admin/reports/${id}/take-down`, { method: "POST" });
+}
