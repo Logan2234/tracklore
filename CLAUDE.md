@@ -102,16 +102,16 @@ state via Svelte 5 runes in `src/lib/auth.svelte.ts` (runes mode is forced in
 (`$env/dynamic/public`, resolved at server start, Docker-friendly).
 
 **Data fetching**: most of the app still calls the domain-specific `request()`
-wrappers under `src/lib/api/*` directly from a component's own `$effect` +
-local `$state` — no shared cache. `@tanstack/svelte-query` (`src/lib/queryClient.ts`,
-`QueryClientProvider` wraps the tree in the root `+layout.svelte`) was added
-for the comments feature (P4) as the app's first shared query/cache layer —
-`CommentThread.svelte` is the reference implementation (`createInfiniteQuery`
-
-- `createMutation` + `queryClient.invalidateQueries`, `refetchInterval: 5000`
-  with `refetchIntervalInBackground: false` rather than a websocket). Reach for
-  it, not another local-`$state` pattern, when a mutation needs to invalidate
-  data shown in more than one component.
+wrappers under `src/lib/api/*` directly from a component's own `$effect` and
+local `$state` — no shared cache. `@tanstack/svelte-query`
+(`src/lib/queryClient.ts`, `QueryClientProvider` wraps the tree in the root
+`+layout.svelte`) was added for the comments feature (P4) as the app's first
+shared query/cache layer — `CommentThread.svelte` is the reference
+implementation (`createInfiniteQuery`, `createMutation`,
+`queryClient.invalidateQueries`, `refetchInterval: 5000` with
+`refetchIntervalInBackground: false` rather than a websocket). Reach for it,
+not another local-`$state` pattern, when a mutation needs to invalidate data
+shown in more than one component.
 
 **Docker:** both Dockerfiles copy _all_ workspace `package.json` manifests plus
 `tsconfig.base.json` before `pnpm install --frozen-lockfile` (a frozen install
