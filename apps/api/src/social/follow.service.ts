@@ -65,6 +65,20 @@ export class FollowService {
       throw new BadRequestException("Cannot follow yourself");
     }
 
+    const viewer = await this.prisma.user.findUnique({
+      where: { id: viewerId },
+      select: { profileAccess: true },
+    });
+
+    if (
+      viewer?.profileAccess === ProfileAccess.GHOST &&
+      target.profileAccess !== ProfileAccess.PUBLIC
+    ) {
+      throw new BadRequestException(
+        "Un Figurant ne peut suivre que des profils publics",
+      );
+    }
+
     // If the viewer blocked the target, they must unblock first.
     const blocking = await this.prisma.block.findUnique({
       where: {

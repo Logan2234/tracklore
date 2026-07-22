@@ -10,7 +10,9 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import {
+  type CommentCountDto,
   type CommentDto,
   type CommentPageDto,
   CommentTargetType,
@@ -47,6 +49,16 @@ export class CommentController {
     private readonly reports: ReportService,
   ) {}
 
+  @Get(":type/:id/count")
+  count(
+    @Param("type") type: string,
+    @Param("id") id: string,
+  ): Promise<CommentCountDto> {
+    return this.comments
+      .count(parseTarget(type), id)
+      .then((count) => ({ count }));
+  }
+
   @Get(":type/:id")
   list(
     @CurrentUser() user: JwtPayload,
@@ -57,6 +69,10 @@ export class CommentController {
     return this.comments.list(user.sub, parseTarget(type), id, cursor);
   }
 
+  // Anti-flood: comments (unlike reviews) have no per-target cap, so without a
+  // per-user throttle a single person could post unbounded top-level comments
+  // and replies back-to-back.
+  @Throttle({ default: { limit: 1, ttl: 5_000 } })
   @Post()
   create(
     @CurrentUser() user: JwtPayload,

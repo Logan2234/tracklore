@@ -65,10 +65,22 @@ describe("ReviewService.listForTarget", () => {
     expect(out.map((r) => r.id)).toEqual(["r"]);
   });
 
-  it("omits GHOST authors", async () => {
+  it("shows a GHOST author's review under their derived pseudonym", async () => {
+    const svc = make(
+      [review("r", { id: "ghost", profileAccess: "GHOST" }, "FRIENDS")],
+      {},
+    );
+    const out = await svc.listForTarget(VIEWER, "MEDIA" as never, "m1");
+    expect(out).toHaveLength(1);
+    expect(out[0].author.anonymized).toBe(true);
+    expect(out[0].author.username).toBe("");
+    expect(out[0].author.displayName).toMatch(/^Figurant n°\d{6}$/u);
+  });
+
+  it("still hides a GHOST author's review from someone they blocked", async () => {
     const svc = make(
       [review("r", { id: "ghost", profileAccess: "GHOST" }, "PUBLIC")],
-      {},
+      { ghost: relation({ blockedByTarget: true }) },
     );
     expect(
       await svc.listForTarget(VIEWER, "MEDIA" as never, "m1"),

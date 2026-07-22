@@ -13,11 +13,13 @@ import {
 } from "class-validator";
 import type {
   Domain,
+  ListVisibility,
   ReviewVisibility,
   UpdateUserRequestDto,
 } from "@tracklore/shared";
 import {
   Domain as DomainValues,
+  ListVisibility as ListVisibilityValues,
   ReviewVisibility as ReviewVisibilityValues,
 } from "@tracklore/shared";
 
@@ -73,4 +75,8 @@ export class UpdateUserDto implements UpdateUserRequestDto {
   @IsOptional()
   @IsIn(Object.values(ReviewVisibilityValues))
   defaultReviewVisibility?: ReviewVisibility;
+
+  @IsOptional()
+  @IsIn(Object.values(ListVisibilityValues))
+  defaultListVisibility?: ListVisibility;
 }

@@ -12,6 +12,43 @@ this point beyond the roadmap phases already documented in the README.
 
 ## [Unreleased]
 
+## 0.7.0 — P4: lists & Figurant mode
+
+- Figurant/ghost mode (P4, increment 6 — closes P4): switching a profile to
+  `GHOST` now applies immediately — incoming followers removed, outgoing
+  follows/requests toward non-public profiles cancelled, shared lists
+  downgraded to Privé, all behind a confirmation modal showing live counts of
+  what will change. A Figurant's comments and reviews are shown to others
+  under a derived pseudonym ("Figurant n°…", computed at render, nothing
+  stored) instead of being hidden — a Figurant can no longer follow a
+  non-public profile, share a list, or be `@mentioned`. Moderation
+  (`/admin/reports`) still sees the real identity.
+- Lists (P4, increment 5): cross-domain `List`/`ListItem` (a work can be a
+  movie, game, book or album, mixed freely in one list), two kinds — `RANKED`
+  (drag-to-reorder "top 10", numbered) and `COLLECTION` (unordered grid).
+  Own explicit visibility (Privé/Amis/Public, defaults to Privé) — like
+  reviews, never inherited from the per-domain visibility facets; managing
+  your own lists works with social off, only reading someone else's shared
+  list is social-gated. An "Ajouter à une liste" button on every work page
+  opens a checklist of your lists; a "Listes" carousel appears on profiles
+  (own and others', visibility-filtered) linking out to `/lists` to manage
+  your own. New activity events for list creation, items added (aggregated)
+  and sharing a previously-private list. Drag-and-drop reordering uses a new
+  dependency, `svelte-dnd-action`, also adopted for reordering the mobile
+  bottom-bar shortcuts in Réglages (previously up/down buttons).
+- Fixed: a movie/series' comment thread stayed permanently spoiler-blurred
+  even after finishing it — `LibraryEntry.finishedAt` was never set
+  automatically (only an explicit field nothing in the UI ever sent). It now
+  tracks completion automatically (movies follow the status flip to
+  "vu", series/anime follow watch progress reaching the end).
+  - Activity feed: episode watches now emit an aggregated `PROGRESS` event,
+    and logging a game/book replay emits `REWATCHED` (both were modelled but
+    never wired to an emitter).
+- Comments no longer dominate a work's detail page: the thread is now
+  collapsed behind a toggle button showing the comment count, matching how
+  discreet the reviews section is. New comments are rate-limited to one per
+  5 seconds per user.
+
 ## 0.6.0 — P4: activity feed & comments
 
 - CI pipeline (GitHub Actions): lint/build/test/e2e/Docker build gates,

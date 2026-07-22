@@ -11,6 +11,16 @@ export function formatDate(iso: string): string {
   return dateFmt.format(new Date(iso));
 }
 
+const fullDateTimeFmt = new Intl.DateTimeFormat("fr-FR", {
+  dateStyle: "long",
+  timeStyle: "short",
+});
+
+/** Full date + time, e.g. "3 janvier 2026 à 14:32" — for a relative-time hover tooltip. */
+export function formatFullDateTime(iso: string): string {
+  return fullDateTimeFmt.format(new Date(iso));
+}
+
 const relFmt = new Intl.RelativeTimeFormat("fr-FR", { numeric: "auto" });
 
 /**

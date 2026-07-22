@@ -9,11 +9,21 @@ export interface ActivityActorDto {
 /** Granularity of an activity event's target, per the feed matrix. */
 export type ActivityLevel = "WORK" | "SEASON" | "EPISODE";
 
+/**
+ * An event's feed domain — the six content `Domain`s, plus `"LISTS"` for
+ * cross-domain list events (not a real content domain, so not added to the
+ * `Domain` enum itself — a list isn't one of the things `enabledDomains`
+ * toggles). Visibility gating for `"LISTS"` events bypasses the per-domain
+ * facet system entirely (see `ActivityService.filterVisible`) since a list's
+ * own visibility field is what governs it, same as `Review`.
+ */
+export type ActivityDomain = Domain | "LISTS";
+
 /** One activity-feed event (post-visibility), with its target snapshot. */
 export interface ActivityEventDto {
   id: string;
   type: ActivityType;
-  domain: Domain;
+  domain: ActivityDomain;
   /** "MEDIA" | "GAME" | "BOOK" | "MUSIC" — the work's domain, singular. */
   targetType: string;
   level: ActivityLevel;

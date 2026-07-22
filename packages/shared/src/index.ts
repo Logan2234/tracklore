@@ -11,6 +11,7 @@ export * from "./dto/book";
 export * from "./dto/catalog";
 export * from "./dto/game";
 export * from "./dto/library";
+export * from "./dto/list";
 export * from "./dto/music";
 export * from "./dto/data-export";
 export * from "./dto/import";

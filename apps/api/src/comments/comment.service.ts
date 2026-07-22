@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import {
+  type AdminUserCommentDto,
   type CommentDto,
   type CommentEmote,
   type CommentPageDto,
@@ -11,11 +12,13 @@ import {
   type CommentTargetType,
   COMMENT_REACTION_NOTIFY_THRESHOLD,
   NotificationType,
+  ProfileAccess,
   type UserSummaryDto,
 } from "@tracklore/shared";
 import { resolveWorkHref } from "../common/work-href.util";
 import { NotificationService } from "../notifications/notification.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { anonymizeAuthor } from "../social/pseudonym.util";
 import { VisibilityService } from "../social/visibility.service";
 import type { CreateCommentBody } from "./dto/create-comment.dto";
 import type { UpdateCommentBody } from "./dto/update-comment.dto";
@@ -41,6 +44,7 @@ type CommentRow = {
   spoilerTag: boolean;
   edited: boolean;
   deletedAt: Date | null;
+  deletedByAdmin: boolean;
   createdAt: Date;
   updatedAt: Date;
   author: UserSummaryDto;
@@ -55,11 +59,12 @@ export class CommentService {
   ) {}
 
   /**
-   * A page of top-level comments for a target (oldest first, so a thread reads
-   * top-to-bottom), each with its replies attached. Rows from a blocked
-   * relationship (either direction) are dropped after the page is fetched, so
-   * a page can come back smaller than PAGE_SIZE when blocks are involved —
-   * accepted, matches how listForTarget already filters reviews.
+   * A page of top-level comments for a target (newest first, YouTube-style),
+   * each with its replies attached (oldest first, conversation order). Rows
+   * from a blocked relationship (either direction) are dropped after the page
+   * is fetched, so a page can come back smaller than PAGE_SIZE when blocks
+   * are involved — accepted, matches how listForTarget already filters
+   * reviews.
    */
   async list(
     viewerId: string,
@@ -69,7 +74,10 @@ export class CommentService {
   ): Promise<CommentPageDto> {
     const rows = await this.prisma.comment.findMany({
       where: { targetType, targetId, parentId: null },
-      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      // Newest first (YouTube-style) — a fresh comment is visible right away
+      // instead of requiring "load more" clicks through the whole history.
+      // Replies stay oldest-first (conversation order) — see below.
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: PAGE_SIZE + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       include: { author: { select: AUTHOR_SELECT } },
@@ -119,6 +127,41 @@ export class CommentService {
       comments,
       nextCursor: hasMore ? page[page.length - 1].id : null,
     };
+  }
+
+  /** Total comment count (top-level + replies, deleted excluded) for a target. */
+  async count(
+    targetType: CommentTargetType,
+    targetId: string,
+  ): Promise<number> {
+    return this.prisma.comment.count({
+      where: { targetType, targetId, deletedAt: null },
+    });
+  }
+
+  /** Comments authored by a user, for the admin user drawer's "Commentaires" shortcut. */
+  async listByAuthor(authorId: string): Promise<AdminUserCommentDto[]> {
+    const rows = await this.prisma.comment.findMany({
+      where: { authorId, deletedAt: null },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: {
+        id: true,
+        text: true,
+        targetType: true,
+        targetId: true,
+        createdAt: true,
+      },
+    });
+
+    return Promise.all(
+      rows.map(async (r) => ({
+        id: r.id,
+        excerpt: (r.text ?? "").slice(0, EXCERPT_LENGTH),
+        href: await resolveWorkHref(this.prisma, r.targetType, r.targetId),
+        createdAt: r.createdAt.toISOString(),
+      })),
+    );
   }
 
   async create(authorId: string, body: CreateCommentBody): Promise<CommentDto> {
@@ -211,7 +254,7 @@ export class CommentService {
     if (!existing || existing.deletedAt) throw new NotFoundException();
     if (existing.authorId !== authorId) throw new ForbiddenException();
 
-    await this.softDelete(id);
+    await this.softDelete(id, false);
   }
 
   /** Admin takedown (moderation): same tombstone, no ownership check. */
@@ -219,13 +262,13 @@ export class CommentService {
     const existing = await this.prisma.comment.findUnique({ where: { id } });
     if (!existing || existing.deletedAt) throw new NotFoundException();
 
-    await this.softDelete(id);
+    await this.softDelete(id, true);
   }
 
-  private async softDelete(id: string): Promise<void> {
+  private async softDelete(id: string, byAdmin: boolean): Promise<void> {
     await this.prisma.comment.update({
       where: { id },
-      data: { text: null, deletedAt: new Date() },
+      data: { text: null, deletedAt: new Date(), deletedByAdmin: byAdmin },
     });
   }
 
@@ -337,12 +380,18 @@ export class CommentService {
       parentId: row.parentId,
       text: row.deletedAt ? null : row.text,
       deleted: !!row.deletedAt,
+      deletedByAdmin: row.deletedByAdmin,
       edited: row.edited,
       spoilerTag: row.spoilerTag,
       masked,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
-      author: row.author,
+      author: anonymizeAuthor(
+        row.author,
+        viewerId,
+        row.targetType,
+        row.targetId,
+      ),
       reactions: reactionMap.get(row.id) ?? [],
       myReaction: myReactionMap.get(row.id) ?? null,
       replies: [],
@@ -435,8 +484,12 @@ export class CommentService {
     const mentions = extractMentions(row.text ?? "");
     if (mentions.length === 0) return;
 
+    // Figurants are unaddressable: excluded so they're never mentioned/notified.
     const mentioned = await this.prisma.user.findMany({
-      where: { username: { in: mentions } },
+      where: {
+        username: { in: mentions },
+        profileAccess: { not: ProfileAccess.GHOST },
+      },
       select: { id: true },
     });
 

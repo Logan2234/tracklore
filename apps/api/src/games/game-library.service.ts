@@ -351,6 +351,16 @@ export class GameLibraryService {
       where: { id: entryId },
       include: ENTRY_INCLUDE,
     });
+
+    await this.activity.emit({
+      userId,
+      type: ActivityType.REWATCHED,
+      domain: "GAMES",
+      targetType: ReviewTargetType.GAME,
+      targetId: entry.gameItemId,
+      homeFeed: true,
+    });
+
     return toEntryDto(
       entry,
       await this.reviews.getRating(

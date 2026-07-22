@@ -7,9 +7,12 @@ import { GamesModule } from "../games/games.module";
 import { JobsModule } from "../jobs/jobs.module";
 import { MailModule } from "../mail/mail.module";
 import { MusicModule } from "../music/music.module";
+import { ListsModule } from "../lists/list.module";
 import { NotificationModule } from "../notifications/notification.module";
 import { ReportsModule } from "../reports/reports.module";
+import { ReviewsModule } from "../reviews/reviews.module";
 import { SecurityModule } from "../security/security.module";
+import { SocialModule } from "../social/social.module";
 import { UsersModule } from "../users/users.module";
 import { AdminCacheController } from "./admin-cache.controller";
 import { AdminEmailsController } from "./admin-emails.controller";
@@ -39,6 +42,9 @@ import { BackupService } from "./backup.service";
     UsersModule,
     ReportsModule,
     CommentsModule,
+    ReviewsModule,
+    SocialModule,
+    ListsModule,
   ],
   controllers: [
     AdminSystemController,

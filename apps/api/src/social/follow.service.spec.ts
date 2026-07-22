@@ -5,10 +5,12 @@ import { FollowService } from "./follow.service";
 import type { VisibilityService } from "./visibility.service";
 
 // Minimal prisma stub: user.findUnique dispatches on whether it's queried by
-// username (target/relationship lookups) or id (actor lookup for the payload).
+// username (target/relationship lookups) or id (viewer's own profileAccess,
+// or the actor lookup for a notification payload).
 function makeService(opts: {
   targetAccess: "PUBLIC" | "PRIVATE";
   upsertStatus?: "ACCEPTED" | "PENDING";
+  viewerAccess?: "PUBLIC" | "PRIVATE" | "GHOST";
 }) {
   const create = jest.fn().mockResolvedValue(undefined);
 
@@ -20,6 +22,12 @@ function makeService(opts: {
             return Promise.resolve({
               id: "target",
               profileAccess: opts.targetAccess,
+            });
+          }
+
+          if (where.id === "viewer") {
+            return Promise.resolve({
+              profileAccess: opts.viewerAccess ?? "PUBLIC",
             });
           }
 
@@ -75,6 +83,27 @@ describe("FollowService notifications", () => {
         type: NotificationType.FOLLOW_REQUEST,
         dedupeKey: "request:viewer",
       }),
+    );
+  });
+
+  it("rejects a Figurant viewer following a non-public profile", async () => {
+    const { service } = makeService({
+      targetAccess: "PRIVATE",
+      viewerAccess: "GHOST",
+    });
+    await expect(service.follow("viewer", "alice")).rejects.toThrow(
+      "Un Figurant ne peut suivre que des profils publics",
+    );
+  });
+
+  it("lets a Figurant viewer follow a public profile", async () => {
+    const { service, create } = makeService({
+      targetAccess: "PUBLIC",
+      viewerAccess: "GHOST",
+    });
+    await service.follow("viewer", "alice");
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ type: NotificationType.FOLLOW }),
     );
   });
 

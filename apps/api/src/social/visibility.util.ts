@@ -75,6 +75,27 @@ export function canAccessProfile(
 }
 
 /**
+ * Whether the viewer may see content carrying its own explicit visibility
+ * (PRIVATE/FRIENDS/PUBLIC) rather than a per-domain VisibilitySetting facet —
+ * the pattern `Review` and `List` both use (their own scope, never inherited
+ * from the facet system). `access` still caps FRIENDS/PUBLIC the same way
+ * `resolveFacet` does: a PRIVATE profile can't expose PUBLIC content to a
+ * stranger.
+ */
+export function resolveOwnVisibility(
+  ownVisibility: "PRIVATE" | "FRIENDS" | "PUBLIC",
+  access: ProfileAccess,
+  relation: ViewerRelation,
+): boolean {
+  if (relation.isSelf) return true;
+  if (relation.blocking || relation.blockedByTarget) return false;
+  if (access === ProfileAccess.GHOST) return false;
+  if (ownVisibility === "PRIVATE") return false;
+  if (ownVisibility === "PUBLIC") return access === ProfileAccess.PUBLIC;
+  return computeIsFriend(access, relation.following, relation.followsYou);
+}
+
+/**
  * Whether the viewer may see one passive-content facet, given its stored
  * audience. `profileAccess` acts as a cap: a PRIVATE profile can't expose a
  * facet to PUBLIC, so a PUBLIC setting is lowered to FRIENDS.

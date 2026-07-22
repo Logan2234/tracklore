@@ -92,10 +92,16 @@
     </button>
   {/if}
 
-  <img
-    src={images[index].src}
-    alt={images[index].alt}
-    class="pointer-events-none relative max-h-[88vh] max-w-[92vw] object-contain" />
+  <button
+    type="button"
+    class="relative cursor-zoom-out"
+    aria-label="Réduire l'image"
+    onclick={onClose}>
+    <img
+      src={images[index].src}
+      alt={images[index].alt}
+      class="pointer-events-none max-h-[88vh] max-w-[92vw] object-contain" />
+  </button>
 
   {#if hasMultiple}
     <div class="absolute bottom-5 left-1/2 flex -translate-x-1/2 gap-1.5">

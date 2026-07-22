@@ -32,12 +32,14 @@ export class AdminReportsController {
   list(
     @Query("status") status?: string,
     @Query("cursor") cursor?: string,
+    @Query("reporterId") reporterId?: string,
   ): Promise<ReportPageDto> {
     return this.reports.list(
       STATUSES.includes(status as ReportStatus)
         ? (status as "PENDING" | "RESOLVED" | "DISMISSED")
         : undefined,
       cursor,
+      reporterId,
     );
   }
 

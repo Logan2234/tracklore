@@ -1,4 +1,10 @@
-import type { Domain, ReviewVisibility, Role } from "../enums";
+import type {
+  Domain,
+  ListVisibility,
+  ProfileAccess,
+  ReviewVisibility,
+  Role,
+} from "../enums";
 
 export interface RegisterRequestDto {
   email: string;
@@ -54,6 +60,10 @@ export interface UserDto {
   bio: string | null;
   /** Default audience applied to new reviews (social). See `ReviewVisibility`. */
   defaultReviewVisibility: ReviewVisibility;
+  /** Default audience applied to new lists (social). See `ListVisibility`. */
+  defaultListVisibility: ListVisibility;
+  /** Profile access mode (social): PUBLIC/PRIVATE/GHOST ("Figurant"). */
+  profileAccess: ProfileAccess;
   /** ISO datetime the account was created — shown as "member since". */
   createdAt: string;
 }
@@ -74,6 +84,8 @@ export interface UpdateUserRequestDto {
   bio?: string | null;
   /** Default audience for new reviews (social). */
   defaultReviewVisibility?: ReviewVisibility;
+  /** Default audience for new lists (social). */
+  defaultListVisibility?: ListVisibility;
 }
 
 export interface UpdateUsernameRequestDto {

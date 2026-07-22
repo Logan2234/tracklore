@@ -15,6 +15,7 @@ import { GamesModule } from "./games/games.module";
 import { HealthModule } from "./health/health.module";
 import { ImportModule } from "./import/import.module";
 import { LibraryModule } from "./library/library.module";
+import { ListsModule } from "./lists/list.module";
 import { MailModule } from "./mail/mail.module";
 import { MusicModule } from "./music/music.module";
 import { NotificationModule } from "./notifications/notification.module";
@@ -48,6 +49,7 @@ import { UsersModule } from "./users/users.module";
     SocialModule,
     ReviewsModule,
     CommentsModule,
+    ListsModule,
   ],
   controllers: [],
   providers: [

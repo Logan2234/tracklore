@@ -372,6 +372,16 @@ export class BookLibraryService {
       where: { id: entryId },
       include: ENTRY_INCLUDE,
     });
+
+    await this.activity.emit({
+      userId,
+      type: ActivityType.REWATCHED,
+      domain: "BOOKS",
+      targetType: ReviewTargetType.BOOK,
+      targetId: entry.bookItemId,
+      homeFeed: true,
+    });
+
     return toEntryDto(
       entry,
       await this.reviews.getRating(

@@ -39,4 +39,7 @@ export type IconName =
   | "pin-filled"
   | "message"
   | "flag"
-  | "reply";
+  | "reply"
+  | "list"
+  | "grip"
+  | "edit";

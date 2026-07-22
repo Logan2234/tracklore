@@ -1,0 +1,19 @@
+import type { ListItemTargetType } from "@tracklore/shared";
+import { IsIn, IsString } from "class-validator";
+
+// Work-level only — narrower than ReviewTargetType/CommentTargetType, whose
+// enum values are reused here, but SEASON/EPISODE aren't valid list items.
+const LIST_ITEM_TARGET_TYPES: ListItemTargetType[] = [
+  "MEDIA",
+  "GAME",
+  "BOOK",
+  "MUSIC",
+];
+
+export class AddListItemBody {
+  @IsIn(LIST_ITEM_TARGET_TYPES)
+  targetType!: ListItemTargetType;
+
+  @IsString()
+  targetId!: string;
+}

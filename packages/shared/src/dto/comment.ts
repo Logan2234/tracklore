@@ -17,6 +17,8 @@ export interface CommentDto {
   /** Null once deleted — the client renders a tombstone instead. */
   text: string | null;
   deleted: boolean;
+  /** Whether the tombstone came from an admin takedown rather than the author. */
+  deletedByAdmin: boolean;
   edited: boolean;
   /** Raw author-set tag, for prefilling the edit form. */
   spoilerTag: boolean;
@@ -42,6 +44,11 @@ export interface CommentPageDto {
   nextCursor: string | null;
 }
 
+/** Total comment count (top-level + replies) for a target, for a collapsed toggle badge. */
+export interface CommentCountDto {
+  count: number;
+}
+
 export interface CreateCommentDto {
   targetType: CommentTargetType;
   targetId: string;
@@ -53,4 +60,12 @@ export interface CreateCommentDto {
 export interface UpdateCommentDto {
   text: string;
   spoilerTag?: boolean;
+}
+
+/** One comment authored by a user, for the admin user drawer's "Commentaires" shortcut. */
+export interface AdminUserCommentDto {
+  id: string;
+  excerpt: string;
+  href: string | null;
+  createdAt: string;
 }

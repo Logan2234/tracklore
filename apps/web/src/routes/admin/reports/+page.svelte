@@ -11,6 +11,7 @@
   import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import PageHeader from "$lib/components/PageHeader.svelte";
+  import UserSelector from "$lib/components/UserSelector.svelte";
   import type { ReportDto, ReportStatus } from "@tracklore/shared";
 
   const STATUS_LABELS: Record<ReportStatus, string> = {
@@ -33,6 +34,7 @@
   ];
 
   let activeStatus = $state<ReportStatus>("PENDING");
+  let reporterId = $state<string | null>(null);
   let reports = $state<ReportDto[]>([]);
   let cursor = $state<string | null>(null);
   let hasMore = $state(false);
@@ -52,6 +54,7 @@
       const res = await getAdminReports({
         status: activeStatus,
         cursor: reset ? undefined : (cursor ?? undefined),
+        reporterId: reporterId ?? undefined,
       });
       reports = reset ? res.reports : [...reports, ...res.reports];
       cursor = res.nextCursor;
@@ -65,6 +68,11 @@
 
   function selectStatus(status: ReportStatus) {
     activeStatus = status;
+    void load(true);
+  }
+
+  function selectReporter(id: string | null) {
+    reporterId = id;
     void load(true);
   }
 
@@ -116,6 +124,11 @@
       options={STATUS_OPTIONS}
       values={[activeStatus]}
       onChange={(v) => selectStatus((v[0] as ReportStatus) || "PENDING")} />
+    <UserSelector
+      value={reporterId}
+      label="Tous les auteurs"
+      searchPlaceholder="Filtrer par auteur du signalement…"
+      onChange={selectReporter} />
   </div>
 
   {#if error}
@@ -148,15 +161,22 @@
           </div>
 
           {#if r.target}
-            {#if r.target.href}
-              <a
-                href={r.target.href}
-                class="mt-1.5 block text-sm hover:underline">
+            <p class="mt-1.5 text-sm">
+              {#if r.target.targetOwnerUsername}
+                <a
+                  href="/admin/users?q={r.target.targetOwnerUsername}"
+                  class="font-semibold hover:underline"
+                  >@{r.target.targetOwnerUsername}</a>
+                {#if r.target.label}·
+                {/if}
+              {/if}
+              {#if r.target.href}
+                <a href={r.target.href} class="hover:underline"
+                  >{r.target.label}</a>
+              {:else}
                 {r.target.label}
-              </a>
-            {:else}
-              <p class="mt-1.5 text-sm">{r.target.label}</p>
-            {/if}
+              {/if}
+            </p>
           {:else}
             <p class="text-dim mt-1.5 text-sm italic">
               Cible introuvable (supprimée).
@@ -164,7 +184,10 @@
           {/if}
 
           <p class="text-dim mt-1 text-xs">
-            Signalé par @{r.reporter.username}
+            Signalé par
+            <a
+              href="/admin/users?q={r.reporter.username}"
+              class="hover:underline">@{r.reporter.username}</a>
             {#if r.reason}· « {r.reason} »{/if}
           </p>
 

@@ -1,9 +1,11 @@
 <script lang="ts">
+  import { dndzone } from "svelte-dnd-action";
   import { updateMe } from "$lib/api/auth";
   import { ApiError } from "$lib/api/core";
   import { auth } from "$lib/auth.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import { isDomainEnabled } from "$lib/domains";
+  import type { MobileDestination } from "$lib/navigation";
   import {
     DEFAULT_BOTTOM_SHORTCUTS,
     resolveBottomShortcuts,
@@ -31,6 +33,11 @@
   );
   const selectedIds = $derived(selected.map((d) => d.id));
 
+  // Writable derived: mirrors `selected`, but svelte-dnd-action reassigns it
+  // directly mid-drag; it resets to `selected` whenever that changes
+  // underneath (e.g. after a save, or a domain being disabled elsewhere).
+  let dragItems: MobileDestination[] = $derived(selected);
+
   // Pinnable destinations not already in the bar.
   const choices = $derived(
     resolveShortcutChoices(gate).filter((d) => !selectedIds.includes(d.id)),
@@ -52,12 +59,13 @@
     }
   }
 
-  function move(index: number, dir: -1 | 1) {
-    const next = [...selectedIds];
-    const j = index + dir;
-    if (j < 0 || j >= next.length) return;
-    [next[index], next[j]] = [next[j], next[index]];
-    void save(next);
+  function handleDndConsider(e: CustomEvent<{ items: MobileDestination[] }>) {
+    dragItems = e.detail.items;
+  }
+
+  function handleDndFinalize(e: CustomEvent<{ items: MobileDestination[] }>) {
+    dragItems = e.detail.items;
+    void save(dragItems.map((d) => d.id));
   }
 
   function remove(id: string) {
@@ -101,11 +109,19 @@
       les pages.
     </p>
 
-    <ul class="divide-border divide-y">
-      {#each selected as item, i (item.id)}
+    <ul
+      class="divide-border divide-y"
+      use:dndzone={{
+        items: dragItems,
+        dragDisabled: saving,
+        flipDurationMs: 150,
+      }}
+      onconsider={handleDndConsider}
+      onfinalize={handleDndFinalize}>
+      {#each dragItems as item (item.id)}
         {@const locked = item.id === "menu"}
         <li class="flex items-center gap-3 py-2.5">
-          <span class="timecode w-5 shrink-0 text-center text-xs">{i + 1}</span>
+          <Icon name="grip" class="text-dim h-4 w-4 shrink-0 cursor-grab" />
           <Icon name={item.icon} class="text-accent h-5 w-5 shrink-0" />
           <span class="min-w-0 flex-1 truncate font-semibold">
             {item.label}
@@ -115,37 +131,19 @@
             {/if}
           </span>
 
-          <div class="flex shrink-0 items-center gap-1">
-            <button
-              type="button"
-              class="hover:bg-surface-2 text-dim grid h-8 w-8 place-items-center rounded-lg transition-colors disabled:pointer-events-none disabled:opacity-30"
-              aria-label="Monter"
-              disabled={saving || i === 0}
-              onclick={() => move(i, -1)}>
-              <Icon name="chevron-left" class="h-4 w-4 rotate-90" />
-            </button>
-            <button
-              type="button"
-              class="hover:bg-surface-2 text-dim grid h-8 w-8 place-items-center rounded-lg transition-colors disabled:pointer-events-none disabled:opacity-30"
-              aria-label="Descendre"
-              disabled={saving || i === selected.length - 1}
-              onclick={() => move(i, 1)}>
-              <Icon name="chevron-left" class="h-4 w-4 rotate-270" />
-            </button>
-            <button
-              type="button"
-              class="hover:bg-danger/10 hover:text-danger text-dim grid h-8 w-8 place-items-center rounded-lg transition-colors disabled:pointer-events-none disabled:opacity-30"
-              aria-label="Retirer"
-              disabled={saving || locked || !canRemove}
-              title={locked
-                ? "« Menu » ne peut pas être retiré."
-                : !canRemove
-                  ? `Au moins ${MIN} raccourcis.`
-                  : undefined}
-              onclick={() => remove(item.id)}>
-              <Icon name="x" class="h-4 w-4" />
-            </button>
-          </div>
+          <button
+            type="button"
+            class="hover:bg-danger/10 hover:text-danger text-dim grid h-8 w-8 shrink-0 place-items-center rounded-lg transition-colors disabled:pointer-events-none disabled:opacity-30"
+            aria-label="Retirer"
+            disabled={saving || locked || !canRemove}
+            title={locked
+              ? "« Menu » ne peut pas être retiré."
+              : !canRemove
+                ? `Au moins ${MIN} raccourcis.`
+                : undefined}
+            onclick={() => remove(item.id)}>
+            <Icon name="x" class="h-4 w-4" />
+          </button>
         </li>
       {/each}
     </ul>

@@ -149,5 +149,20 @@
   {:else if name === "reply"}
     <path d="M10 5 3 12l7 7" />
     <path d="M3 12h9c4 0 8 2 8 7" />
+  {:else if name === "list"}
+    <path d="M9 6h11M9 12h11M9 18h11" />
+    <circle cx="4.5" cy="6" r="1.3" fill="currentColor" stroke="none" />
+    <circle cx="4.5" cy="12" r="1.3" fill="currentColor" stroke="none" />
+    <circle cx="4.5" cy="18" r="1.3" fill="currentColor" stroke="none" />
+  {:else if name === "edit"}
+    <path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3Z" />
+    <path d="M14 6.5 17.5 10" />
+  {:else if name === "grip"}
+    <circle cx="9" cy="6" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="6" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="9" cy="12" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="12" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="9" cy="18" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="18" r="1.2" fill="currentColor" stroke="none" />
   {/if}
 </svg>

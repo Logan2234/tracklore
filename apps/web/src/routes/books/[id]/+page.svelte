@@ -11,6 +11,7 @@
   } from "$lib/api/client";
   import { toCarouselItems } from "$lib/carousel";
   import Banner from "$lib/components/Banner.svelte";
+  import AddToListButton from "$lib/components/AddToListButton.svelte";
   import CommentThread from "$lib/components/CommentThread.svelte";
   import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
   import DetailHeroSkeleton from "$lib/components/DetailHeroSkeleton.svelte";
@@ -261,6 +262,8 @@
               desc={STATUS_DESC}
               activeClass={SEG_ACTIVE}
               onSelect={(status) => patch({ status })} />
+
+            <AddToListButton targetType="BOOK" targetId={entry.book.id} />
 
             <!-- Reading progress: page position, with a bar when the total is known. -->
             <div class="flex flex-col gap-2">

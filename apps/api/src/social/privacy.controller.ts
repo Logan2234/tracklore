@@ -1,5 +1,8 @@
 import { Body, Controller, Get, Patch, UseGuards } from "@nestjs/common";
-import type { VisibilitySettingsDto } from "@tracklore/shared";
+import type {
+  GhostSwitchImpactDto,
+  VisibilitySettingsDto,
+} from "@tracklore/shared";
 import {
   type JwtPayload,
   CurrentUser,
@@ -25,5 +28,10 @@ export class PrivacyController {
     @Body() body: UpdateVisibilitySettingsBody,
   ): Promise<VisibilitySettingsDto> {
     return this.privacy.updateSettings(user.sub, body);
+  }
+
+  @Get("ghost-impact")
+  ghostImpact(@CurrentUser() user: JwtPayload): Promise<GhostSwitchImpactDto> {
+    return this.privacy.previewGhostSwitch(user.sub);
   }
 }

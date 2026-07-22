@@ -20,6 +20,7 @@
   import OwnershipField from "$lib/components/OwnershipField.svelte";
   import Poster from "$lib/components/Poster.svelte";
   import RelatedCarousel from "$lib/components/RelatedCarousel.svelte";
+  import AddToListButton from "$lib/components/AddToListButton.svelte";
   import ReviewsSection from "$lib/components/ReviewsSection.svelte";
   import SegmentedStatusControl from "$lib/components/SegmentedStatusControl.svelte";
   import TrackingPanel from "$lib/components/TrackingPanel.svelte";
@@ -303,6 +304,8 @@
               desc={STATUS_DESC}
               activeClass={SEG_ACTIVE}
               onSelect={(status) => patch({ status })} />
+
+            <AddToListButton targetType="GAME" targetId={entry.game.id} />
 
             <hr class="border-border" />
 

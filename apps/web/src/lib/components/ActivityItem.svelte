@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { formatRelative } from "$lib/format";
   import Avatar from "$lib/components/Avatar.svelte";
+  import RelativeTime from "$lib/components/RelativeTime.svelte";
   import type { ActivityEventDto } from "@tracklore/shared";
 
   let { event }: { event: ActivityEventDto } = $props();
@@ -24,6 +24,14 @@
         return "a noté";
       case "PROGRESS":
         return e.count > 1 ? `a avancé (${e.count})` : "a avancé dans";
+      case "LIST_CREATED":
+        return "a créé une liste";
+      case "LIST_ITEM_ADDED":
+        return e.count > 1
+          ? `a ajouté ${e.count} œuvres à une liste`
+          : "a ajouté une œuvre à une liste";
+      case "LIST_SHARED":
+        return "a partagé une liste";
       default:
         return "a mis à jour";
     }
@@ -62,7 +70,7 @@
         </span>
         <span aria-hidden="true">·</span>
       {/if}
-      <span class="timecode">{formatRelative(event.createdAt)}</span>
+      <RelativeTime iso={event.createdAt} class="timecode" />
     </p>
   </div>
 

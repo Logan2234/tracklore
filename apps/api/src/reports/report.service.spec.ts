@@ -1,3 +1,5 @@
+import type { JobRunService } from "../jobs/job-run.service";
+import type { MailService } from "../mail/mail.service";
 import type { PrismaService } from "../prisma/prisma.service";
 import { ReportService } from "./report.service";
 
@@ -15,16 +17,25 @@ function make(
     },
     comment: {
       findUnique: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
       ...overrides.comment,
     },
-    user: { findUnique: jest.fn().mockResolvedValue(null), ...overrides.user },
+    user: {
+      findUnique: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
+      ...overrides.user,
+    },
     mediaItem: { findUnique: jest.fn().mockResolvedValue(null) },
     gameItem: { findUnique: jest.fn().mockResolvedValue(null) },
     bookItem: { findUnique: jest.fn().mockResolvedValue(null) },
     musicItem: { findUnique: jest.fn().mockResolvedValue(null) },
   } as unknown as PrismaService;
+  const mail = { sendReportsDigest: jest.fn() } as unknown as MailService;
+  const jobRuns = {
+    record: jest.fn((_key, fn) => fn()),
+  } as unknown as JobRunService;
 
-  return { svc: new ReportService(prisma), prisma };
+  return { svc: new ReportService(prisma, mail, jobRuns), prisma, mail };
 }
 
 describe("ReportService.create", () => {
@@ -75,7 +86,7 @@ describe("ReportService.list — target resolution", () => {
       },
     });
     const page = await svc.list(undefined);
-    expect(page.reports[0].target?.label).toContain("spammer");
+    expect(page.reports[0].target?.targetOwnerUsername).toBe("spammer");
     expect(page.reports[0].target?.label).toContain("this is spam");
   });
 
@@ -156,5 +167,73 @@ describe("ReportService.resolve", () => {
         }),
       }),
     );
+  });
+});
+
+describe("ReportService.list — reporterId filter", () => {
+  it("adds reporterId to the where clause when provided", async () => {
+    const { svc, prisma } = make();
+    await svc.list("PENDING", undefined, "reporter1");
+    expect(prisma.report.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { status: "PENDING", reporterId: "reporter1" },
+      }),
+    );
+  });
+
+  it("omits reporterId from the where clause when not provided", async () => {
+    const { svc, prisma } = make();
+    await svc.list("PENDING");
+    expect(prisma.report.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { status: "PENDING" } }),
+    );
+  });
+});
+
+describe("ReportService.listAgainstUser", () => {
+  it("matches reports targeting the user directly or a comment they authored", async () => {
+    const { svc, prisma } = make({
+      comment: { findMany: jest.fn().mockResolvedValue([{ id: "c1" }]) },
+    });
+    await svc.listAgainstUser("user1");
+    expect(prisma.report.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          OR: [
+            { targetType: "USER", targetId: "user1" },
+            { targetType: "COMMENT", targetId: { in: ["c1"] } },
+          ],
+        },
+      }),
+    );
+  });
+});
+
+describe("ReportService.sendDailyDigest", () => {
+  it("sends nothing when there are no pending reports", async () => {
+    const { svc, mail } = make({
+      report: { count: jest.fn().mockResolvedValue(0) },
+    });
+    const sent = await svc.sendDailyDigest();
+    expect(sent).toBe(0);
+    expect(mail.sendReportsDigest).not.toHaveBeenCalled();
+  });
+
+  it("emails every admin the pending count", async () => {
+    const { svc, prisma, mail } = make({
+      report: { count: jest.fn().mockResolvedValue(2) },
+      user: {
+        findMany: jest
+          .fn()
+          .mockResolvedValue([{ email: "a@x.com" }, { email: "b@x.com" }]),
+      },
+    });
+    const sent = await svc.sendDailyDigest();
+    expect(sent).toBe(2);
+    expect(prisma.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { role: "ADMIN" } }),
+    );
+    expect(mail.sendReportsDigest).toHaveBeenCalledWith("a@x.com", 2);
+    expect(mail.sendReportsDigest).toHaveBeenCalledWith("b@x.com", 2);
   });
 });

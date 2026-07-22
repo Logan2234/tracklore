@@ -1,5 +1,6 @@
 import type {
   FollowRequestDto,
+  GhostSwitchImpactDto,
   RelationshipDto,
   SocialProfileDto,
   UpdateVisibilitySettingsDto,
@@ -64,4 +65,9 @@ export function updatePrivacySettings(
   body: UpdateVisibilitySettingsDto,
 ): Promise<VisibilitySettingsDto> {
   return request("/social/me/privacy", { method: "PATCH", body });
+}
+
+/** Live counts of what switching to Figurant mode would immediately clean up. */
+export function getGhostSwitchImpact(): Promise<GhostSwitchImpactDto> {
+  return request("/social/me/privacy/ghost-impact");
 }

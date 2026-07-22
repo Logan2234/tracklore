@@ -20,6 +20,6 @@ import { VisibilityService } from "./visibility.service";
     PrivacyService,
     ActivityService,
   ],
-  exports: [VisibilityService, ActivityService],
+  exports: [VisibilityService, ActivityService, FollowService],
 })
 export class SocialModule {}

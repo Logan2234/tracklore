@@ -35,6 +35,7 @@ function commentRow(over: Partial<Record<string, unknown>> = {}) {
     spoilerTag: false,
     edited: false,
     deletedAt: null,
+    deletedByAdmin: false,
     createdAt: new Date(),
     updatedAt: new Date(),
     author: AUTHOR,
@@ -233,6 +234,46 @@ describe("CommentService.list — spoiler masking", () => {
   });
 });
 
+describe("CommentService.list — Figurant pseudonym", () => {
+  it("replaces a GHOST author's identity for another viewer", async () => {
+    const { svc } = make({
+      comment: {
+        findMany: jest
+          .fn()
+          .mockResolvedValueOnce([
+            commentRow({
+              author: { ...AUTHOR, id: "ghost1", profileAccess: "GHOST" },
+            }),
+          ])
+          .mockResolvedValueOnce([]),
+      },
+    });
+    const page = await svc.list("viewer", "MEDIA" as never, "m1");
+    expect(page.comments[0].author.anonymized).toBe(true);
+    expect(page.comments[0].author.username).toBe("");
+    expect(page.comments[0].author.displayName).toMatch(/^Figurant n°\d{6}$/u);
+  });
+
+  it("shows the real identity to the Figurant author themself", async () => {
+    const { svc } = make({
+      comment: {
+        findMany: jest
+          .fn()
+          .mockResolvedValueOnce([
+            commentRow({
+              authorId: "ghost1",
+              author: { ...AUTHOR, id: "ghost1", profileAccess: "GHOST" },
+            }),
+          ])
+          .mockResolvedValueOnce([]),
+      },
+    });
+    const page = await svc.list("ghost1", "MEDIA" as never, "m1");
+    expect(page.comments[0].author.anonymized).toBeUndefined();
+    expect(page.comments[0].author.username).toBe("author");
+  });
+});
+
 describe("CommentService.list — blocking", () => {
   it("drops comments from a blocked author", async () => {
     const { svc } = make({
@@ -383,6 +424,30 @@ describe("CommentService.create", () => {
       expect.objectContaining({ userId: "bobId", type: "COMMENT_MENTION" }),
     );
   });
+
+  it("excludes Figurants from mention resolution (unaddressable)", async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const { svc } = make({
+      comment: {
+        create: jest
+          .fn()
+          .mockResolvedValue(commentRow({ text: "hey @ghosty" })),
+      },
+      user: { findMany },
+    });
+    await svc.create(AUTHOR.id, {
+      targetType: "MEDIA" as never,
+      targetId: "m1",
+      text: "hey @ghosty",
+    });
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          profileAccess: { not: "GHOST" },
+        }),
+      }),
+    );
+  });
 });
 
 describe("CommentService.remove", () => {
@@ -405,6 +470,18 @@ describe("CommentService.remove", () => {
       }),
     );
   });
+
+  it("does not flag a self-delete as an admin takedown", async () => {
+    const { svc, prisma } = make({
+      comment: { findUnique: jest.fn().mockResolvedValue(commentRow()) },
+    });
+    await svc.remove(AUTHOR.id, "c1");
+    expect(prisma.comment.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ deletedByAdmin: false }),
+      }),
+    );
+  });
 });
 
 describe("CommentService.adminRemove", () => {
@@ -420,7 +497,7 @@ describe("CommentService.adminRemove", () => {
     expect(prisma.comment.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "c1" },
-        data: expect.objectContaining({ text: null }),
+        data: expect.objectContaining({ text: null, deletedByAdmin: true }),
       }),
     );
   });

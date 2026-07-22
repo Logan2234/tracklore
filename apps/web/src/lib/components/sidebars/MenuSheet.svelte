@@ -8,13 +8,13 @@
   import { page } from "$app/state";
   import { ADMIN_NAV } from "$lib/admin-nav";
   import { auth } from "$lib/auth.svelte";
+  import Drawer from "$lib/components/Drawer.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import { appConfig } from "$lib/config.svelte";
   import { isDomainEnabled } from "$lib/domains";
   import { resolveMenuGroups } from "$lib/navigation";
   import { notifications } from "$lib/notifications.svelte";
   import type { ComponentProps } from "svelte";
-  import { fade, fly } from "svelte/transition";
 
   type IconName = ComponentProps<typeof Icon>["name"];
 
@@ -30,13 +30,6 @@
     }),
   );
 
-  // JS transitions ignore the global prefers-reduced-motion CSS rule, so gate
-  // their duration on the same preference explicitly.
-  const reduced =
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const dur = reduced ? 0 : 220;
-
   function close() {
     open = false;
   }
@@ -47,8 +40,6 @@
     return () => window.removeEventListener("mobile-menu-toggle", handler);
   });
 </script>
-
-<svelte:window onkeydown={(e) => e.key === "Escape" && close()} />
 
 {#snippet tile(dest: {
   href: string;
@@ -90,33 +81,24 @@
 {/snippet}
 
 {#if open}
-  <button
-    class="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden"
-    aria-label="Fermer le menu"
-    onclick={close}
-    transition:fade={{ duration: dur }}></button>
-
-  <aside
-    class="border-border bg-surface fixed inset-x-0 bottom-0 z-50 flex max-h-[88vh] flex-col rounded-t-3xl border-t shadow-2xl md:hidden"
-    transition:fly={{ y: 320, duration: dur, opacity: 1 }}>
-    <!-- Grabber + header -->
-    <div class="shrink-0 px-5 pt-3 pb-2">
-      <div class="bg-border mx-auto mb-4 h-1 w-9 rounded-full"></div>
-      <div class="flex items-center justify-between">
-        <h2 class="font-display text-xl font-extrabold tracking-tight">
-          {inAdmin ? "Administration" : "Menu"}
-        </h2>
-        <button
-          onclick={close}
-          aria-label="Fermer"
-          class="hover:bg-surface-2 text-dim grid h-9 w-9 place-items-center rounded-full">
-          <Icon name="x" class="h-5 w-5" />
-        </button>
-      </div>
+  <Drawer onclose={close} labelledby="menu-sheet-title">
+    <div class="flex shrink-0 items-center justify-between px-5 pt-2 pb-2">
+      <h2
+        id="menu-sheet-title"
+        class="font-display text-xl font-extrabold tracking-tight">
+        {inAdmin ? "Administration" : "Menu"}
+      </h2>
+      <button
+        onclick={close}
+        aria-label="Fermer"
+        class="hover:bg-surface-2 text-dim grid h-9 w-9 place-items-center rounded-full">
+        <Icon name="x" class="h-5 w-5" />
+      </button>
     </div>
 
     <div
-      class="flex-1 overflow-y-auto px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+      data-drawer-scroll
+      class="flex-1 touch-pan-y overflow-y-auto px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
       {#if inAdmin}
         <div class="mt-2 grid grid-cols-3 gap-2.5 sm:grid-cols-4">
           {#each ADMIN_NAV as item (item.href)}
@@ -151,5 +133,5 @@
         {/each}
       {/if}
     </div>
-  </aside>
+  </Drawer>
 {/if}

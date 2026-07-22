@@ -453,6 +453,9 @@ export function toUserDto(user: User): UserDto {
     bio: user.bio,
     defaultReviewVisibility:
       user.defaultReviewVisibility as UserDto["defaultReviewVisibility"],
+    defaultListVisibility:
+      user.defaultListVisibility as UserDto["defaultListVisibility"],
+    profileAccess: user.profileAccess as UserDto["profileAccess"],
     createdAt: user.createdAt.toISOString(),
   };
 }

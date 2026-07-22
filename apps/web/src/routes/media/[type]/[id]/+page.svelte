@@ -9,6 +9,7 @@
     upsertLibraryEntry,
     watchEpisode,
   } from "$lib/api/client";
+  import AddToListButton from "$lib/components/AddToListButton.svelte";
   import Banner from "$lib/components/Banner.svelte";
   import CommentThread from "$lib/components/CommentThread.svelte";
   import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
@@ -437,6 +438,8 @@
               Abandonner
             </button>
           {/if}
+
+          <AddToListButton targetType="MEDIA" targetId={entry.mediaItem.id} />
         </div>
 
         <OwnershipField

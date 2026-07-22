@@ -6,6 +6,8 @@ export interface ReportTargetSummaryDto {
   /** A short excerpt/label — comment text, review text, or a username. */
   label: string;
   href: string | null;
+  /** Username of whoever owns the target (comment author, reported user, list owner) — null for REVIEW (not wired yet). */
+  targetOwnerUsername: string | null;
 }
 
 /** One report in the admin moderation queue. */

@@ -13,6 +13,7 @@ import { ActivityType, type Domain } from "@tracklore/shared";
 import { canonicalExternalId } from "../common/external-id.util";
 import { PrismaService } from "../prisma/prisma.service";
 import { ActivityService } from "../social/activity.service";
+import { anonymizeAuthor } from "../social/pseudonym.util";
 import { computeIsFriend } from "../social/visibility.util";
 import { VisibilityService } from "../social/visibility.service";
 
@@ -369,7 +370,9 @@ export class ReviewService {
   /**
    * Reviews others have written for a target, visible to the viewer. Social-
    * gated at the controller. Filters by each author's relationship and the
-   * review's own audience; GHOST authors are omitted for now.
+   * review's own audience; a Figurant's review is always reachable (their
+   * own audience choice doesn't apply — they have no friends by design) but
+   * shown under their derived pseudonym instead of their real identity.
    */
   async listForTarget(
     viewerId: string,
@@ -392,18 +395,27 @@ export class ReviewService {
         continue;
       }
 
-      if (author.profileAccess === "GHOST") continue;
       const relation = await this.visibility.getRelation(viewerId, author);
       if (relation.blocking || relation.blockedByTarget) continue;
+
       const ok =
-        row.visibility === "PUBLIC"
+        author.profileAccess === "GHOST" ||
+        (row.visibility === "PUBLIC"
           ? author.profileAccess === "PUBLIC"
           : computeIsFriend(
               author.profileAccess,
               relation.following,
               relation.followsYou,
-            );
-      if (ok) visible.push(this.toDto(row, author));
+            ));
+
+      if (ok) {
+        visible.push(
+          this.toDto(
+            row,
+            anonymizeAuthor(author, viewerId, targetType, targetId),
+          ),
+        );
+      }
     }
 
     return visible;

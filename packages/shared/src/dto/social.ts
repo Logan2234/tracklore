@@ -11,6 +11,19 @@ export interface UserSummaryDto {
   username: string;
   displayName: string;
   profileAccess: ProfileAccess;
+  /**
+   * Set when this identity was swapped for a Figurant's derived pseudonym
+   * (comment/review authorship) — `username` is then empty and `displayName`
+   * holds the pseudo, never the real one. Absent/false everywhere else.
+   */
+  anonymized?: boolean;
+}
+
+/** Live counts of what a switch to Figurant mode would immediately affect. */
+export interface GhostSwitchImpactDto {
+  followersToRemove: number;
+  outgoingFollowsToCancel: number;
+  listsToDowngrade: number;
 }
 
 /**

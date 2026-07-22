@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import { Cron } from "@nestjs/schedule";
 import {
   type ReportDto,
   type ReportPageDto,
@@ -7,6 +8,9 @@ import {
   type UserSummaryDto,
 } from "@tracklore/shared";
 import { resolveWorkHref } from "../common/work-href.util";
+import { JOB_KEYS } from "../jobs/job-keys";
+import { JobRunService } from "../jobs/job-run.service";
+import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 const PAGE_SIZE = 20;
@@ -21,7 +25,11 @@ const REPORTER_SELECT = {
 
 @Injectable()
 export class ReportService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mail: MailService,
+    private readonly jobRuns: JobRunService,
+  ) {}
 
   /** Files a report against a polymorphic target. Fire-and-forget from the caller's POV. */
   async create(
@@ -57,9 +65,13 @@ export class ReportService {
   async list(
     status: "PENDING" | "RESOLVED" | "DISMISSED" | undefined,
     cursor?: string,
+    reporterId?: string,
   ): Promise<ReportPageDto> {
     const rows = await this.prisma.report.findMany({
-      where: status ? { status } : undefined,
+      where: {
+        ...(status ? { status } : {}),
+        ...(reporterId ? { reporterId } : {}),
+      },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: PAGE_SIZE + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -104,6 +116,78 @@ export class ReportService {
     if (count === 0) throw new NotFoundException();
   }
 
+  /**
+   * Reports filed against a user: directly (targetType USER) or against a
+   * comment they authored. Reviews/lists aren't covered — no filing UI exists
+   * for those targets yet (see resolveTarget). Not paginated: an admin-drawer
+   * shortcut, not the moderation queue itself.
+   */
+  async listAgainstUser(userId: string): Promise<ReportDto[]> {
+    const authoredCommentIds = await this.prisma.comment.findMany({
+      where: { authorId: userId },
+      select: { id: true },
+    });
+
+    const rows = await this.prisma.report.findMany({
+      where: {
+        OR: [
+          { targetType: "USER", targetId: userId },
+          {
+            targetType: "COMMENT",
+            targetId: { in: authoredCommentIds.map((c) => c.id) },
+          },
+        ],
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 50,
+      include: { reporter: { select: REPORTER_SELECT } },
+    });
+
+    return Promise.all(
+      rows.map(async (r): Promise<ReportDto> => ({
+        id: r.id,
+        targetType: r.targetType as ReportTargetType,
+        targetId: r.targetId,
+        reason: r.reason,
+        status: r.status as ReportDto["status"],
+        createdAt: r.createdAt.toISOString(),
+        resolvedAt: r.resolvedAt?.toISOString() ?? null,
+        reporter: r.reporter as UserSummaryDto,
+        target: await this.resolveTarget(
+          r.targetType as ReportTargetType,
+          r.targetId,
+        ),
+      })),
+    );
+  }
+
+  /** Daily 7h admin-only digest of pending reports. Skipped entirely when there's nothing pending. */
+  @Cron("0 7 * * *")
+  async sendDailyDigest(): Promise<number> {
+    return this.jobRuns.record(
+      JOB_KEYS.REPORTS_DIGEST,
+      () => this.runDailyDigest(),
+      (sent) =>
+        sent > 0 ? `Envoyé à ${sent} admin(s)` : "Aucun signalement en attente",
+    );
+  }
+
+  private async runDailyDigest(): Promise<number> {
+    const pending = await this.pendingCount();
+    if (pending === 0) return 0;
+
+    const admins = await this.prisma.user.findMany({
+      where: { role: "ADMIN" },
+      select: { email: true },
+    });
+
+    await Promise.all(
+      admins.map((a) => this.mail.sendReportsDigest(a.email, pending)),
+    );
+
+    return admins.length;
+  }
+
   private async resolveTarget(
     targetType: ReportTargetType,
     targetId: string,
@@ -124,12 +208,15 @@ export class ReportService {
         ? "(commentaire supprimé)"
         : (comment.text ?? "").slice(0, EXCERPT_LENGTH);
       return {
-        label: `@${comment.author.username} — ${excerpt}`,
+        // No "@username — " prefix: the client renders the owner's username as
+        // its own clickable link (targetOwnerUsername), not embedded in text.
+        label: excerpt,
         href: await resolveWorkHref(
           this.prisma,
           comment.targetType,
           comment.targetId,
         ),
+        targetOwnerUsername: comment.author.username,
       };
     }
 
@@ -139,11 +226,32 @@ export class ReportService {
         select: { username: true },
       });
       if (!user) return null;
-      return { label: `@${user.username}`, href: `/u/${user.username}` };
+      return {
+        label: "Profil utilisateur",
+        href: `/u/${user.username}`,
+        targetOwnerUsername: user.username,
+      };
+    }
+
+    if (targetType === "LIST") {
+      const list = await this.prisma.list.findUnique({
+        where: { id: targetId },
+        select: { title: true, user: { select: { username: true } } },
+      });
+      if (!list) return null;
+      return {
+        label: list.title,
+        href: `/lists/${targetId}`,
+        targetOwnerUsername: list.user.username,
+      };
     }
 
     // REVIEW: no reporting UI wired to reviews yet (P4 backlog) — resolve
     // generically so the queue still renders if one is ever filed.
-    return { label: `review:${targetId}`, href: null };
+    return {
+      label: `review:${targetId}`,
+      href: null,
+      targetOwnerUsername: null,
+    };
   }
 }

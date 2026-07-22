@@ -113,17 +113,31 @@
         {#each othersReviews as review (review.id)}
           <li class="card p-3">
             <div class="flex items-center gap-3">
-              <a href="/u/{review.author.username}" class="shrink-0">
-                <Avatar seed={review.author.username} size={32} />
-              </a>
-              <a href="/u/{review.author.username}" class="min-w-0 flex-1">
-                <p class="truncate text-sm font-semibold hover:underline">
-                  {review.author.displayName}
-                </p>
-                <p class="timecode truncate text-xs">
-                  @{review.author.username}
-                </p>
-              </a>
+              {#if review.author.anonymized}
+                <!-- Seeded on the derived pseudonym, never the real id — a
+                     stable seed would let the same identicon resurface across
+                     unrelated works and quietly de-anonymize the author. -->
+                <span class="shrink-0">
+                  <Avatar seed={review.author.displayName} size={32} />
+                </span>
+                <div class="min-w-0 flex-1">
+                  <p class="timecode truncate text-sm font-semibold">
+                    {review.author.displayName}
+                  </p>
+                </div>
+              {:else}
+                <a href="/u/{review.author.username}" class="shrink-0">
+                  <Avatar seed={review.author.username} size={32} />
+                </a>
+                <a href="/u/{review.author.username}" class="min-w-0 flex-1">
+                  <p class="truncate text-sm font-semibold hover:underline">
+                    {review.author.displayName}
+                  </p>
+                  <p class="timecode truncate text-xs">
+                    @{review.author.username}
+                  </p>
+                </a>
+              {/if}
               <span
                 class="bg-accent/15 text-accent shrink-0 rounded-md px-2.5 py-1 font-mono font-bold tabular-nums">
                 {review.rating}<span class="text-accent/60 text-xs">/10</span>

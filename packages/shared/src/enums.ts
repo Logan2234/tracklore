@@ -80,6 +80,12 @@ export const ActivityType = {
   FAVORITED: "FAVORITED",
   /** Published or updated a review. */
   REVIEWED: "REVIEWED",
+  /** Created a new list. */
+  LIST_CREATED: "LIST_CREATED",
+  /** Added one or more works to a list. */
+  LIST_ITEM_ADDED: "LIST_ITEM_ADDED",
+  /** A list's visibility moved from PRIVATE to FRIENDS/PUBLIC. */
+  LIST_SHARED: "LIST_SHARED",
 } as const;
 export type ActivityType = (typeof ActivityType)[keyof typeof ActivityType];
 
@@ -393,7 +399,7 @@ export const COMMENT_EMOTE_DISPLAY: Record<CommentEmote, string> = {
 };
 
 /** Max length of a comment's text (frontend + backend DTO). */
-export const COMMENT_TEXT_MAX_LENGTH = 1000;
+export const COMMENT_TEXT_MAX_LENGTH = 500;
 
 /** How many reactions on one comment trigger the aggregated notification. */
 export const COMMENT_REACTION_NOTIFY_THRESHOLD = 10;
@@ -407,6 +413,7 @@ export const ReportTargetType = {
   COMMENT: "COMMENT",
   REVIEW: "REVIEW",
   USER: "USER",
+  LIST: "LIST",
 } as const;
 export type ReportTargetType =
   (typeof ReportTargetType)[keyof typeof ReportTargetType];
@@ -418,3 +425,27 @@ export const ReportStatus = {
   DISMISSED: "DISMISSED",
 } as const;
 export type ReportStatus = (typeof ReportStatus)[keyof typeof ReportStatus];
+
+/**
+ * A list's kind: RANKED shows explicit rank order (drag-to-reorder, "top
+ * 10"), COLLECTION is an unordered grid. Same storage (items + position)
+ * either way — the front adapts its rendering per kind.
+ */
+export const ListKind = {
+  RANKED: "RANKED",
+  COLLECTION: "COLLECTION",
+} as const;
+export type ListKind = (typeof ListKind)[keyof typeof ListKind];
+
+/**
+ * A list's own explicit audience — mirrors Review's own-scope pattern, not
+ * the per-domain VisibilitySetting facets (a list isn't tied to one domain).
+ * Unlike ReviewVisibility, PRIVATE exists here: a list defaults to it.
+ */
+export const ListVisibility = {
+  PRIVATE: "PRIVATE",
+  FRIENDS: "FRIENDS",
+  PUBLIC: "PUBLIC",
+} as const;
+export type ListVisibility =
+  (typeof ListVisibility)[keyof typeof ListVisibility];

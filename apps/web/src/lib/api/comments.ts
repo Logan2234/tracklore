@@ -1,10 +1,20 @@
 import type {
+  CommentCountDto,
   CommentDto,
   CommentEmote,
   CommentPageDto,
   CommentTargetType,
 } from "@tracklore/shared";
 import { request } from "./core";
+
+export function getCommentCount(
+  targetType: CommentTargetType,
+  targetId: string,
+): Promise<CommentCountDto> {
+  return request(
+    `/comments/${targetType}/${encodeURIComponent(targetId)}/count`,
+  );
+}
 
 export function getComments(
   targetType: CommentTargetType,

@@ -6,6 +6,7 @@
     getProfile,
     getUserFollowers,
     getUserFollowing,
+    getUserLists,
     logout,
     unblockUser,
     unfollowUser,
@@ -14,11 +15,18 @@
   import { auth } from "$lib/auth.svelte";
   import Avatar from "$lib/components/Avatar.svelte";
   import AvatarLightbox from "$lib/components/AvatarLightbox.svelte";
+  import Carousel from "$lib/components/Carousel.svelte";
   import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
   import Icon from "$lib/components/Icon.svelte";
+  import ListCoverGrid from "$lib/components/ListCoverGrid.svelte";
+  import ListFormModal from "$lib/components/ListFormModal.svelte";
   import Modal from "$lib/components/Modal.svelte";
   import ProfileActivity from "$lib/components/ProfileActivity.svelte";
+  import ProfileReviews from "$lib/components/ProfileReviews.svelte";
+  import { appConfig } from "$lib/config.svelte";
   import type {
+    ListDto,
+    MyListDto,
     RelationshipDto,
     SocialProfileDto,
     UserSummaryDto,
@@ -66,6 +74,40 @@
 
   let rel = $derived<RelationshipDto | null>(profile?.relationship ?? null);
 
+  // Shared/public lists visible to the viewer — social-gated (own-visibility
+  // per list, see ListService.listForUser), so only fetched when enabled.
+  let lists = $state<MyListDto[]>([]);
+  $effect(() => {
+    const name = username;
+    lists = [];
+    if (!appConfig.socialEnabled) return;
+    getUserLists(name)
+      .then((r) => (lists = r))
+      .catch(() => (lists = []));
+  });
+
+  // Own view: a "+" create tile always trails the list — a stranger only
+  // ever sees the plain list previews (or nothing, hiding the section). The
+  // "Tout voir" tile isn't part of this scrollable set at all: on desktop
+  // it's rendered as a fixed element to the left of the carousel, on mobile
+  // it's replaced by a "Gérer" link next to the section heading.
+  type ListTile =
+    | { kind: "create"; key: "create" }
+    | { kind: "list"; key: string; list: MyListDto };
+  const listTiles = $derived<ListTile[]>(
+    rel?.isSelf
+      ? [
+          ...lists.map((l): ListTile => ({ kind: "list", key: l.id, list: l })),
+          { kind: "create", key: "create" },
+        ]
+      : lists.map((l): ListTile => ({ kind: "list", key: l.id, list: l })),
+  );
+
+  let creatingList = $state(false);
+  function handleListCreated(list: ListDto) {
+    lists = [{ ...list, itemCount: 0, previewImageUrls: [] }, ...lists];
+  }
+
   let memberSince = $derived(
     profile
       ? new Intl.DateTimeFormat("fr-FR", {
@@ -82,6 +124,15 @@
     if (rel.requested) return "Demande envoyée";
     return profile.profileAccess === "PRIVATE" ? "Demander à suivre" : "Suivre";
   });
+
+  // A Figurant can only follow public profiles — hide the affordance rather
+  // than let them hit the backend's rejection on a private/other target.
+  let ghostCantFollow = $derived(
+    auth.user?.profileAccess === "GHOST" &&
+      profile?.profileAccess !== "PUBLIC" &&
+      !rel?.following &&
+      !rel?.requested,
+  );
 
   function applyRelationship(next: RelationshipDto) {
     if (!profile) return;
@@ -313,14 +364,16 @@
                 Débloquer
               </button>
             {:else}
-              <button
-                class="btn {rel.following || rel.requested
-                  ? 'btn-ghost'
-                  : 'btn-primary'}"
-                disabled={busy}
-                onclick={toggleFollow}>
-                {followLabel}
-              </button>
+              {#if !ghostCantFollow}
+                <button
+                  class="btn {rel.following || rel.requested
+                    ? 'btn-ghost'
+                    : 'btn-primary'}"
+                  disabled={busy}
+                  onclick={toggleFollow}>
+                  {followLabel}
+                </button>
+              {/if}
               <button
                 class="btn btn-ghost"
                 disabled={busy}
@@ -368,6 +421,69 @@
         </svelte:element>
       {/each}
     </section>
+
+    {#if appConfig.socialEnabled && listTiles.length > 0}
+      <section class="mt-10">
+        <div class="mb-3 flex items-center justify-between">
+          <h2 class="font-display text-xl font-bold">Listes</h2>
+          {#if rel?.isSelf && lists.length > 0}
+            <a
+              href="/lists"
+              class="text-dim hover:text-accent flex items-center gap-1 text-sm font-semibold md:hidden">
+              Gérer
+              <Icon name="chevron-right" class="h-4 w-4" />
+            </a>
+          {/if}
+        </div>
+        <div class="flex items-stretch gap-4">
+          {#if rel?.isSelf && lists.length > 0}
+            <a href="/lists" class="mt-2 hidden w-28 shrink-0 sm:w-32 md:block">
+              <div
+                class="card hover:border-accent text-dim hover:text-accent flex aspect-2/3 flex-col items-center justify-center gap-1.5 transition-colors">
+                <Icon name="list" class="h-6 w-6" />
+                <span class="text-xs font-semibold">Tout voir</span>
+              </div>
+            </a>
+          {/if}
+          <div class="min-w-0 flex-1">
+            <Carousel items={listTiles} keyOf={(item) => item.key}>
+              {#snippet card(item)}
+                {#if item.kind === "create"}
+                  <button
+                    type="button"
+                    onclick={() => (creatingList = true)}
+                    class="w-28 shrink-0 snap-start self-start sm:w-32">
+                    <div
+                      class="card text-dim hover:border-accent hover:text-accent flex aspect-2/3 flex-col items-center justify-center gap-1.5 border-dashed transition-colors">
+                      <Icon name="plus" class="h-6 w-6" />
+                      <span class="text-xs font-semibold">Créer</span>
+                    </div>
+                  </button>
+                {:else}
+                  <a
+                    href="/lists/{item.list.id}"
+                    class="w-28 shrink-0 snap-start sm:w-32">
+                    <div
+                      class="card hover:border-accent overflow-hidden transition-colors">
+                      <ListCoverGrid
+                        images={item.list.previewImageUrls}
+                        title={item.list.title} />
+                    </div>
+                    <p class="mt-1.5 truncate text-xs font-semibold">
+                      {item.list.title}
+                    </p>
+                  </a>
+                {/if}
+              {/snippet}
+            </Carousel>
+          </div>
+        </div>
+      </section>
+    {/if}
+
+    {#if rel?.isSelf}
+      <ProfileReviews />
+    {/if}
 
     <!-- Recent activity (visibility-filtered server-side; self-hides if empty). -->
     <ProfileActivity username={profile.username} />
@@ -431,4 +547,11 @@
   <AvatarLightbox
     seed={profile.username}
     onClose={() => (avatarZoomed = false)} />
+{/if}
+
+{#if creatingList}
+  <ListFormModal
+    defaultVisibility={auth.user?.defaultListVisibility ?? "PRIVATE"}
+    onClose={() => (creatingList = false)}
+    onSaved={handleListCreated} />
 {/if}

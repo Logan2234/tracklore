@@ -48,6 +48,21 @@
     if (ready && auth.isAdmin) void adminReports.refresh();
   });
 
+  // Poll unread notifications + the admin reports badge while the tab is
+  // active, so both update without a full page reload — same idiom as
+  // CommentThread's refetchInterval, just for these two rune stores instead
+  // of a TanStack Query (there's no per-page "enabled" scope for a global
+  // nav badge, so this lives at the root layout).
+  $effect(() => {
+    if (!ready || !auth.isLoggedIn) return;
+    const interval = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void notifications.refresh();
+      if (auth.isAdmin) void adminReports.refresh();
+    }, 20_000);
+    return () => clearInterval(interval);
+  });
+
   // Redirect to /login as soon as we know the user is not authenticated.
   $effect(() => {
     if (

@@ -170,6 +170,12 @@ export class LibraryService {
       include: ENTRY_INCLUDE,
     });
 
+    entry.finishedAt = await this.syncFinishedAt(
+      userId,
+      mediaItem.id,
+      mediaItem.type,
+    );
+
     await this.emitEntryActivity(userId, mediaItem.id, {
       prevStatus: before?.status ?? null,
       nextStatus: entry.status,
@@ -314,6 +320,16 @@ export class LibraryService {
       include: ENTRY_INCLUDE,
     });
 
+    // Only auto-derive when the caller didn't explicitly set finishedAt
+    // themselves (e.g. a future manual-date editor).
+    if (dto.finishedAt === undefined) {
+      entry.finishedAt = await this.syncFinishedAt(
+        userId,
+        entry.mediaItemId,
+        entry.mediaItem.type,
+      );
+    }
+
     await this.emitEntryActivity(userId, entry.mediaItemId, {
       prevStatus: before?.status ?? null,
       nextStatus: entry.status,
@@ -391,6 +407,48 @@ export class LibraryService {
     }
   }
 
+  /**
+   * Keeps `finishedAt` in sync with "has the viewer finished this work":
+   * nothing in the UI sets it directly, but `CommentService.isMasked` reads
+   * it for the work-level spoiler gate on MEDIA-target threads, so without
+   * this a finished movie/series' discussion stays blurred forever. Movies
+   * follow the raw COMPLETED status; series/anime follow watch progress
+   * reaching the end (UP_TO_DATE counts too — everything released has been
+   * seen, even if the show is still airing).
+   */
+  private async syncFinishedAt(
+    userId: string,
+    mediaItemId: string,
+    type: MediaType,
+  ): Promise<Date | null> {
+    const entry = await this.prisma.libraryEntry.findUnique({
+      where: { userId_mediaItemId: { userId, mediaItemId } },
+      select: { status: true, finishedAt: true },
+    });
+    if (!entry) return null;
+
+    let finished: boolean;
+
+    if (type === "MOVIE") {
+      finished = entry.status === "COMPLETED";
+    } else {
+      const progress = await this.computeProgress(userId, mediaItemId);
+      finished =
+        !!progress &&
+        progress.totalEpisodes > 0 &&
+        progress.watchedEpisodes >= progress.totalEpisodes;
+    }
+
+    if (finished === !!entry.finishedAt) return entry.finishedAt;
+
+    const finishedAt = finished ? new Date() : null;
+    await this.prisma.libraryEntry.update({
+      where: { userId_mediaItemId: { userId, mediaItemId } },
+      data: { finishedAt },
+    });
+    return finishedAt;
+  }
+
   /** Persisted seasons/episodes of an entry's media, with the user's watch counts. */
   async getEntryEpisodes(
     userId: string,
@@ -432,6 +490,11 @@ export class LibraryService {
   ): Promise<EpisodeWatchDto> {
     const episode = await this.prisma.episode.findUnique({
       where: { id: episodeId },
+      include: {
+        season: {
+          select: { mediaItemId: true, mediaItem: { select: { type: true } } },
+        },
+      },
     });
 
     if (!episode) {
@@ -449,6 +512,23 @@ export class LibraryService {
         watchedAt: dto.watchedAt ? new Date(dto.watchedAt) : undefined,
       },
     });
+
+    await this.syncFinishedAt(
+      userId,
+      episode.season.mediaItemId,
+      episode.season.mediaItem.type,
+    );
+
+    await this.activity.emit({
+      userId,
+      type: ActivityType.PROGRESS,
+      domain: "MEDIA",
+      targetType: ReviewTargetType.MEDIA,
+      targetId: episode.season.mediaItemId,
+      level: "EPISODE",
+      homeFeed: true,
+    });
+
     return {
       id: watch.id,
       episodeId: watch.episodeId,
@@ -461,12 +541,16 @@ export class LibraryService {
    * Already-watched episodes are skipped so this never inflates rewatch counts.
    */
   async watchSeason(userId: string, seasonId: string): Promise<void> {
+    const season = await this.prisma.season.findUnique({
+      where: { id: seasonId },
+      select: { mediaItemId: true, mediaItem: { select: { type: true } } },
+    });
     const episodes = await this.prisma.episode.findMany({
       where: { seasonId },
       select: { id: true, airDate: true },
     });
 
-    if (episodes.length === 0) {
+    if (!season || episodes.length === 0) {
       throw new NotFoundException("Season not found or has no episodes");
     }
 
@@ -477,6 +561,11 @@ export class LibraryService {
       .filter((e) => !e.airDate || e.airDate <= now)
       .map((e) => e.id);
     await this.markUnwatched(userId, airedIds);
+    await this.syncFinishedAt(
+      userId,
+      season.mediaItemId,
+      season.mediaItem.type,
+    );
   }
 
   /**
@@ -487,7 +576,9 @@ export class LibraryService {
   async watchThrough(userId: string, episodeId: string): Promise<void> {
     const target = await this.prisma.episode.findUnique({
       where: { id: episodeId },
-      include: { season: true },
+      include: {
+        season: { include: { mediaItem: { select: { type: true } } } },
+      },
     });
 
     if (!target) {
@@ -500,31 +591,36 @@ export class LibraryService {
 
     if (target.season.number === 0) {
       await this.markUnwatched(userId, [episodeId]);
-      return;
+    } else {
+      const episodes = await this.prisma.episode.findMany({
+        where: {
+          season: { mediaItemId: target.season.mediaItemId, number: { gt: 0 } },
+        },
+        select: {
+          id: true,
+          number: true,
+          airDate: true,
+          season: { select: { number: true } },
+        },
+      });
+      const now = new Date();
+      const throughIds = episodes
+        .filter(
+          (e) =>
+            (e.season.number < target.season.number ||
+              (e.season.number === target.season.number &&
+                e.number <= target.number)) &&
+            (!e.airDate || e.airDate <= now),
+        )
+        .map((e) => e.id);
+      await this.markUnwatched(userId, throughIds);
     }
 
-    const episodes = await this.prisma.episode.findMany({
-      where: {
-        season: { mediaItemId: target.season.mediaItemId, number: { gt: 0 } },
-      },
-      select: {
-        id: true,
-        number: true,
-        airDate: true,
-        season: { select: { number: true } },
-      },
-    });
-    const now = new Date();
-    const throughIds = episodes
-      .filter(
-        (e) =>
-          (e.season.number < target.season.number ||
-            (e.season.number === target.season.number &&
-              e.number <= target.number)) &&
-          (!e.airDate || e.airDate <= now),
-      )
-      .map((e) => e.id);
-    await this.markUnwatched(userId, throughIds);
+    await this.syncFinishedAt(
+      userId,
+      target.season.mediaItemId,
+      target.season.mediaItem.type,
+    );
   }
 
   /** Create a watch for each of the given episodes the user hasn't watched yet. */
@@ -637,6 +733,13 @@ export class LibraryService {
     const latest = await this.prisma.episodeWatch.findFirst({
       where: { userId, episodeId },
       orderBy: { watchedAt: "desc" },
+      include: {
+        episode: {
+          include: {
+            season: { include: { mediaItem: { select: { type: true } } } },
+          },
+        },
+      },
     });
 
     if (!latest) {
@@ -644,6 +747,11 @@ export class LibraryService {
     }
 
     await this.prisma.episodeWatch.delete({ where: { id: latest.id } });
+    await this.syncFinishedAt(
+      userId,
+      latest.episode.season.mediaItemId,
+      latest.episode.season.mediaItem.type,
+    );
   }
 
   private async assertEntryOwnership(

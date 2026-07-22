@@ -1,8 +1,13 @@
 import { BadRequestException, NotFoundException } from "@nestjs/common";
 import type { AuthService } from "../auth/auth.service";
 import type { JwtPayload } from "../auth/decorators/current-user.decorator";
+import type { CommentService } from "../comments/comment.service";
+import type { ListService } from "../lists/list.service";
 import type { PrismaService } from "../prisma/prisma.service";
+import type { ReportService } from "../reports/report.service";
+import type { ReviewService } from "../reviews/review.service";
 import type { SecurityEventService } from "../security/security-event.service";
+import type { FollowService } from "../social/follow.service";
 import type { DataExportService } from "../users/data-export.service";
 import { AdminUsersController } from "./admin-users.controller";
 
@@ -30,12 +35,25 @@ function makeController() {
   const securityEvents = {
     record: jest.fn(),
   } as unknown as SecurityEventService;
+  const reviews = { listMine: jest.fn() } as unknown as ReviewService;
+  const comments = { listByAuthor: jest.fn() } as unknown as CommentService;
+  const follows = {
+    listFollowers: jest.fn(),
+    listFollowing: jest.fn(),
+  } as unknown as FollowService;
+  const reports = { listAgainstUser: jest.fn() } as unknown as ReportService;
+  const lists = { listMine: jest.fn() } as unknown as ListService;
 
   const controller = new AdminUsersController(
     prisma,
     authService,
     dataExport,
     securityEvents,
+    reviews,
+    comments,
+    follows,
+    reports,
+    lists,
   );
   return { controller, prisma, authService, dataExport, securityEvents };
 }
