@@ -14,6 +14,7 @@ import {
   type ReviewDto,
   type ReviewRevisionDto,
   ReviewTargetType,
+  type ReviewVoteValue,
 } from "@tracklore/shared";
 import {
   type JwtPayload,
@@ -25,6 +26,7 @@ import {
   BatchVisibilityBody,
 } from "./dto/batch-reviews.dto";
 import { UpsertReviewBody } from "./dto/upsert-review.dto";
+import { VoteReviewBody } from "./dto/vote-review.dto";
 import { ReviewService } from "./review.service";
 
 function parseTarget(type: string): ReviewTargetType {
@@ -115,5 +117,26 @@ export class ReviewController {
     @Param("id") id: string,
   ): Promise<ReviewDto[]> {
     return this.reviews.listForTarget(user.sub, parseTarget(type), id);
+  }
+
+  // --- Voting on someone else's review: social-gated, a community action. ---
+
+  @Put(":reviewId/vote")
+  @UseGuards(SocialFeatureGuard)
+  vote(
+    @CurrentUser() user: JwtPayload,
+    @Param("reviewId") reviewId: string,
+    @Body() body: VoteReviewBody,
+  ): Promise<{ score: number; myVote: ReviewVoteValue }> {
+    return this.reviews.vote(user.sub, reviewId, body.value);
+  }
+
+  @Delete(":reviewId/vote")
+  @UseGuards(SocialFeatureGuard)
+  unvote(
+    @CurrentUser() user: JwtPayload,
+    @Param("reviewId") reviewId: string,
+  ): Promise<{ score: number }> {
+    return this.reviews.unvote(user.sub, reviewId);
   }
 }

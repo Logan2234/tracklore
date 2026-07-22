@@ -631,7 +631,9 @@
             Exporter
           </button>
           <a
-            href="/admin/push?email={encodeURIComponent(selected.email)}"
+            href="/admin/communications?tab=push&email={encodeURIComponent(
+              selected.email,
+            )}"
             class="btn btn-ghost btn-sm flex-1 text-center">
             <Icon name="bell" class="mr-1 inline h-3.5 w-3.5" />
             Push test

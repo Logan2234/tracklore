@@ -12,6 +12,46 @@ this point beyond the roadmap phases already documented in the README.
 
 ## [Unreleased]
 
+## 0.8.0 — Reviews: votes & season/episode critiques, admin polish
+
+- Reviews can now be upvoted/downvoted by other users (Reddit-style: one
+  active vote per person, re-voting the same direction removes it). The net
+  score shows on every review, including your own; voting is a social
+  interaction (requires `SOCIAL_ENABLED`) and you can't vote on your own
+  review.
+- A season or episode can now get its own critique (rating + text + audience,
+  votes included) directly from its row in the episodes list — the same
+  "Mes reviews" component already used on the 4 work-detail pages, opened in
+  a discreet icon-triggered modal (same pattern already used for its comment
+  thread).
+- Automatic daily backups (admin "Sauvegarde"): dumps are now persisted to
+  disk (a dedicated Docker volume in self-host) instead of a one-off ad-hoc
+  download, kept as the 7 most recent, listed/downloadable/deletable from the
+  admin page, with a scheduled 3h job (also triggerable on demand from
+  `/admin/jobs`).
+- Admin dashboard redesign ("Poste de contrôle"): a status strip of the 4
+  numbers an admin actually checks at a glance (accounts, services, jobs,
+  backups), each linking to its page, plus every admin destination grouped by
+  concern instead of one flat grid.
+- `/admin/emails` and `/admin/push` merged into a single `/admin/communications`
+  page (two tabs — preview/test-send a template, test/broadcast a push —
+  instead of two separate nav entries for the same admin gesture).
+- Home page redesign: a responsive card-grid dashboard (one card per enabled
+  domain, always shown — even empty, with its own "voir plus" shortcut — so
+  the layout never silently drops a section), a "Bientôt" teaser card for
+  Podcasts/Jeux de société once opted into, and the activity feed teaser
+  folded into the grid instead of sitting above/below it.
+- Fixed: a Figurant's derived pseudonym avatar was seeded on their real,
+  constant user id — the same identicon resurfaced on every thread they
+  posted in even though the displayed pseudonym differed, defeating the
+  point of not being able to correlate their activity across threads. Now
+  seeded on the pseudonym itself (caught by a `frontend-design` pass).
+- Dev/self-host: `WEB_ORIGIN` now accepts a comma-separated list (e.g. to
+  allow both `localhost` and an ngrok tunnel domain at once); the web dev
+  server proxies `/api` to the local API same-origin (mirroring what Caddy
+  does for the Docker build) so testing through an ngrok tunnel no longer
+  requires a cross-origin call to `localhost:3000` at all.
+
 ## 0.7.0 — P4: lists & Figurant mode
 
 - Figurant/ghost mode (P4, increment 6 — closes P4): switching a profile to

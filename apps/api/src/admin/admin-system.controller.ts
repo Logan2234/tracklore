@@ -1,16 +1,19 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
   Query,
 } from "@nestjs/common";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type {
-  AdminBackupDto,
+  AdminBackupFileContentDto,
+  AdminBackupFileDto,
   AdminStatsDto,
   AdminTrendsDto,
   AdminVersionDto,
@@ -46,10 +49,22 @@ export class AdminSystemController {
     return { version };
   }
 
-  /** Full plain-SQL dump of the instance database (pg_dump), for download. */
-  @Get("backup")
-  getBackup(): Promise<AdminBackupDto> {
-    return this.backup.dump();
+  /** Persisted backup dumps on disk (BACKUP_DIR), most recent first — up to 7, pruned by the daily job. */
+  @Get("backup/files")
+  listBackupFiles(): Promise<AdminBackupFileDto[]> {
+    return this.backup.listFiles();
+  }
+
+  /** Full SQL content of one persisted backup, for download. */
+  @Get("backup/files/:id")
+  getBackupFile(@Param("id") id: string): Promise<AdminBackupFileContentDto> {
+    return this.backup.readFile(id);
+  }
+
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Delete("backup/files/:id")
+  async deleteBackupFile(@Param("id") id: string): Promise<void> {
+    await this.backup.deleteFile(id);
   }
 
   /**

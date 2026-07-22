@@ -363,6 +363,18 @@ export type ReviewVisibility =
 export const REVIEW_TEXT_MAX_LENGTH = 2000;
 
 /**
+ * A vote cast on someone else's review — Reddit-style, one active vote per
+ * (user, review). Never shown attributed to a voter; only the aggregate
+ * score and the viewer's own vote are ever surfaced.
+ */
+export const ReviewVoteValue = {
+  UP: "UP",
+  DOWN: "DOWN",
+} as const;
+export type ReviewVoteValue =
+  (typeof ReviewVoteValue)[keyof typeof ReviewVoteValue];
+
+/**
  * What a comment thread targets. Same shape as ReviewTargetType — a comment
  * lives under a work or one of its seasons/episodes, each a distinct thread.
  */

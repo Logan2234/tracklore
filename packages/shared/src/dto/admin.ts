@@ -334,11 +334,23 @@ export interface AdminUserRoleDto {
   role: Role;
 }
 
-/** A full plain-SQL dump of the instance database, for the admin backup page. */
-export interface AdminBackupDto {
-  sql: string;
-  generatedAt: string;
+/**
+ * One persisted backup dump on disk, for the admin "Sauvegarde" page's
+ * list/download/delete UI. Produced by the daily `backup.run` cron (also
+ * triggerable on demand from /admin/jobs or the Sauvegarde page itself) —
+ * pruned to the 7 most recent.
+ */
+export interface AdminBackupFileDto {
+  id: string;
+  filename: string;
   sizeBytes: number;
+  createdAt: string;
+}
+
+/** Full plain-SQL content of one persisted backup, for download. */
+export interface AdminBackupFileContentDto {
+  filename: string;
+  sql: string;
 }
 
 /** Replaces the entire instance database with a previously downloaded dump. */

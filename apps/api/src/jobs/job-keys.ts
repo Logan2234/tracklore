@@ -3,6 +3,7 @@ export const JOB_KEYS = {
   NOTIFICATIONS_SCAN: "notifications.scan",
   MEDIA_REFRESH_STALE: "media.refreshStale",
   REPORTS_DIGEST: "reports.digest",
+  BACKUP: "backup.run",
 } as const;
 
 export type JobKey = (typeof JOB_KEYS)[keyof typeof JOB_KEYS];
@@ -21,5 +22,9 @@ export const JOB_REGISTRY: Record<JobKey, { label: string; schedule: string }> =
     [JOB_KEYS.REPORTS_DIGEST]: {
       label: "Digest des signalements",
       schedule: "Tous les jours à 7h",
+    },
+    [JOB_KEYS.BACKUP]: {
+      label: "Sauvegarde automatique",
+      schedule: "Tous les jours à 3h",
     },
   };

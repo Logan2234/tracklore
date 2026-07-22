@@ -112,6 +112,14 @@ enum CommentEmote {
   DISLIKE
 }
 
+// A vote cast on someone else's review — Reddit-style, one active vote per
+// (user, review), never shown attributed to a voter (only the aggregate score
+// + the viewer's own vote are ever surfaced).
+enum ReviewVoteValue {
+  UP
+  DOWN
+}
+
 // What a report targets. COMMENT is the only kind produced today; REVIEW/USER
 // are modelled now so a future "report a review/profile" needs no migration.
 enum ReportTargetType {
@@ -320,6 +328,7 @@ model User {
   blocking            Block[]              @relation("UserBlocking")
   blockedBy           Block[]              @relation("UserBlockedBy")
   reviews             Review[]
+  reviewVotes         ReviewVote[]
   activityEvents      ActivityEvent[]
   comments            Comment[]
   commentReactions    CommentReaction[]
@@ -397,9 +406,27 @@ model Review {
   updatedAt  DateTime         @updatedAt
   user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   revisions  ReviewRevision[]
+  votes      ReviewVote[]
 
   @@unique([userId, targetType, targetId])
   @@index([targetType, targetId])
+}
+
+// One active vote per (user, review) — a second vote on the same review
+// replaces the first (upsert on the unique pair), same pattern as
+// CommentReaction. Voting on your own review isn't allowed (checked in
+// ReviewService), so there's no self-vote case to model here.
+model ReviewVote {
+  id        String          @id @default(cuid())
+  reviewId  String
+  userId    String
+  value     ReviewVoteValue
+  createdAt DateTime        @default(now())
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, userId])
 }
 
 // One immutable snapshot per review edit (V1, V2, …), newest by createdAt.
@@ -730,6 +757,19 @@ model ImportRun {
 
   @@index([sourceId, startedAt])
   @@index([userId])
+}
+
+// One row per persisted backup dump on disk (BACKUP_DIR), for the admin
+// "Sauvegarde" page's list/download/delete UI. Pruned to the 7 most recent at
+// write time (see BackupService) — both the row and its file are deleted
+// together, the row is never orphaned from its file or vice versa.
+model BackupFile {
+  id        String   @id @default(cuid())
+  filename  String
+  sizeBytes Int
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 // One row per external provider per UTC day — the raw series the /admin/services

@@ -9,11 +9,13 @@
   import CommentThread from "$lib/components/CommentThread.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import Modal from "$lib/components/Modal.svelte";
+  import ReviewsSection from "$lib/components/ReviewsSection.svelte";
   import { appConfig } from "$lib/config.svelte";
   import type {
     CommentTargetType,
     LibraryEntryDto,
     MediaDetailSeasonDto,
+    ReviewTargetType,
   } from "@tracklore/shared";
   import { SvelteDate } from "svelte/reactivity";
 
@@ -47,6 +49,14 @@
   // granularity), opened in a modal rather than inlined in every row.
   let commentTarget = $state<{
     type: CommentTargetType;
+    id: string;
+    label: string;
+  } | null>(null);
+
+  // Same idea for a season/episode's own review — discreet (icon-triggered
+  // modal), never inlined in the row.
+  let reviewTarget = $state<{
+    type: ReviewTargetType;
     id: string;
     label: string;
   } | null>(null);
@@ -221,6 +231,21 @@
             </button>
           {/if}
         {/if}
+        {#if season.id}
+          <button
+            class="text-dim hover:text-fg hover:bg-surface-2 grid h-7 w-7 shrink-0 place-items-center rounded-full"
+            aria-label="Critique de la saison"
+            onclick={(e) => {
+              e.preventDefault();
+              reviewTarget = {
+                type: "SEASON",
+                id: season.id!,
+                label: season.title ?? `Saison ${season.number}`,
+              };
+            }}>
+            <Icon name="star" class="h-4 w-4" />
+          </button>
+        {/if}
         {#if appConfig.socialEnabled && season.id}
           <button
             class="text-dim hover:text-fg hover:bg-surface-2 grid h-7 w-7 shrink-0 place-items-center rounded-full"
@@ -259,6 +284,20 @@
                   <Icon name="check" class="h-4 w-4" />
                   {dateFmt.format(new Date(episode.watches[0].watchedAt))}
                 </span>
+              {/if}
+              {#if episode.id}
+                <button
+                  class="text-dim hover:text-fg hover:bg-surface-2 grid h-7 w-7 shrink-0 place-items-center rounded-full"
+                  aria-label="Critique de l'épisode"
+                  onclick={() => {
+                    reviewTarget = {
+                      type: "EPISODE",
+                      id: episode.id!,
+                      label: `S${String(season.number).padStart(2, "0")}E${String(episode.number).padStart(2, "0")}`,
+                    };
+                  }}>
+                  <Icon name="star" class="h-4 w-4" />
+                </button>
               {/if}
               {#if appConfig.socialEnabled && episode.id}
                 <button
@@ -365,5 +404,17 @@
     <CommentThread
       targetType={commentTarget.type}
       targetId={commentTarget.id} />
+  </Modal>
+{/if}
+
+{#if reviewTarget}
+  <Modal
+    title={`Critique · ${reviewTarget.label}`}
+    onclose={() => (reviewTarget = null)}>
+    <ReviewsSection
+      targetType={reviewTarget.type}
+      targetId={reviewTarget.id}
+      workTitle={reviewTarget.label}
+      compact />
   </Modal>
 {/if}

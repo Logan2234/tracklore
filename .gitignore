@@ -15,6 +15,9 @@ build/
 docs/*
 !docs/.gitkeep
 
+# Local dev backups (admin "Sauvegarde" default BACKUP_DIR; self-host uses a Docker volume instead)
+apps/api/backups/
+
 # Logs & caches
 *.log
 .turbo/

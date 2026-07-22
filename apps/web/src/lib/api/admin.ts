@@ -1,5 +1,6 @@
 import type {
-  AdminBackupDto,
+  AdminBackupFileContentDto,
+  AdminBackupFileDto,
   AdminBackupRestoreRequestDto,
   AdminCacheDeleteOrphansResultDto,
   AdminCacheItemDetailDto,
@@ -210,9 +211,20 @@ export function getAdminVersion(): Promise<AdminVersionDto> {
   return request("/admin/version");
 }
 
-/** Full plain-SQL dump of the instance database (pg_dump). */
-export function getAdminBackup(): Promise<AdminBackupDto> {
-  return request("/admin/backup");
+/** Persisted backup dumps on disk, most recent first — up to 7, pruned by the daily job. */
+export function getAdminBackupFiles(): Promise<AdminBackupFileDto[]> {
+  return request("/admin/backup/files");
+}
+
+/** Full SQL content of one persisted backup, for download. */
+export function getAdminBackupFile(
+  id: string,
+): Promise<AdminBackupFileContentDto> {
+  return request(`/admin/backup/files/${id}`);
+}
+
+export function deleteAdminBackupFile(id: string): Promise<void> {
+  return request(`/admin/backup/files/${id}`, { method: "DELETE" });
 }
 
 /** Replaces the entire instance database with a previously downloaded dump. Irreversible. */

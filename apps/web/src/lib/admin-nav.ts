@@ -29,11 +29,12 @@ export const ADMIN_NAV: AdminNavItem[] = [
     match: (p) => p.startsWith("/admin/users"),
   },
   {
-    href: "/admin/emails",
-    label: "Emails",
-    description: "Gabarits rendus en aperçu, envoi de test.",
+    href: "/admin/communications",
+    label: "Communications",
+    description:
+      "Gabarits email (aperçu/test) et notifications push (test/diffusion).",
     icon: "mail",
-    match: (p) => p.startsWith("/admin/emails"),
+    match: (p) => p.startsWith("/admin/communications"),
   },
   {
     href: "/admin/stats",
@@ -41,13 +42,6 @@ export const ADMIN_NAV: AdminNavItem[] = [
     description: "Usage global et tailles des bibliothèques.",
     icon: "stats",
     match: (p) => p.startsWith("/admin/stats"),
-  },
-  {
-    href: "/admin/push",
-    label: "Notifications push",
-    description: "Envoi d'un push de test à un utilisateur.",
-    icon: "bell",
-    match: (p) => p.startsWith("/admin/push"),
   },
   {
     href: "/admin/jobs",

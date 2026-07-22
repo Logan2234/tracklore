@@ -1,4 +1,8 @@
-import type { ReviewTargetType, ReviewVisibility } from "../enums";
+import type {
+  ReviewTargetType,
+  ReviewVisibility,
+  ReviewVoteValue,
+} from "../enums";
 import type { UserSummaryDto } from "./social";
 
 /** A review: a mandatory /10 rating + optional text on a target. */
@@ -12,6 +16,10 @@ export interface ReviewDto {
   createdAt: string;
   updatedAt: string;
   author: UserSummaryDto;
+  /** Upvotes minus downvotes — never negative-only display, just the net. */
+  voteScore: number;
+  /** The viewer's own vote on this review, or null if they haven't voted. */
+  myVote: ReviewVoteValue | null;
 }
 
 /** Minimal display info for the work a review targets. */

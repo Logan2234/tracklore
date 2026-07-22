@@ -65,6 +65,10 @@
     <path d="M15 6l-6 6 6 6" />
   {:else if name === "chevron-right"}
     <path d="M9 6l6 6-6 6" />
+  {:else if name === "chevron-up"}
+    <path d="M6 15l6-6 6 6" />
+  {:else if name === "chevron-down"}
+    <path d="M6 9l6 6 6-6" />
   {:else if name === "download"}
     <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
   {:else if name === "bell"}

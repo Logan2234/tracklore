@@ -4,6 +4,7 @@ import type {
   ReviewRevisionDto,
   ReviewTargetType,
   ReviewVisibility,
+  ReviewVoteValue,
   UpsertReviewDto,
 } from "@tracklore/shared";
 import { request } from "./core";
@@ -74,4 +75,20 @@ export function batchSetReviewVisibility(
     method: "POST",
     body: { ids, visibility },
   });
+}
+
+/** Casts (or replaces) the viewer's vote on someone else's review. */
+export function voteReview(
+  reviewId: string,
+  value: ReviewVoteValue,
+): Promise<{ score: number; myVote: ReviewVoteValue }> {
+  return request(`/reviews/${reviewId}/vote`, {
+    method: "PUT",
+    body: { value },
+  });
+}
+
+/** Removes the viewer's vote on a review, if any. */
+export function unvoteReview(reviewId: string): Promise<{ score: number }> {
+  return request(`/reviews/${reviewId}/vote`, { method: "DELETE" });
 }

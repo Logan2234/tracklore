@@ -14,6 +14,7 @@ import { JobRunService } from "../jobs/job-run.service";
 import { NotificationService } from "../notifications/notification.service";
 import { ReportService } from "../reports/report.service";
 import { AdminOnly } from "./admin-only.decorator";
+import { BackupService } from "./backup.service";
 
 /** Scheduled jobs: run history and manual triggering. */
 @AdminOnly()
@@ -24,6 +25,7 @@ export class AdminJobsController {
     private readonly notifications: NotificationService,
     private readonly mediaItems: MediaItemService,
     private readonly reports: ReportService,
+    private readonly backup: BackupService,
   ) {}
 
   /** Every known scheduled job, with its recent run history. */
@@ -45,6 +47,9 @@ export class AdminJobsController {
         return;
       case JOB_KEYS.REPORTS_DIGEST:
         await this.reports.sendDailyDigest();
+        return;
+      case JOB_KEYS.BACKUP:
+        await this.backup.runScheduled();
         return;
       default:
         throw new NotFoundException("Unknown job");
