@@ -12,16 +12,26 @@ import {
   Post,
 } from "@nestjs/common";
 import type {
+  AdminUserCommentDto,
   AdminUserDto,
   AdminUserRoleDto,
+  MyListDto,
+  MyReviewDto,
+  ReportDto,
   SessionDto,
   UserDataExportDto,
+  UserSummaryDto,
 } from "@tracklore/shared";
 import { AuthService } from "../auth/auth.service";
 import type { JwtPayload } from "../auth/decorators/current-user.decorator";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
+import { CommentService } from "../comments/comment.service";
+import { ListService } from "../lists/list.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { ReportService } from "../reports/report.service";
+import { ReviewService } from "../reviews/review.service";
 import { SecurityEventService } from "../security/security-event.service";
+import { FollowService } from "../social/follow.service";
 import { DataExportService } from "../users/data-export.service";
 import { AdminOnly } from "./admin-only.decorator";
 import { UpdateAdminUserRoleDto } from "./dto/update-admin-user-role.dto";
@@ -35,6 +45,11 @@ export class AdminUsersController {
     private readonly authService: AuthService,
     private readonly dataExport: DataExportService,
     private readonly securityEvents: SecurityEventService,
+    private readonly reviews: ReviewService,
+    private readonly comments: CommentService,
+    private readonly follows: FollowService,
+    private readonly reports: ReportService,
+    private readonly lists: ListService,
   ) {}
 
   /** Every registered account, most recently created first. */
@@ -92,6 +107,44 @@ export class AdminUsersController {
   @Get("users/:userId/export")
   getUserExport(@Param("userId") userId: string): Promise<UserDataExportDto> {
     return this.dataExport.buildExport(userId);
+  }
+
+  /** Reviews the account has written, with resolved targets. */
+  @Get("users/:userId/reviews")
+  getUserReviews(@Param("userId") userId: string): Promise<MyReviewDto[]> {
+    return this.reviews.listMine(userId);
+  }
+
+  /** Comments the account has authored (excluding deleted). */
+  @Get("users/:userId/comments")
+  getUserComments(
+    @Param("userId") userId: string,
+  ): Promise<AdminUserCommentDto[]> {
+    return this.comments.listByAuthor(userId);
+  }
+
+  /** Accepted followers of the account. Bypasses visibility — admin-only view. */
+  @Get("users/:userId/followers")
+  getUserFollowers(@Param("userId") userId: string): Promise<UserSummaryDto[]> {
+    return this.follows.listFollowers(userId);
+  }
+
+  /** Accounts this user follows (accepted). Bypasses visibility — admin-only view. */
+  @Get("users/:userId/following")
+  getUserFollowing(@Param("userId") userId: string): Promise<UserSummaryDto[]> {
+    return this.follows.listFollowing(userId);
+  }
+
+  /** Reports filed against this account, directly or against a comment they authored. */
+  @Get("users/:userId/reports-against")
+  getUserReportsAgainst(@Param("userId") userId: string): Promise<ReportDto[]> {
+    return this.reports.listAgainstUser(userId);
+  }
+
+  /** Every list the account owns, regardless of visibility (admin view). */
+  @Get("users/:userId/lists")
+  getUserLists(@Param("userId") userId: string): Promise<MyListDto[]> {
+    return this.lists.listMine(userId);
   }
 
   /** Signed-in devices for one account, most recently active first. */

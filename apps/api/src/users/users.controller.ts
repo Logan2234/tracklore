@@ -146,6 +146,7 @@ export class UsersController {
         // Empty string clears the bio back to null.
         bio: dto.bio === undefined ? undefined : dto.bio || null,
         defaultReviewVisibility: dto.defaultReviewVisibility,
+        defaultListVisibility: dto.defaultListVisibility,
       },
     });
     return toUserDto(user);

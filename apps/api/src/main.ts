@@ -29,7 +29,11 @@ async function bootstrap() {
       rawBody: false,
       snapshot: false,
       cors: {
-        origin: process.env.WEB_ORIGIN ?? "http://localhost:5173",
+        // Comma-separated so a dev box can allow both localhost and an ngrok
+        // tunnel domain at once (see README "Mobile access").
+        origin: (process.env.WEB_ORIGIN ?? "http://localhost:5173")
+          .split(",")
+          .map((o) => o.trim()),
         methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
         allowedHeaders: ["Content-Type", "Authorization"],
         optionsSuccessStatus: 204,

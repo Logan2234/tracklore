@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import {
   type MyReviewDto,
   type ReviewDto,
@@ -6,6 +10,7 @@ import {
   type ReviewTargetSummaryDto,
   ReviewTargetType,
   type ReviewVisibility,
+  type ReviewVoteValue,
   type UpsertReviewDto,
   type UserSummaryDto,
 } from "@tracklore/shared";
@@ -13,6 +18,7 @@ import { ActivityType, type Domain } from "@tracklore/shared";
 import { canonicalExternalId } from "../common/external-id.util";
 import { PrismaService } from "../prisma/prisma.service";
 import { ActivityService } from "../social/activity.service";
+import { anonymizeAuthor } from "../social/pseudonym.util";
 import { computeIsFriend } from "../social/visibility.util";
 import { VisibilityService } from "../social/visibility.service";
 
@@ -52,7 +58,11 @@ export class ReviewService {
     private readonly activity: ActivityService,
   ) {}
 
-  private toDto(row: ReviewRow, author: UserSummaryDto): ReviewDto {
+  private toDto(
+    row: ReviewRow,
+    author: UserSummaryDto,
+    votes: { score: number; myVote: ReviewVoteValue | null },
+  ): ReviewDto {
     return {
       id: row.id,
       targetType: row.targetType as ReviewTargetType,
@@ -63,7 +73,106 @@ export class ReviewService {
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       author,
+      voteScore: votes.score,
+      myVote: votes.myVote,
     };
+  }
+
+  /**
+   * Net score (upvotes minus downvotes) + the viewer's own vote for several
+   * reviews at once, batched to avoid one query per row.
+   */
+  private async voteInfoBatch(
+    reviewIds: string[],
+    viewerId: string,
+  ): Promise<Map<string, { score: number; myVote: ReviewVoteValue | null }>> {
+    const result = new Map<
+      string,
+      { score: number; myVote: ReviewVoteValue | null }
+    >();
+    if (reviewIds.length === 0) return result;
+
+    const [grouped, mine] = await Promise.all([
+      this.prisma.reviewVote.groupBy({
+        by: ["reviewId", "value"],
+        where: { reviewId: { in: reviewIds } },
+        _count: { _all: true },
+      }),
+      this.prisma.reviewVote.findMany({
+        where: { reviewId: { in: reviewIds }, userId: viewerId },
+        select: { reviewId: true, value: true },
+      }),
+    ]);
+
+    const scores = new Map<string, number>();
+
+    for (const g of grouped) {
+      const delta = g.value === "UP" ? g._count._all : -g._count._all;
+      scores.set(g.reviewId, (scores.get(g.reviewId) ?? 0) + delta);
+    }
+
+    const mineMap = new Map(
+      mine.map((m) => [m.reviewId, m.value as ReviewVoteValue]),
+    );
+
+    for (const id of reviewIds) {
+      result.set(id, {
+        score: scores.get(id) ?? 0,
+        myVote: mineMap.get(id) ?? null,
+      });
+    }
+
+    return result;
+  }
+
+  private async voteInfo(
+    reviewId: string,
+    viewerId: string,
+  ): Promise<{ score: number; myVote: ReviewVoteValue | null }> {
+    const map = await this.voteInfoBatch([reviewId], viewerId);
+    return map.get(reviewId) ?? { score: 0, myVote: null };
+  }
+
+  /**
+   * Casts (or replaces) the viewer's vote on someone else's review — Reddit-
+   * style, one active vote per (user, review). Voting on your own review
+   * isn't allowed. Social-gated at the controller (a community interaction,
+   * like reacting to a comment).
+   */
+  async vote(
+    viewerId: string,
+    reviewId: string,
+    value: ReviewVoteValue,
+  ): Promise<{ score: number; myVote: ReviewVoteValue }> {
+    const review = await this.prisma.review.findUnique({
+      where: { id: reviewId },
+      select: { userId: true },
+    });
+    if (!review) throw new NotFoundException();
+
+    if (review.userId === viewerId) {
+      throw new BadRequestException(
+        "Vous ne pouvez pas voter sur votre propre review",
+      );
+    }
+
+    await this.prisma.reviewVote.upsert({
+      where: { reviewId_userId: { reviewId, userId: viewerId } },
+      update: { value },
+      create: { reviewId, userId: viewerId, value },
+    });
+
+    const info = await this.voteInfo(reviewId, viewerId);
+    return { score: info.score, myVote: value };
+  }
+
+  /** Removes the viewer's vote on a review, if any. */
+  async unvote(viewerId: string, reviewId: string): Promise<{ score: number }> {
+    await this.prisma.reviewVote.deleteMany({
+      where: { reviewId, userId: viewerId },
+    });
+    const { score } = await this.voteInfo(reviewId, viewerId);
+    return { score };
   }
 
   /** The current user's own review for a target, or null. Always available. */
@@ -76,8 +185,11 @@ export class ReviewService {
       where: { userId_targetType_targetId: { userId, targetType, targetId } },
     });
     if (!row) return null;
-    const author = await this.author(userId);
-    return this.toDto(row, author);
+    const [author, votes] = await Promise.all([
+      this.author(userId),
+      this.voteInfo(row.id, userId),
+    ]);
+    return this.toDto(row, author, votes);
   }
 
   /**
@@ -128,7 +240,11 @@ export class ReviewService {
 
     await this.emitReviewed(userId, targetType, targetId, dto.rating);
 
-    return this.toDto(row, await this.author(userId));
+    const [author, votes] = await Promise.all([
+      this.author(userId),
+      this.voteInfo(row.id, userId),
+    ]);
+    return this.toDto(row, author, votes);
   }
 
   /**
@@ -200,12 +316,16 @@ export class ReviewService {
       where: { userId },
       orderBy: { updatedAt: "desc" },
     });
-    const [author, targets] = await Promise.all([
+    const [author, targets, voteMap] = await Promise.all([
       this.author(userId),
       this.resolveTargets(rows),
+      this.voteInfoBatch(
+        rows.map((r) => r.id),
+        userId,
+      ),
     ]);
     return rows.map((r) => ({
-      ...this.toDto(r, author),
+      ...this.toDto(r, author, voteMap.get(r.id) ?? { score: 0, myVote: null }),
       target: targets.get(`${r.targetType}:${r.targetId}`) ?? null,
     }));
   }
@@ -369,7 +489,9 @@ export class ReviewService {
   /**
    * Reviews others have written for a target, visible to the viewer. Social-
    * gated at the controller. Filters by each author's relationship and the
-   * review's own audience; GHOST authors are omitted for now.
+   * review's own audience; a Figurant's review is always reachable (their
+   * own audience choice doesn't apply — they have no friends by design) but
+   * shown under their derived pseudonym instead of their real identity.
    */
   async listForTarget(
     viewerId: string,
@@ -382,28 +504,45 @@ export class ReviewService {
       include: { user: { select: AUTHOR_SELECT } },
     });
 
+    const voteMap = await this.voteInfoBatch(
+      rows.map((r) => r.id),
+      viewerId,
+    );
+    const votesFor = (id: string) =>
+      voteMap.get(id) ?? { score: 0, myVote: null };
+
     const visible: ReviewDto[] = [];
 
     for (const row of rows) {
       const author = row.user;
 
       if (author.id === viewerId) {
-        visible.push(this.toDto(row, author));
+        visible.push(this.toDto(row, author, votesFor(row.id)));
         continue;
       }
 
-      if (author.profileAccess === "GHOST") continue;
       const relation = await this.visibility.getRelation(viewerId, author);
       if (relation.blocking || relation.blockedByTarget) continue;
+
       const ok =
-        row.visibility === "PUBLIC"
+        author.profileAccess === "GHOST" ||
+        (row.visibility === "PUBLIC"
           ? author.profileAccess === "PUBLIC"
           : computeIsFriend(
               author.profileAccess,
               relation.following,
               relation.followsYou,
-            );
-      if (ok) visible.push(this.toDto(row, author));
+            ));
+
+      if (ok) {
+        visible.push(
+          this.toDto(
+            row,
+            anonymizeAuthor(author, viewerId, targetType, targetId),
+            votesFor(row.id),
+          ),
+        );
+      }
     }
 
     return visible;

@@ -48,6 +48,12 @@ export const NotificationType = {
   FOLLOW_REQUEST: "FOLLOW_REQUEST",
   /** Someone approved your follow request. */
   FOLLOW_ACCEPTED: "FOLLOW_ACCEPTED",
+  /** Someone replied to your comment. */
+  COMMENT_REPLY: "COMMENT_REPLY",
+  /** Someone @mentioned you in a comment. */
+  COMMENT_MENTION: "COMMENT_MENTION",
+  /** Your comment crossed the reaction notification threshold. */
+  COMMENT_REACTIONS: "COMMENT_REACTIONS",
 } as const;
 export type NotificationType =
   (typeof NotificationType)[keyof typeof NotificationType];
@@ -74,6 +80,12 @@ export const ActivityType = {
   FAVORITED: "FAVORITED",
   /** Published or updated a review. */
   REVIEWED: "REVIEWED",
+  /** Created a new list. */
+  LIST_CREATED: "LIST_CREATED",
+  /** Added one or more works to a list. */
+  LIST_ITEM_ADDED: "LIST_ITEM_ADDED",
+  /** A list's visibility moved from PRIVATE to FRIENDS/PUBLIC. */
+  LIST_SHARED: "LIST_SHARED",
 } as const;
 export type ActivityType = (typeof ActivityType)[keyof typeof ActivityType];
 
@@ -349,3 +361,103 @@ export type ReviewVisibility =
 
 /** Max length of a review's optional text (frontend + backend DTO). */
 export const REVIEW_TEXT_MAX_LENGTH = 2000;
+
+/**
+ * A vote cast on someone else's review — Reddit-style, one active vote per
+ * (user, review). Never shown attributed to a voter; only the aggregate
+ * score and the viewer's own vote are ever surfaced.
+ */
+export const ReviewVoteValue = {
+  UP: "UP",
+  DOWN: "DOWN",
+} as const;
+export type ReviewVoteValue =
+  (typeof ReviewVoteValue)[keyof typeof ReviewVoteValue];
+
+/**
+ * What a comment thread targets. Same shape as ReviewTargetType — a comment
+ * lives under a work or one of its seasons/episodes, each a distinct thread.
+ */
+export const CommentTargetType = {
+  MEDIA: "MEDIA",
+  SEASON: "SEASON",
+  EPISODE: "EPISODE",
+  GAME: "GAME",
+  BOOK: "BOOK",
+  MUSIC: "MUSIC",
+} as const;
+export type CommentTargetType =
+  (typeof CommentTargetType)[keyof typeof CommentTargetType];
+
+/** Fixed reaction set for comments (a full emoji picker is backlog). */
+export const CommentEmote = {
+  LIKE: "LIKE",
+  LOVE: "LOVE",
+  LAUGH: "LAUGH",
+  WOW: "WOW",
+  SAD: "SAD",
+  DISLIKE: "DISLIKE",
+} as const;
+export type CommentEmote = (typeof CommentEmote)[keyof typeof CommentEmote];
+
+/** Display glyph for each CommentEmote, in a fixed picker order. */
+export const COMMENT_EMOTE_DISPLAY: Record<CommentEmote, string> = {
+  LIKE: "👍",
+  LOVE: "❤️",
+  LAUGH: "😂",
+  WOW: "😮",
+  SAD: "😢",
+  DISLIKE: "👎",
+};
+
+/** Max length of a comment's text (frontend + backend DTO). */
+export const COMMENT_TEXT_MAX_LENGTH = 500;
+
+/** How many reactions on one comment trigger the aggregated notification. */
+export const COMMENT_REACTION_NOTIFY_THRESHOLD = 10;
+
+/**
+ * What a report targets. COMMENT is the only kind produced today; REVIEW/USER
+ * are modelled now so reporting a review or a profile later needs no
+ * migration, just a new emitter.
+ */
+export const ReportTargetType = {
+  COMMENT: "COMMENT",
+  REVIEW: "REVIEW",
+  USER: "USER",
+  LIST: "LIST",
+} as const;
+export type ReportTargetType =
+  (typeof ReportTargetType)[keyof typeof ReportTargetType];
+
+/** Lifecycle of a report in the admin moderation queue. */
+export const ReportStatus = {
+  PENDING: "PENDING",
+  RESOLVED: "RESOLVED",
+  DISMISSED: "DISMISSED",
+} as const;
+export type ReportStatus = (typeof ReportStatus)[keyof typeof ReportStatus];
+
+/**
+ * A list's kind: RANKED shows explicit rank order (drag-to-reorder, "top
+ * 10"), COLLECTION is an unordered grid. Same storage (items + position)
+ * either way — the front adapts its rendering per kind.
+ */
+export const ListKind = {
+  RANKED: "RANKED",
+  COLLECTION: "COLLECTION",
+} as const;
+export type ListKind = (typeof ListKind)[keyof typeof ListKind];
+
+/**
+ * A list's own explicit audience — mirrors Review's own-scope pattern, not
+ * the per-domain VisibilitySetting facets (a list isn't tied to one domain).
+ * Unlike ReviewVisibility, PRIVATE exists here: a list defaults to it.
+ */
+export const ListVisibility = {
+  PRIVATE: "PRIVATE",
+  FRIENDS: "FRIENDS",
+  PUBLIC: "PUBLIC",
+} as const;
+export type ListVisibility =
+  (typeof ListVisibility)[keyof typeof ListVisibility];

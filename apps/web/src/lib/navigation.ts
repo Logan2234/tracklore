@@ -98,12 +98,6 @@ export const NAVIGATION: NavSection[] = [
         match: (p) => p.startsWith("/calendar"),
       },
       {
-        href: "/reviews",
-        label: "Mes reviews",
-        icon: "star",
-        match: (p) => p.startsWith("/reviews"),
-      },
-      {
         href: "/feed",
         label: "Fil",
         icon: "activity",
@@ -144,7 +138,6 @@ export type MobileNavId =
   | "boardgames"
   | "calendar"
   | "stats"
-  | "reviews"
   | "feed"
   | "profile"
   | "notifications"
@@ -255,13 +248,6 @@ const MOBILE_DESTINATIONS: Record<MobileNavId, MobileDestination> = {
     icon: "stats",
     match: (p) => p.startsWith("/stats"),
   },
-  reviews: {
-    id: "reviews",
-    href: "/reviews",
-    label: "Mes reviews",
-    icon: "star",
-    match: (p) => p.startsWith("/reviews"),
-  },
   feed: {
     id: "feed",
     href: "/feed",
@@ -310,7 +296,7 @@ const MENU_GROUPS: { label: string; ids: MobileNavId[] }[] = [
   },
   {
     label: "Suivi",
-    ids: ["calendar", "stats", "reviews", "feed", "notifications"],
+    ids: ["calendar", "stats", "feed", "notifications"],
   },
   {
     label: "Compte",

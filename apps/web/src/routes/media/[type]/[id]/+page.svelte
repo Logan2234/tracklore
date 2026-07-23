@@ -9,7 +9,9 @@
     upsertLibraryEntry,
     watchEpisode,
   } from "$lib/api/client";
+  import AddToListButton from "$lib/components/AddToListButton.svelte";
   import Banner from "$lib/components/Banner.svelte";
+  import CommentThread from "$lib/components/CommentThread.svelte";
   import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
   import DetailHeroSkeleton from "$lib/components/DetailHeroSkeleton.svelte";
   import Icon from "$lib/components/Icon.svelte";
@@ -20,6 +22,7 @@
   import RelatedCarousel from "$lib/components/RelatedCarousel.svelte";
   import ReviewsSection from "$lib/components/ReviewsSection.svelte";
   import TrackingPanel from "$lib/components/TrackingPanel.svelte";
+  import { appConfig } from "$lib/config.svelte";
   import { createLibraryEntryActions } from "$lib/library-entry";
   import {
     MEDIA_OWNERSHIP_SOURCES,
@@ -435,6 +438,8 @@
               Abandonner
             </button>
           {/if}
+
+          <AddToListButton targetType="MEDIA" targetId={entry.mediaItem.id} />
         </div>
 
         <OwnershipField
@@ -520,6 +525,9 @@
         targetType="MEDIA"
         targetId={entry.mediaItem.id}
         workTitle={detail.title} />
+      {#if appConfig.socialEnabled}
+        <CommentThread targetType="MEDIA" targetId={entry.mediaItem.id} />
+      {/if}
     {/if}
   </div>
 

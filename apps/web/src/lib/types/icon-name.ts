@@ -16,6 +16,8 @@ export type IconName =
   | "book"
   | "chevron-left"
   | "chevron-right"
+  | "chevron-up"
+  | "chevron-down"
   | "download"
   | "bell"
   | "monitor"
@@ -36,4 +38,10 @@ export type IconName =
   | "refresh"
   | "gear"
   | "pin"
-  | "pin-filled";
+  | "pin-filled"
+  | "message"
+  | "flag"
+  | "reply"
+  | "list"
+  | "grip"
+  | "edit";

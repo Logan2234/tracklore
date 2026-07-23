@@ -65,6 +65,10 @@
     <path d="M15 6l-6 6 6 6" />
   {:else if name === "chevron-right"}
     <path d="M9 6l6 6-6 6" />
+  {:else if name === "chevron-up"}
+    <path d="M6 15l6-6 6 6" />
+  {:else if name === "chevron-down"}
+    <path d="M6 9l6 6 6-6" />
   {:else if name === "download"}
     <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
   {:else if name === "bell"}
@@ -140,5 +144,29 @@
       d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21Z"
       fill="currentColor"
       stroke="none" />
+  {:else if name === "message"}
+    <path
+      d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8A2.5 2.5 0 0 1 17.5 16H9l-4.5 4v-4H6.5A2.5 2.5 0 0 1 4 13.5Z" />
+  {:else if name === "flag"}
+    <path d="M5 21V4" />
+    <path d="M5 5c2-1.5 4-1.5 6 0s4 1.5 6 0v9c-2 1.5-4 1.5-6 0s-4-1.5-6 0Z" />
+  {:else if name === "reply"}
+    <path d="M10 5 3 12l7 7" />
+    <path d="M3 12h9c4 0 8 2 8 7" />
+  {:else if name === "list"}
+    <path d="M9 6h11M9 12h11M9 18h11" />
+    <circle cx="4.5" cy="6" r="1.3" fill="currentColor" stroke="none" />
+    <circle cx="4.5" cy="12" r="1.3" fill="currentColor" stroke="none" />
+    <circle cx="4.5" cy="18" r="1.3" fill="currentColor" stroke="none" />
+  {:else if name === "edit"}
+    <path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3Z" />
+    <path d="M14 6.5 17.5 10" />
+  {:else if name === "grip"}
+    <circle cx="9" cy="6" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="6" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="9" cy="12" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="12" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="9" cy="18" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="18" r="1.2" fill="currentColor" stroke="none" />
   {/if}
 </svg>

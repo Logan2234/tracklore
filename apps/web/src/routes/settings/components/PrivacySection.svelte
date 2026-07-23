@@ -1,5 +1,6 @@
 <script lang="ts">
   import {
+    getGhostSwitchImpact,
     getPrivacySettings,
     updateMe,
     updatePrivacySettings,
@@ -10,6 +11,7 @@
   import { appConfig } from "$lib/config.svelte";
   import {
     Domain,
+    type GhostSwitchImpactDto,
     ProfileAccess,
     type ReviewVisibility,
     VisibilityAudience,
@@ -114,6 +116,9 @@
   let settings = $state<VisibilitySettingsDto | null>(null);
   let showModesModal = $state(false);
   let savingDefaultReviewVisibility = $state(false);
+  let ghostImpact = $state<GhostSwitchImpactDto | null>(null);
+  let confirmingGhost = $state(false);
+  let switchingToGhost = $state(false);
 
   $effect(() => {
     void getPrivacySettings().then((s) => (settings = s));
@@ -131,7 +136,29 @@
 
   async function setAccess(access: ProfileAccess) {
     if (!settings || settings.profileAccess === access) return;
+
+    if (access === ProfileAccess.GHOST) {
+      // Consequential + immediate (followers removed, lists downgraded) —
+      // show live counts and require confirmation before applying it.
+      ghostImpact = await getGhostSwitchImpact();
+      confirmingGhost = true;
+      return;
+    }
+
     settings = await updatePrivacySettings({ profileAccess: access });
+  }
+
+  async function confirmGhostSwitch() {
+    if (switchingToGhost) return;
+    switchingToGhost = true;
+    try {
+      settings = await updatePrivacySettings({
+        profileAccess: ProfileAccess.GHOST,
+      });
+      confirmingGhost = false;
+    } finally {
+      switchingToGhost = false;
+    }
   }
 
   async function setAudience(
@@ -283,6 +310,69 @@
           {/each}
         </tbody>
       </table>
+    </div>
+  </Modal>
+{/if}
+
+{#if confirmingGhost && ghostImpact}
+  <Modal title="Passer en Figurant ?" onclose={() => (confirmingGhost = false)}>
+    <p class="text-dim text-sm">
+      Vous devenez invisible : introuvable, non suivable, activité masquée. Cela
+      applique tout de suite :
+    </p>
+    <ul class="border-border divide-border mt-3 divide-y border-y text-sm">
+      {#if ghostImpact.followersToRemove > 0}
+        <li class="flex items-center justify-between gap-3 py-2">
+          <span
+            >{ghostImpact.followersToRemove > 1
+              ? "Abonnés retirés"
+              : "Abonné retiré"}</span>
+          <span class="timecode text-fg font-semibold"
+            >{ghostImpact.followersToRemove}</span>
+        </li>
+      {/if}
+      {#if ghostImpact.outgoingFollowsToCancel > 0}
+        <li class="flex items-center justify-between gap-3 py-2">
+          <span>Abonnements/demandes annulés (profils non publics)</span>
+          <span class="timecode text-fg font-semibold"
+            >{ghostImpact.outgoingFollowsToCancel}</span>
+        </li>
+      {/if}
+      {#if ghostImpact.listsToDowngrade > 0}
+        <li class="flex items-center justify-between gap-3 py-2">
+          <span
+            >{ghostImpact.listsToDowngrade > 1
+              ? "Listes repassées en Privé"
+              : "Liste repassée en Privé"}</span>
+          <span class="timecode text-fg font-semibold"
+            >{ghostImpact.listsToDowngrade}</span>
+        </li>
+      {/if}
+      {#if ghostImpact.followersToRemove === 0 && ghostImpact.outgoingFollowsToCancel === 0 && ghostImpact.listsToDowngrade === 0}
+        <li class="text-dim py-2">
+          Rien à nettoyer pour l'instant — aucun impact immédiat.
+        </li>
+      {/if}
+    </ul>
+    <p class="text-dim mt-4 text-xs">
+      L'anonymat n'est pas permanent : repasser Public ou Privé réattribuera
+      votre historique (commentaires, reviews) à votre identité réelle.
+    </p>
+    <div class="mt-5 flex justify-end gap-2">
+      <button
+        type="button"
+        class="btn btn-ghost"
+        disabled={switchingToGhost}
+        onclick={() => (confirmingGhost = false)}>
+        Annuler
+      </button>
+      <button
+        type="button"
+        class="btn btn-danger"
+        disabled={switchingToGhost}
+        onclick={confirmGhostSwitch}>
+        Devenir Figurant
+      </button>
     </div>
   </Modal>
 {/if}

@@ -11,6 +11,7 @@
   } from "$lib/api/client";
   import { toCarouselItems } from "$lib/carousel";
   import Banner from "$lib/components/Banner.svelte";
+  import CommentThread from "$lib/components/CommentThread.svelte";
   import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
   import DetailHeroSkeleton from "$lib/components/DetailHeroSkeleton.svelte";
   import Icon from "$lib/components/Icon.svelte";
@@ -19,9 +20,11 @@
   import OwnershipField from "$lib/components/OwnershipField.svelte";
   import Poster from "$lib/components/Poster.svelte";
   import RelatedCarousel from "$lib/components/RelatedCarousel.svelte";
+  import AddToListButton from "$lib/components/AddToListButton.svelte";
   import ReviewsSection from "$lib/components/ReviewsSection.svelte";
   import SegmentedStatusControl from "$lib/components/SegmentedStatusControl.svelte";
   import TrackingPanel from "$lib/components/TrackingPanel.svelte";
+  import { appConfig } from "$lib/config.svelte";
   import { formatDate } from "$lib/format";
   import { createLibraryEntryActions } from "$lib/library-entry";
   import {
@@ -302,6 +305,8 @@
               activeClass={SEG_ACTIVE}
               onSelect={(status) => patch({ status })} />
 
+            <AddToListButton targetType="GAME" targetId={entry.game.id} />
+
             <hr class="border-border" />
 
             <NoteField
@@ -414,6 +419,9 @@
             targetType="GAME"
             targetId={entry.game.id}
             workTitle={detail.title} />
+          {#if appConfig.socialEnabled}
+            <CommentThread targetType="GAME" targetId={entry.game.id} />
+          {/if}
         {/if}
       </div>
 

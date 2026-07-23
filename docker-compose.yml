@@ -50,6 +50,9 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: "${SMTP_FROM:-Tracklore <no-reply@tracklore.app>}"
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:8080}
+      BACKUP_DIR: /data/backups
+    volumes:
+      - backup-data:/data/backups
     ports:
       - "${API_PORT:-3000}:3000"
 
@@ -69,3 +72,4 @@ services:
 
 volumes:
   db-data:
+  backup-data:

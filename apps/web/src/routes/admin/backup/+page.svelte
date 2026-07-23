@@ -1,20 +1,34 @@
 <script lang="ts">
   import {
     ApiError,
-    getAdminBackup,
+    deleteAdminBackupFile,
+    getAdminBackupFile,
+    getAdminBackupFiles,
     restoreAdminBackup,
+    runAdminJob,
   } from "$lib/api/client";
   import Banner from "$lib/components/Banner.svelte";
+  import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import Modal from "$lib/components/Modal.svelte";
   import PageHeader from "$lib/components/PageHeader.svelte";
   import { toast } from "$lib/toast.svelte";
+  import type { AdminBackupFileDto } from "@tracklore/shared";
 
+  // Mirrors JOB_KEYS.BACKUP in apps/api/src/jobs/job-keys.ts — the daily
+  // 3h cron this button also triggers on demand (same code path either way,
+  // see BackupService.runScheduled).
+  const BACKUP_JOB_KEY = "backup.run";
   const CONFIRM_PHRASE = "RESTAURER";
 
-  let downloading = $state(false);
-  let downloadError = $state("");
-  let lastDownloadedAt = $state<string | null>(null);
+  let files = $state<AdminBackupFileDto[] | null>(null);
+  let loading = $state(true);
+  let loadError = $state("");
+
+  let running = $state(false);
+  let downloadingId = $state<string | null>(null);
+  let deletingId = $state<string | null>(null);
+  let pendingDelete = $state<AdminBackupFileDto | null>(null);
 
   let fileInput = $state<HTMLInputElement | null>(null);
   let pendingFile = $state<File | null>(null);
@@ -23,6 +37,14 @@
   let restoring = $state(false);
   let restoreError = $state("");
   let restoreDone = $state(false);
+
+  const dateFmt = new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   function formatBytes(bytes: number): string {
     if (bytes < 1024) return `${bytes} o`;
@@ -39,25 +61,72 @@
     );
   }
 
-  async function downloadBackup() {
-    downloading = true;
-    downloadError = "";
+  async function load() {
+    loading = true;
+    loadError = "";
     try {
-      const { sql, generatedAt } = await getAdminBackup();
+      files = await getAdminBackupFiles();
+    } catch (err) {
+      loadError =
+        err instanceof ApiError ? err.message : "Sauvegardes indisponibles";
+    } finally {
+      loading = false;
+    }
+  }
+
+  $effect(() => {
+    void load();
+  });
+
+  async function runNow() {
+    running = true;
+    try {
+      await runAdminJob(BACKUP_JOB_KEY);
+      await load();
+      toast.success("Sauvegarde générée.");
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError ? err.message : "Sauvegarde impossible",
+      );
+    } finally {
+      running = false;
+    }
+  }
+
+  async function downloadFile(file: AdminBackupFileDto) {
+    downloadingId = file.id;
+    try {
+      const { sql, filename } = await getAdminBackupFile(file.id);
       const blob = new Blob([sql], { type: "application/sql" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `tracklore-backup-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.sql`;
+      a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
-      lastDownloadedAt = generatedAt;
-      toast.success("Sauvegarde téléchargée.");
     } catch (err) {
-      downloadError =
-        err instanceof ApiError ? err.message : "Sauvegarde impossible";
+      toast.error(
+        err instanceof ApiError ? err.message : "Téléchargement impossible",
+      );
     } finally {
-      downloading = false;
+      downloadingId = null;
+    }
+  }
+
+  async function confirmDeleteFile() {
+    if (!pendingDelete) return;
+    deletingId = pendingDelete.id;
+    try {
+      await deleteAdminBackupFile(pendingDelete.id);
+      files = (files ?? []).filter((f) => f.id !== pendingDelete!.id);
+      toast.success("Sauvegarde supprimée.");
+      pendingDelete = null;
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError ? err.message : "Suppression impossible",
+      );
+    } finally {
+      deletingId = null;
     }
   }
 
@@ -104,28 +173,66 @@
   <PageHeader
     icon="archive"
     title="Sauvegarde"
-    subtitle="Export et restauration complète de la base de données." />
+    subtitle="Sauvegarde automatique quotidienne (3h) de la base de données — les 7 dernières sont conservées.">
+    {#snippet actions()}
+      <button
+        class="btn btn-primary shrink-0"
+        disabled={running}
+        onclick={runNow}>
+        <Icon name="archive" class="mr-1.5 inline h-4 w-4" />
+        {running ? "Génération…" : "Sauvegarder maintenant"}
+      </button>
+    {/snippet}
+  </PageHeader>
 
   <section class="card mb-5 p-5 md:p-6">
-    <h2 class="font-display mb-1 text-lg font-bold">Télécharger</h2>
-    <p class="text-dim mb-4 text-sm">
-      Génère un dump SQL complet de l'instance (comptes, bibliothèques,
-      historique…) et le télécharge localement.
-    </p>
-    <button
-      class="btn btn-primary"
-      disabled={downloading}
-      onclick={downloadBackup}>
-      <Icon name="download" class="mr-1.5 inline h-4 w-4" />
-      {downloading ? "Génération…" : "Télécharger une sauvegarde (.sql)"}
-    </button>
-    {#if downloadError}
-      <Banner variant="error" class="mt-3">{downloadError}</Banner>
-    {:else if lastDownloadedAt}
-      <p class="text-dim mt-3 text-xs">
-        Dernière sauvegarde générée : {new Date(
-          lastDownloadedAt,
-        ).toLocaleString("fr-FR")}
+    <h2 class="font-display mb-3 text-lg font-bold">Sauvegardes</h2>
+
+    {#if loadError}
+      <Banner variant="error">{loadError}</Banner>
+    {:else if loading}
+      <div class="space-y-2">
+        {#each { length: 3 } as _, i (i)}
+          <div class="skeleton h-12 rounded-lg"></div>
+        {/each}
+      </div>
+    {:else if files && files.length > 0}
+      <ul
+        class="border-border divide-border divide-y overflow-hidden rounded-lg border">
+        {#each files as f (f.id)}
+          <li class="flex items-center gap-3 px-3 py-2.5">
+            <div class="min-w-0 flex-1">
+              <p class="text-fg truncate text-sm font-semibold">
+                {f.filename}
+              </p>
+              <p class="timecode text-xs">
+                {dateFmt.format(new Date(f.createdAt))} · {formatBytes(
+                  f.sizeBytes,
+                )}
+              </p>
+            </div>
+            <button
+              type="button"
+              aria-label="Télécharger cette sauvegarde"
+              disabled={downloadingId === f.id}
+              onclick={() => downloadFile(f)}
+              class="text-dim hover:bg-surface-2 hover:text-fg shrink-0 rounded-lg p-1.5 transition-colors disabled:opacity-50">
+              <Icon name="download" class="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Supprimer cette sauvegarde"
+              disabled={deletingId === f.id}
+              onclick={() => (pendingDelete = f)}
+              class="text-dim hover:bg-danger/10 hover:text-danger shrink-0 rounded-lg p-1.5 transition-colors disabled:opacity-50">
+              <Icon name="trash" class="h-4 w-4" />
+            </button>
+          </li>
+        {/each}
+      </ul>
+    {:else}
+      <p class="text-dim py-6 text-center text-sm">
+        Aucune sauvegarde pour l'instant.
       </p>
     {/if}
   </section>
@@ -134,8 +241,9 @@
     <h2 class="font-display text-danger mb-1 text-lg font-bold">Restaurer</h2>
     <p class="text-dim mb-4 text-sm">
       Remplace <strong>l'intégralité</strong> de la base de données par le contenu
-      d'un fichier de sauvegarde. Toute donnée créée depuis cette sauvegarde sera
-      définitivement perdue. Cette action est irréversible.
+      d'un fichier de sauvegarde (téléchargé ci-dessus, ou tout autre dump .sql).
+      Toute donnée créée depuis cette sauvegarde sera définitivement perdue. Cette
+      action est irréversible.
     </p>
     <input
       bind:this={fileInput}
@@ -148,6 +256,17 @@
     </button>
   </section>
 </div>
+
+{#if pendingDelete}
+  <ConfirmationModal
+    title="Supprimer cette sauvegarde ?"
+    message={`${pendingDelete.filename} sera définitivement supprimée du disque.`}
+    confirmLabel="Supprimer"
+    danger
+    busy={deletingId === pendingDelete.id}
+    onConfirm={confirmDeleteFile}
+    onCancel={() => (pendingDelete = null)} />
+{/if}
 
 {#if showRestoreModal && pendingFile}
   <Modal title="Restaurer la sauvegarde" onclose={closeRestoreModal}>

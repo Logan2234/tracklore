@@ -77,11 +77,13 @@ export async function request<T>(
     );
   }
 
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  return (await response.json()) as T;
+  // Void-returning endpoints (POST/DELETE handlers with no return value) come
+  // back as 200/201 with an empty body, not necessarily 204 — Nest doesn't
+  // set 204 based on the handler's return type. `response.json()` throws on
+  // an empty body, so check the actual text first rather than trusting the
+  // status code.
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 /**

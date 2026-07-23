@@ -9,7 +9,6 @@
   } from "$lib/api/client";
   import { auth } from "$lib/auth.svelte";
   import Carousel from "$lib/components/Carousel.svelte";
-  import EmptyState from "$lib/components/EmptyState.svelte";
   import HomeActivityPreview from "$lib/components/HomeActivityPreview.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import PageHeader from "$lib/components/PageHeader.svelte";
@@ -29,6 +28,13 @@
   const gamesOn = $derived(isDomainEnabled(Domain.GAMES));
   const booksOn = $derived(isDomainEnabled(Domain.BOOKS));
   const musicOn = $derived(isDomainEnabled(Domain.MUSIC));
+  // Podcasts/Jeux de société have no screens yet — surfaced as a dimmed
+  // "Bientôt" teaser here for consistency with the nav rail/menu sheet, but
+  // only once the user has actually opted into one of the two (they're
+  // off by default, unlike the other 4 domains).
+  const soonOn = $derived(
+    isDomainEnabled(Domain.PODCASTS) || isDomainEnabled(Domain.BOARDGAMES),
+  );
 
   let watching = $state<LibraryEntryDto[]>([]);
   let upcoming = $state<CalendarEntryDto[]>([]);
@@ -124,6 +130,11 @@
     );
   }
 
+  function bookPct(e: BookEntryDto): number | null {
+    if (!e.book.pageCount) return null;
+    return Math.round((e.currentPage / e.book.pageCount) * 100);
+  }
+
   const weekdayShort = new Intl.DateTimeFormat("fr-FR", { weekday: "short" });
   function dayShort(iso: string): string {
     const d = new Date(iso);
@@ -150,17 +161,6 @@
       .sort((a, b) => time(b.lastWatchedAt) - time(a.lastWatchedAt))
       .slice(0, RESUME_LIMIT),
   );
-
-  // A domain section shows only when it has something in progress.
-  const showScreens = $derived(
-    mediaOn && (watching.length > 0 || week.length > 0),
-  );
-  const showGames = $derived(gamesOn && playingGames.length > 0);
-  const showBooks = $derived(booksOn && readingBooks.length > 0);
-  const showMusic = $derived(musicOn && toListenAlbums.length > 0);
-  const nothing = $derived(
-    !loading && !showScreens && !showGames && !showBooks && !showMusic,
-  );
 </script>
 
 <div class="mx-auto max-w-6xl px-5 py-6 md:px-8 md:py-10">
@@ -184,208 +184,297 @@
         </div>
       </div>
     </div>
-  {:else if nothing}
-    <EmptyState class="mb-10">
-      Rien en cours pour l’instant.
-      <a href="/search" class="link-accent">Trouve un titre</a> à suivre.
-    </EmptyState>
-  {/if}
+  {:else}
+    <!-- Every domain allowed by enabledDomains gets a card — even with
+         nothing in progress, it shows a short empty message plus its own
+         "voir plus" shortcut, so the layout never silently drops a section. -->
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12">
+      {#if mediaOn}
+        <section class="card lg:col-span-8">
+          <div class="flex items-center justify-between p-4 pb-0">
+            <h2
+              class="font-display flex items-center gap-2 text-base font-bold">
+              <Icon name="tv" class="text-accent h-4 w-4" /> Vidéo · à reprendre
+            </h2>
+            <a
+              href="/media"
+              class="text-dim hover:text-fg text-xs font-semibold"
+              >Voir plus →</a>
+          </div>
+          <div class="p-4">
+            {#if watchingRecent.length > 0}
+              <Carousel items={watchingRecent} keyOf={(e) => e.id}>
+                {#snippet card(e)}
+                  <div class="w-28 shrink-0 snap-start">
+                    <a
+                      href={`/media/${e.mediaItem.type.toLowerCase()}/${e.mediaItem.sourceId}`}
+                      class="block">
+                      <div
+                        class="card hover:border-accent overflow-hidden transition-[border-color]">
+                        <Poster
+                          src={e.mediaItem.posterUrl}
+                          title={e.mediaItem.title} />
+                      </div>
+                      <p
+                        class="font-display mt-1.5 truncate text-xs font-semibold">
+                        {e.mediaItem.title}
+                      </p>
+                    </a>
+                    {#if e.progress}
+                      <div
+                        class="bg-surface-2 mt-1 h-1 overflow-hidden rounded-full">
+                        <div
+                          class="bg-accent h-full"
+                          style={`width: ${pct(e)}%`}>
+                        </div>
+                      </div>
+                      <p class="timecode mt-1 text-[0.65rem]">
+                        {e.progress.watchedEpisodes} / {e.progress
+                          .totalEpisodes}
+                      </p>
+                      {#if e.progress.nextEpisode}
+                        <button
+                          class="btn btn-primary mt-1 w-full px-2 py-1 text-[0.65rem]"
+                          disabled={resuming === e.id}
+                          onclick={() => resume(e)}>
+                          ▶ {epCodeOf(e.progress.nextEpisode)}
+                        </button>
+                      {/if}
+                    {/if}
+                  </div>
+                {/snippet}
+              </Carousel>
+            {:else}
+              <p class="text-dim py-6 text-center text-sm">
+                Rien en cours de visionnage.
+              </p>
+            {/if}
+          </div>
+        </section>
 
-  <!-- Community activity teaser (social only; self-hides when empty). -->
-  <HomeActivityPreview />
+        <section class="card p-4 lg:col-span-4">
+          <div class="mb-3 flex items-center justify-between">
+            <h2
+              class="font-display flex items-center gap-2 text-base font-bold">
+              <Icon name="calendar" class="text-accent h-4 w-4" /> Cette semaine
+            </h2>
+            <a
+              href="/calendar"
+              class="text-dim hover:text-fg text-xs font-semibold"
+              >Calendrier →</a>
+          </div>
+          {#if week.length > 0}
+            <ul class="divide-border divide-y">
+              {#each week as e (e.mediaItem.id + epCode(e))}
+                <li>
+                  <a href={mediaHref(e)} class="flex items-center gap-3 py-2">
+                    <div class="w-8 shrink-0 overflow-hidden rounded-md">
+                      <Poster
+                        src={e.mediaItem.posterUrl}
+                        title={e.mediaItem.title} />
+                    </div>
+                    <div class="min-w-0 flex-1">
+                      <p class="font-display truncate text-sm font-semibold">
+                        {e.mediaItem.title}
+                      </p>
+                      <p class="timecode text-xs">
+                        {epCode(e)}
+                      </p>
+                    </div>
+                    <span
+                      class="border-accent/40 text-accent timecode rounded-md border px-1.5 py-0.5 text-[0.65rem]">
+                      {dayShort(e.airDate)}
+                    </span>
+                  </a>
+                </li>
+              {/each}
+            </ul>
+          {:else}
+            <p class="text-dim py-6 text-center text-sm">
+              Rien de prévu cette semaine.
+            </p>
+          {/if}
+        </section>
+      {/if}
 
-  <!-- Vidéo -->
-  {#if showScreens}
-    <section class="mb-10">
-      <div class="mb-4 flex items-baseline justify-between">
-        <p class="timecode text-xs uppercase">Vidéo</p>
-        <a href="/media" class="text-dim hover:text-fg text-sm font-semibold"
-          >Voir plus →</a>
-      </div>
-
-      {#if watching.length > 0}
-        <h2 class="font-display mb-3 text-lg font-bold">À reprendre</h2>
-        <div class="mb-6">
-          <Carousel items={watchingRecent} keyOf={(e) => e.id}>
-            {#snippet card(e)}
-              <div class="w-32 shrink-0 snap-start sm:w-36">
+      {#if gamesOn}
+        <section class="card p-4 lg:col-span-4">
+          <div class="mb-3 flex items-center justify-between">
+            <h2
+              class="font-display flex items-center gap-2 text-base font-bold">
+              <Icon name="gamepad" class="text-accent h-4 w-4" /> Jeux · en cours
+            </h2>
+            <a
+              href="/games"
+              class="text-dim hover:text-fg text-xs font-semibold">Voir →</a>
+          </div>
+          {#if playingGames.length > 0}
+            <Carousel items={playingGames} keyOf={(e) => e.id}>
+              {#snippet card(e)}
                 <a
-                  href={`/media/${e.mediaItem.type.toLowerCase()}/${e.mediaItem.sourceId}`}
-                  class="block">
+                  href={`/games/${e.game.sourceId}`}
+                  class="w-24 shrink-0 snap-start">
                   <div
                     class="card hover:border-accent overflow-hidden transition-[border-color]">
-                    <Poster
-                      src={e.mediaItem.posterUrl}
-                      title={e.mediaItem.title} />
+                    <Poster src={e.game.coverUrl} title={e.game.title} />
                   </div>
-                  <p class="font-display mt-2 truncate text-sm font-semibold">
-                    {e.mediaItem.title}
+                  <p class="font-display mt-1.5 truncate text-xs font-semibold">
+                    {e.game.title}
+                  </p>
+                  {#if e.playtimeMinutes > 0}
+                    <p class="timecode text-[0.65rem]">
+                      {Math.round(e.playtimeMinutes / 60)} h jouées
+                    </p>
+                  {/if}
+                </a>
+              {/snippet}
+            </Carousel>
+          {:else}
+            <p class="text-dim py-6 text-center text-sm">
+              Rien en cours de partie.
+            </p>
+          {/if}
+        </section>
+      {/if}
+
+      {#if booksOn}
+        <section class="card p-4 lg:col-span-4">
+          <div class="mb-3 flex items-center justify-between">
+            <h2
+              class="font-display flex items-center gap-2 text-base font-bold">
+              <Icon name="book" class="text-accent h-4 w-4" /> Livres · en lecture
+            </h2>
+            <a
+              href="/books"
+              class="text-dim hover:text-fg text-xs font-semibold">Voir →</a>
+          </div>
+          {#if readingBooks.length > 0}
+            <ul class="divide-border divide-y">
+              {#each readingBooks as e (e.id)}
+                {@const p = bookPct(e)}
+                <li>
+                  <a
+                    href={`/books/${e.book.sourceId}`}
+                    class="flex items-center gap-3 py-2">
+                    <div class="w-8 shrink-0 overflow-hidden rounded-md">
+                      <Poster src={e.book.coverUrl} title={e.book.title} />
+                    </div>
+                    <div class="min-w-0 flex-1">
+                      <p class="font-display truncate text-sm font-semibold">
+                        {e.book.title}
+                      </p>
+                      {#if p !== null}
+                        <div
+                          class="bg-surface-2 mt-1 h-1 max-w-32 overflow-hidden rounded-full">
+                          <div class="bg-accent h-full" style={`width: ${p}%`}>
+                          </div>
+                        </div>
+                      {/if}
+                      <p class="timecode text-xs">
+                        {#if e.book.pageCount}
+                          p. {e.currentPage} / {e.book.pageCount}
+                        {:else}
+                          p. {e.currentPage}
+                        {/if}
+                      </p>
+                    </div>
+                  </a>
+                </li>
+              {/each}
+            </ul>
+          {:else}
+            <p class="text-dim py-6 text-center text-sm">
+              Rien en cours de lecture.
+            </p>
+          {/if}
+        </section>
+      {/if}
+
+      {#if musicOn}
+        <section class="card p-4 lg:col-span-4">
+          <div class="mb-3 flex items-center justify-between">
+            <h2
+              class="font-display flex items-center gap-2 text-base font-bold">
+              <Icon name="music" class="text-accent h-4 w-4" /> Musique · à écouter
+            </h2>
+            <a
+              href="/music"
+              class="text-dim hover:text-fg text-xs font-semibold">Voir →</a>
+          </div>
+          {#if toListenAlbums.length > 0}
+            <Carousel items={toListenAlbums} keyOf={(e) => e.id}>
+              {#snippet card(e)}
+                <a
+                  href={`/music/${e.album.sourceId}`}
+                  class="w-24 shrink-0 snap-start">
+                  <div
+                    class="card hover:border-accent overflow-hidden transition-[border-color]">
+                    <Poster src={e.album.coverUrl} title={e.album.title} />
+                  </div>
+                  <p class="font-display mt-1.5 truncate text-xs font-semibold">
+                    {e.album.title}
                   </p>
                 </a>
-                {#if e.progress}
-                  <div
-                    class="bg-surface-2 mt-1 h-1 overflow-hidden rounded-full">
-                    <div class="bg-accent h-full" style={`width: ${pct(e)}%`}>
-                    </div>
-                  </div>
-                  <p class="timecode mt-1 text-xs">
-                    {e.progress.watchedEpisodes} / {e.progress.totalEpisodes}
-                  </p>
-                  {#if e.progress.nextEpisode}
-                    <button
-                      class="btn btn-primary mt-1.5 w-full px-2 py-1 text-xs"
-                      disabled={resuming === e.id}
-                      onclick={() => resume(e)}>
-                      ▶ {epCodeOf(e.progress.nextEpisode)}
-                    </button>
-                  {/if}
-                {/if}
-              </div>
-            {/snippet}
-          </Carousel>
-        </div>
+              {/snippet}
+            </Carousel>
+          {:else}
+            <p class="text-dim py-6 text-center text-sm">
+              Rien à écouter pour l’instant.
+            </p>
+          {/if}
+        </section>
       {/if}
 
-      {#if week.length > 0}
-        <div class="mb-3 flex items-baseline justify-between">
-          <h2 class="font-display text-lg font-bold">À venir</h2>
-          <a
-            href="/calendar"
-            class="text-dim hover:text-fg text-sm font-semibold"
-            >Calendrier →</a>
-        </div>
-        <div class="grid gap-3 sm:grid-cols-3">
-          {#each week as e (e.mediaItem.id + epCode(e))}
-            <a
-              href={mediaHref(e)}
-              class="card hover:border-accent flex items-center gap-3 p-3 transition-[border-color]">
-              <div class="w-10 shrink-0 overflow-hidden rounded-md">
-                <Poster src={e.mediaItem.posterUrl} title={e.mediaItem.title} />
-              </div>
-              <div class="min-w-0">
-                <p class="font-display truncate text-sm font-semibold">
-                  {e.mediaItem.title}
-                </p>
-                <p class="timecode text-xs">
-                  {epCode(e)} · {dayShort(e.airDate)}
-                </p>
-              </div>
-            </a>
-          {/each}
-        </div>
-      {/if}
-    </section>
-  {/if}
-
-  <!-- Jeux -->
-  {#if showGames}
-    <section class="mb-10">
-      <div class="mb-4 flex items-baseline justify-between">
-        <p class="timecode text-xs uppercase">Jeux</p>
-        <a href="/games" class="text-dim hover:text-fg text-sm font-semibold"
-          >Voir →</a>
-      </div>
-      <h2 class="font-display mb-3 text-lg font-bold">En cours</h2>
-      <Carousel items={playingGames} keyOf={(e) => e.id}>
-        {#snippet card(e)}
-          <a
-            href={`/games/${e.game.sourceId}`}
-            class="w-32 shrink-0 snap-start sm:w-36">
-            <div
-              class="card hover:border-accent overflow-hidden transition-[border-color]">
-              <Poster src={e.game.coverUrl} title={e.game.title} />
-            </div>
-            <p class="font-display mt-2 truncate text-sm font-semibold">
-              {e.game.title}
-            </p>
-          </a>
-        {/snippet}
-      </Carousel>
-    </section>
-  {/if}
-
-  <!-- Livres -->
-  {#if showBooks}
-    <section class="mb-10">
-      <div class="mb-4 flex items-baseline justify-between">
-        <p class="timecode text-xs uppercase">Livres</p>
-        <a href="/books" class="text-dim hover:text-fg text-sm font-semibold"
-          >Voir →</a>
-      </div>
-      <h2 class="font-display mb-3 text-lg font-bold">En lecture</h2>
-      <Carousel items={readingBooks} keyOf={(e) => e.id}>
-        {#snippet card(e)}
-          <a
-            href={`/books/${e.book.sourceId}`}
-            class="w-32 shrink-0 snap-start sm:w-36">
-            <div
-              class="card hover:border-accent overflow-hidden transition-[border-color]">
-              <Poster src={e.book.coverUrl} title={e.book.title} />
-            </div>
-            <p class="font-display mt-2 truncate text-sm font-semibold">
-              {e.book.title}
-            </p>
-          </a>
-        {/snippet}
-      </Carousel>
-    </section>
-  {/if}
-
-  <!-- Musique -->
-  {#if showMusic}
-    <section class="mb-10">
-      <div class="mb-4 flex items-baseline justify-between">
-        <p class="timecode text-xs uppercase">Musique</p>
-        <a href="/music" class="text-dim hover:text-fg text-sm font-semibold"
-          >Voir →</a>
-      </div>
-      <h2 class="font-display mb-3 text-lg font-bold">À écouter</h2>
-      <Carousel items={toListenAlbums} keyOf={(e) => e.id}>
-        {#snippet card(e)}
-          <a
-            href={`/music/${e.album.sourceId}`}
-            class="w-32 shrink-0 snap-start sm:w-36">
-            <div
-              class="card hover:border-accent overflow-hidden transition-[border-color]">
-              <Poster src={e.album.coverUrl} title={e.album.title} />
-            </div>
-            <p class="font-display mt-2 truncate text-sm font-semibold">
-              {e.album.title}
-            </p>
-          </a>
-        {/snippet}
-      </Carousel>
-    </section>
-  {/if}
-
-  <!-- Quick links -->
-  <div class="grid gap-3 sm:grid-cols-2">
-    <a
-      href="/stats"
-      class="card hover:border-accent flex items-center justify-between p-5 transition-[border-color]">
-      <div class="flex items-center gap-3">
-        <Icon name="stats" class="text-accent h-6 w-6" />
-        <div>
-          <p class="font-display font-bold">Tes statistiques</p>
-          <p class="text-dim text-sm">
-            Vidéo, jeux et livres en un coup d’œil.
+      {#if soonOn}
+        <section
+          class="border-border flex flex-col justify-center gap-1 rounded-xl border border-dashed p-4 opacity-70 lg:col-span-4">
+          <p class="font-display text-sm font-bold">
+            🎧 Podcasts &amp; 🎲 Jeux de société
           </p>
-        </div>
-      </div>
-      <span class="text-dim">→</span>
-    </a>
+          <p class="text-dim text-xs">Bientôt disponible dans Tracklore.</p>
+          <span
+            class="bg-surface-2 text-dim mt-1 w-fit rounded-full px-2 py-0.5 text-[0.6rem] font-bold">
+            Bientôt
+          </span>
+        </section>
+      {/if}
 
-    <a
-      href="/settings"
-      class="card hover:border-accent flex items-center justify-between p-5 transition-[border-color]">
-      <div class="flex items-center gap-3">
-        <Icon name="gear" class="text-accent h-6 w-6" />
-        <div>
-          <p class="font-display font-bold">Paramètres</p>
-          <p class="text-dim text-sm">Profil, préférences et notifications.</p>
-        </div>
+      <!-- Activité (Fil) : en dernier bloc de contenu, juste avant les raccourcis. -->
+      <div class="lg:col-span-12">
+        <HomeActivityPreview limit={6} />
       </div>
-      <span class="text-dim">→</span>
-    </a>
-  </div>
+
+      <div class="grid gap-3 sm:grid-cols-2 lg:col-span-12">
+        <a
+          href="/stats"
+          class="card hover:border-accent flex items-center justify-between p-5 transition-[border-color]">
+          <div class="flex items-center gap-3">
+            <Icon name="stats" class="text-accent h-6 w-6" />
+            <div>
+              <p class="font-display font-bold">Tes statistiques</p>
+              <p class="text-dim text-sm">
+                Vidéo, jeux et livres en un coup d’œil.
+              </p>
+            </div>
+          </div>
+          <span class="text-dim">→</span>
+        </a>
+
+        <a
+          href="/settings"
+          class="card hover:border-accent flex items-center justify-between p-5 transition-[border-color]">
+          <div class="flex items-center gap-3">
+            <Icon name="gear" class="text-accent h-6 w-6" />
+            <div>
+              <p class="font-display font-bold">Paramètres</p>
+              <p class="text-dim text-sm">
+                Profil, préférences et notifications.
+              </p>
+            </div>
+          </div>
+          <span class="text-dim">→</span>
+        </a>
+      </div>
+    </div>
+  {/if}
 </div>

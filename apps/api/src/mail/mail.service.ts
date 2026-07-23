@@ -119,6 +119,17 @@ export class MailService {
       ],
       build: (v) => this.buildNewEpisode(v.mediaTitle, v.body, v.path),
     },
+    reportsDigest: {
+      label: "Digest des signalements",
+      fields: [
+        {
+          key: "pendingCount",
+          label: "Signalements en attente",
+          default: "3",
+        },
+      ],
+      build: (v) => this.buildReportsDigest(Number(v.pendingCount) || 0),
+    },
   };
 
   constructor(private readonly quota: QuotaTrackerService) {
@@ -254,6 +265,25 @@ export class MailService {
       to,
       ...this.buildNewEpisode(mediaTitle, body, path),
     });
+  }
+
+  /** Daily admin-only summary of pending moderation reports. Only sent when `pendingCount > 0`. */
+  async sendReportsDigest(to: string, pendingCount: number): Promise<void> {
+    await this.send({ to, ...this.buildReportsDigest(pendingCount) });
+  }
+
+  private buildReportsDigest(pendingCount: number): TemplateBody {
+    const url = `${this.webOrigin}/admin/reports`;
+    const label = pendingCount > 1 ? "signalements" : "signalement";
+    return {
+      subject: `${pendingCount} ${label} en attente de modération`,
+      text: `${pendingCount} ${label} en attente de modération sur Tracklore.\n\n${url}`,
+      html: this.wrapEmail(
+        "Signalements en attente",
+        `<p><strong>${pendingCount}</strong> ${label} en attente de modération.</p>
+         ${this.button(url, "Voir la file de modération")}`,
+      ),
+    };
   }
 
   private buildPasswordResetLink(token: string): TemplateBody {

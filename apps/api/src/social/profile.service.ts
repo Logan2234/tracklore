@@ -4,7 +4,6 @@ import {
   type ProfileDomainStatDto,
   ProfileAccess,
   type SocialProfileDto,
-  type UserSearchResultDto,
   type UserSummaryDto,
   VisibilityFacet,
 } from "@tracklore/shared";
@@ -13,8 +12,6 @@ import { FollowService } from "./follow.service";
 import { SOCIAL_DOMAINS } from "./social.constants";
 import { resolveFacet, resolveProfileVisibility } from "./visibility.util";
 import { VisibilityService } from "./visibility.service";
-
-const SEARCH_LIMIT = 20;
 
 @Injectable()
 export class ProfileService {
@@ -172,51 +169,6 @@ export class ProfileService {
     if (visibility === "hidden") throw new NotFoundException();
     if (visibility === "locked") return null;
     return target.id;
-  }
-
-  /** Directory search. Excludes self, GHOSTs and anyone who blocked the viewer. */
-  async search(
-    viewerId: string,
-    query: string,
-  ): Promise<UserSearchResultDto[]> {
-    const q = query.trim();
-    if (q.length < 2) return [];
-
-    const users = await this.prisma.user.findMany({
-      where: {
-        id: { not: viewerId },
-        profileAccess: { not: ProfileAccess.GHOST },
-        // Not blocked by the target (they must not surface to the viewer).
-        blocking: { none: { blockedId: viewerId } },
-        OR: [
-          { username: { contains: q, mode: "insensitive" } },
-          { displayName: { contains: q, mode: "insensitive" } },
-        ],
-      },
-      take: SEARCH_LIMIT,
-      orderBy: { username: "asc" },
-      select: {
-        id: true,
-        username: true,
-        displayName: true,
-        bio: true,
-        profileAccess: true,
-      },
-    });
-
-    return Promise.all(
-      users.map(async (u) => {
-        const relation = await this.visibility.getRelation(viewerId, u);
-        return {
-          id: u.id,
-          username: u.username,
-          displayName: u.displayName,
-          bio: u.bio,
-          profileAccess: u.profileAccess as ProfileAccess,
-          relationship: this.visibility.toRelationshipDto(relation),
-        };
-      }),
-    );
   }
 
   private countLibrary(userId: string, domain: Domain): Promise<number> {

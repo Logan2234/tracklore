@@ -45,6 +45,10 @@ function relation(over: Partial<ViewerRelation>): ViewerRelation {
 function make(rows: unknown[], relations: Record<string, ViewerRelation>) {
   const prisma = {
     review: { findMany: jest.fn().mockResolvedValue(rows) },
+    reviewVote: {
+      groupBy: jest.fn().mockResolvedValue([]),
+      findMany: jest.fn().mockResolvedValue([]),
+    },
   } as unknown as PrismaService;
   const visibility = {
     getRelation: jest.fn((_v: string, target: { id: string }) =>
@@ -65,10 +69,22 @@ describe("ReviewService.listForTarget", () => {
     expect(out.map((r) => r.id)).toEqual(["r"]);
   });
 
-  it("omits GHOST authors", async () => {
+  it("shows a GHOST author's review under their derived pseudonym", async () => {
+    const svc = make(
+      [review("r", { id: "ghost", profileAccess: "GHOST" }, "FRIENDS")],
+      {},
+    );
+    const out = await svc.listForTarget(VIEWER, "MEDIA" as never, "m1");
+    expect(out).toHaveLength(1);
+    expect(out[0].author.anonymized).toBe(true);
+    expect(out[0].author.username).toBe("");
+    expect(out[0].author.displayName).toMatch(/^Figurant n°\d{6}$/u);
+  });
+
+  it("still hides a GHOST author's review from someone they blocked", async () => {
     const svc = make(
       [review("r", { id: "ghost", profileAccess: "GHOST" }, "PUBLIC")],
-      {},
+      { ghost: relation({ blockedByTarget: true }) },
     );
     expect(
       await svc.listForTarget(VIEWER, "MEDIA" as never, "m1"),
@@ -131,6 +147,10 @@ function makeForWrite(
       create: jest.fn().mockResolvedValue(row),
     },
     reviewRevision: { create: revisionCreate },
+    reviewVote: {
+      groupBy: jest.fn().mockResolvedValue([]),
+      findMany: jest.fn().mockResolvedValue([]),
+    },
     user: {
       findUniqueOrThrow: jest
         .fn()
@@ -174,6 +194,65 @@ describe("ReviewService.upsert — revision snapshotting", () => {
       visibility: "PUBLIC",
     });
     expect(revisionCreate).not.toHaveBeenCalled();
+  });
+});
+
+function makeForVoting(opts: {
+  reviewOwnerId: string;
+  grouped?: { reviewId: string; value: string; _count: { _all: number } }[];
+}) {
+  const upsert = jest.fn().mockResolvedValue({});
+  const deleteMany = jest.fn().mockResolvedValue({ count: 1 });
+  const prisma = {
+    review: {
+      findUnique: jest.fn().mockResolvedValue({ userId: opts.reviewOwnerId }),
+    },
+    reviewVote: {
+      upsert,
+      deleteMany,
+      groupBy: jest.fn().mockResolvedValue(opts.grouped ?? []),
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+  } as unknown as PrismaService;
+  const svc = new ReviewService(
+    prisma,
+    {} as unknown as VisibilityService,
+    {} as unknown as ActivityService,
+  );
+  return { svc, upsert, deleteMany };
+}
+
+describe("ReviewService.vote", () => {
+  it("rejects voting on your own review", async () => {
+    const { svc } = makeForVoting({ reviewOwnerId: "author" });
+    await expect(svc.vote("author", "r1", "UP" as never)).rejects.toThrow(
+      "Vous ne pouvez pas voter sur votre propre review",
+    );
+  });
+
+  it("upserts the vote and returns the resulting score", async () => {
+    const { svc, upsert } = makeForVoting({
+      reviewOwnerId: "author",
+      grouped: [
+        { reviewId: "r1", value: "UP", _count: { _all: 3 } },
+        { reviewId: "r1", value: "DOWN", _count: { _all: 1 } },
+      ],
+    });
+    const result = await svc.vote("viewer", "r1", "UP" as never);
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { reviewId_userId: { reviewId: "r1", userId: "viewer" } },
+      }),
+    );
+    expect(result).toEqual({ score: 2, myVote: "UP" });
+  });
+
+  it("removes the vote on unvote", async () => {
+    const { svc, deleteMany } = makeForVoting({ reviewOwnerId: "author" });
+    await svc.unvote("viewer", "r1");
+    expect(deleteMany).toHaveBeenCalledWith({
+      where: { reviewId: "r1", userId: "viewer" },
+    });
   });
 });
 

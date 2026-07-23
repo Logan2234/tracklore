@@ -2,6 +2,7 @@
   import { browser } from "$app/environment";
   import { page } from "$app/state";
   import { ADMIN_NAV } from "$lib/admin-nav";
+  import { adminReports } from "$lib/admin-reports.svelte";
   import { auth } from "$lib/auth.svelte";
   import Avatar from "$lib/components/Avatar.svelte";
   import Icon from "$lib/components/Icon.svelte";
@@ -148,8 +149,14 @@
               class="flex w-full shrink-0 items-center overflow-hidden rounded-xl transition-colors {active
                 ? 'bg-accent/15 text-accent'
                 : 'text-dim hover:bg-surface-2 hover:text-fg'}">
-              <span class="grid h-10 w-10 shrink-0 place-items-center">
+              <span class="relative grid h-10 w-10 shrink-0 place-items-center">
                 <Icon name={item.icon} class="h-5 w-5" />
+                {#if item.href === "/admin/reports" && adminReports.pending > 0}
+                  <span
+                    class="bg-accent text-accent-fg absolute top-1.5 right-1.5 grid h-4 min-w-4 place-items-center rounded-full px-1 text-[0.55rem] font-bold">
+                    {adminReports.pending > 9 ? "9+" : adminReports.pending}
+                  </span>
+                {/if}
               </span>
               <span
                 class="text-sm font-semibold whitespace-nowrap transition-opacity duration-150 {expanded

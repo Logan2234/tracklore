@@ -30,7 +30,13 @@
     <Icon name="x" class="h-5 w-5" />
   </button>
 
-  <div class="pointer-events-none relative">
-    <Avatar {seed} size={280} />
-  </div>
+  <button
+    type="button"
+    class="relative cursor-zoom-out"
+    aria-label="Réduire l'avatar"
+    onclick={onClose}>
+    <div class="pointer-events-none">
+      <Avatar {seed} size={280} />
+    </div>
+  </button>
 </div>

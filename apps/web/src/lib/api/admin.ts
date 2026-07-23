@@ -1,5 +1,6 @@
 import type {
-  AdminBackupDto,
+  AdminBackupFileContentDto,
+  AdminBackupFileDto,
   AdminBackupRestoreRequestDto,
   AdminCacheDeleteOrphansResultDto,
   AdminCacheItemDetailDto,
@@ -12,12 +13,17 @@ import type {
   AdminPushSendResponseDto,
   AdminStatsDto,
   AdminTrendsDto,
+  AdminUserCommentDto,
   AdminUserDto,
   AdminUserRoleDto,
   AdminVersionDto,
   Domain,
   JobListResponseDto,
   JobStatus,
+  MyListDto,
+  MyReviewDto,
+  ReportDto,
+  ReportPageDto,
   MailTemplateListResponseDto,
   MailTemplatePreviewDto,
   Role,
@@ -31,6 +37,7 @@ import type {
   SessionDto,
   TrendPeriod,
   UserDataExportDto,
+  UserSummaryDto,
 } from "@tracklore/shared";
 import { request } from "./core";
 
@@ -142,6 +149,44 @@ export function getAdminUserExport(userId: string): Promise<UserDataExportDto> {
   return request(`/admin/users/${userId}/export`);
 }
 
+/** Reviews the account has written, with resolved targets — for the user drawer shortcut. */
+export function getAdminUserReviews(userId: string): Promise<MyReviewDto[]> {
+  return request(`/admin/users/${userId}/reviews`);
+}
+
+/** Comments the account has authored — for the user drawer shortcut. */
+export function getAdminUserComments(
+  userId: string,
+): Promise<AdminUserCommentDto[]> {
+  return request(`/admin/users/${userId}/comments`);
+}
+
+/** Accepted followers of the account (admin view, bypasses visibility). */
+export function getAdminUserFollowers(
+  userId: string,
+): Promise<UserSummaryDto[]> {
+  return request(`/admin/users/${userId}/followers`);
+}
+
+/** Accounts this user follows (admin view, bypasses visibility). */
+export function getAdminUserFollowing(
+  userId: string,
+): Promise<UserSummaryDto[]> {
+  return request(`/admin/users/${userId}/following`);
+}
+
+/** Reports filed against this account, directly or via a comment they authored. */
+export function getAdminUserReportsAgainst(
+  userId: string,
+): Promise<ReportDto[]> {
+  return request(`/admin/users/${userId}/reports-against`);
+}
+
+/** Every list the account owns, regardless of visibility (admin view). */
+export function getAdminUserLists(userId: string): Promise<MyListDto[]> {
+  return request(`/admin/users/${userId}/lists`);
+}
+
 /** Re-sends the account's email-verification link. */
 export function resendAdminUserVerification(userId: string): Promise<void> {
   return request(`/admin/users/${userId}/resend-verification`, {
@@ -166,9 +211,20 @@ export function getAdminVersion(): Promise<AdminVersionDto> {
   return request("/admin/version");
 }
 
-/** Full plain-SQL dump of the instance database (pg_dump). */
-export function getAdminBackup(): Promise<AdminBackupDto> {
-  return request("/admin/backup");
+/** Persisted backup dumps on disk, most recent first — up to 7, pruned by the daily job. */
+export function getAdminBackupFiles(): Promise<AdminBackupFileDto[]> {
+  return request("/admin/backup/files");
+}
+
+/** Full SQL content of one persisted backup, for download. */
+export function getAdminBackupFile(
+  id: string,
+): Promise<AdminBackupFileContentDto> {
+  return request(`/admin/backup/files/${id}`);
+}
+
+export function deleteAdminBackupFile(id: string): Promise<void> {
+  return request(`/admin/backup/files/${id}`, { method: "DELETE" });
 }
 
 /** Replaces the entire instance database with a previously downloaded dump. Irreversible. */
@@ -267,4 +323,35 @@ export function getAdminSecurityEvents(
     params.set("page", String(filters.page));
   const suffix = params.size > 0 ? `?${params}` : "";
   return request(`/admin/security${suffix}`);
+}
+
+/** The comment/review/user moderation queue, filterable by status/reporter, cursor-paginated. */
+export function getAdminReports(
+  filters: { status?: string; cursor?: string; reporterId?: string } = {},
+): Promise<ReportPageDto> {
+  const params = new URLSearchParams();
+  if (filters.status) params.set("status", filters.status);
+  if (filters.cursor) params.set("cursor", filters.cursor);
+  if (filters.reporterId) params.set("reporterId", filters.reporterId);
+  const suffix = params.size > 0 ? `?${params}` : "";
+  return request(`/admin/reports${suffix}`);
+}
+
+export function getAdminReportsPendingCount(): Promise<{ count: number }> {
+  return request("/admin/reports/pending-count");
+}
+
+export function resolveAdminReport(
+  id: string,
+  status: "RESOLVED" | "DISMISSED",
+): Promise<void> {
+  return request(`/admin/reports/${id}/resolve`, {
+    method: "POST",
+    body: { status },
+  });
+}
+
+/** Removes the reported content (comment tombstone) and resolves the report. */
+export function takeDownAdminReport(id: string): Promise<void> {
+  return request(`/admin/reports/${id}/take-down`, { method: "POST" });
 }

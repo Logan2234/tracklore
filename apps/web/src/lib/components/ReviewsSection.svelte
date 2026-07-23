@@ -1,22 +1,37 @@
 <script lang="ts">
-  import { getMyReview, getReviewsForTarget } from "$lib/api/client";
+  import {
+    getMyReview,
+    getReviewsForTarget,
+    unvoteReview,
+    voteReview,
+  } from "$lib/api/client";
   import { auth } from "$lib/auth.svelte";
   import { appConfig } from "$lib/config.svelte";
   import Avatar from "./Avatar.svelte";
+  import Icon from "./Icon.svelte";
   import ReviewFormModal from "./ReviewFormModal.svelte";
-  import type { ReviewDto, ReviewTargetType } from "@tracklore/shared";
+  import type {
+    ReviewDto,
+    ReviewTargetType,
+    ReviewVoteValue,
+  } from "@tracklore/shared";
 
   // Always-visible review section for a work's detail page: the viewer's own
   // review (add/edit via the shared modal) + everyone else's, visibility-
-  // filtered server-side. Anchored at the very bottom of the page.
+  // filtered server-side. Anchored at the very bottom of the page — or, for a
+  // season/episode target, embedded directly inside a Modal (EpisodesSection),
+  // in which case `compact` drops the top margin the Modal's own heading
+  // already accounts for.
   let {
     targetType,
     targetId,
     workTitle,
+    compact = false,
   }: {
     targetType: ReviewTargetType;
     targetId: string;
     workTitle: string;
+    compact?: boolean;
   } = $props();
 
   let myReview = $state<ReviewDto | null>(null);
@@ -58,9 +73,39 @@
   function handleDeleted() {
     myReview = null;
   }
+
+  // Reddit-style: clicking the already-active direction removes the vote,
+  // clicking the other one replaces it. One in-flight vote at a time.
+  let votingId = $state<string | null>(null);
+
+  function applyVote(
+    id: string,
+    score: number,
+    myVote: ReviewVoteValue | null,
+  ) {
+    allReviews = allReviews.map((r) =>
+      r.id === id ? { ...r, voteScore: score, myVote } : r,
+    );
+  }
+
+  async function castVote(review: ReviewDto, value: ReviewVoteValue) {
+    if (votingId) return;
+    votingId = review.id;
+    try {
+      if (review.myVote === value) {
+        const { score } = await unvoteReview(review.id);
+        applyVote(review.id, score, null);
+      } else {
+        const { score, myVote } = await voteReview(review.id, value);
+        applyVote(review.id, score, myVote);
+      }
+    } finally {
+      votingId = null;
+    }
+  }
 </script>
 
-<section class="mt-6">
+<section class={compact ? "" : "mt-6"}>
   <div class="mb-3 flex items-center justify-between gap-2">
     <h2 class="font-display mb-3 text-xl font-bold">
       {#if appConfig.socialEnabled}
@@ -87,8 +132,15 @@
         <div class="min-w-0 flex-1">
           <p class="truncate text-sm font-semibold">Votre critique</p>
           {#if appConfig.socialEnabled}
-            <p class="timecode text-xs">
-              {myReview.visibility === "PUBLIC" ? "Public" : "Amis"}
+            <p class="timecode flex items-center gap-2 text-xs">
+              <span
+                >{myReview.visibility === "PUBLIC" ? "Public" : "Amis"}</span>
+              {#if myReview.voteScore !== 0}
+                <span aria-label="Score des votes reçus"
+                  >{myReview.voteScore > 0
+                    ? `+${myReview.voteScore}`
+                    : myReview.voteScore}</span>
+              {/if}
             </p>
           {/if}
         </div>
@@ -113,17 +165,60 @@
         {#each othersReviews as review (review.id)}
           <li class="card p-3">
             <div class="flex items-center gap-3">
-              <a href="/u/{review.author.username}" class="shrink-0">
-                <Avatar seed={review.author.username} size={32} />
-              </a>
-              <a href="/u/{review.author.username}" class="min-w-0 flex-1">
-                <p class="truncate text-sm font-semibold hover:underline">
-                  {review.author.displayName}
-                </p>
-                <p class="timecode truncate text-xs">
-                  @{review.author.username}
-                </p>
-              </a>
+              <div class="flex shrink-0 flex-col items-center gap-0.5">
+                <button
+                  type="button"
+                  class="hover:text-accent disabled:opacity-40 {review.myVote ===
+                  'UP'
+                    ? 'text-accent'
+                    : 'text-dim'}"
+                  aria-label="Voter pour"
+                  aria-pressed={review.myVote === "UP"}
+                  disabled={votingId === review.id}
+                  onclick={() => castVote(review, "UP")}>
+                  <Icon name="chevron-up" class="h-4 w-4" />
+                </button>
+                <span class="timecode text-xs font-semibold">
+                  {review.voteScore}
+                </span>
+                <button
+                  type="button"
+                  class="hover:text-accent disabled:opacity-40 {review.myVote ===
+                  'DOWN'
+                    ? 'text-accent'
+                    : 'text-dim'}"
+                  aria-label="Voter contre"
+                  aria-pressed={review.myVote === "DOWN"}
+                  disabled={votingId === review.id}
+                  onclick={() => castVote(review, "DOWN")}>
+                  <Icon name="chevron-down" class="h-4 w-4" />
+                </button>
+              </div>
+              {#if review.author.anonymized}
+                <!-- Seeded on the derived pseudonym, never the real id — a
+                     stable seed would let the same identicon resurface across
+                     unrelated works and quietly de-anonymize the author. -->
+                <span class="shrink-0">
+                  <Avatar seed={review.author.displayName} size={32} />
+                </span>
+                <div class="min-w-0 flex-1">
+                  <p class="timecode truncate text-sm font-semibold">
+                    {review.author.displayName}
+                  </p>
+                </div>
+              {:else}
+                <a href="/u/{review.author.username}" class="shrink-0">
+                  <Avatar seed={review.author.username} size={32} />
+                </a>
+                <a href="/u/{review.author.username}" class="min-w-0 flex-1">
+                  <p class="truncate text-sm font-semibold hover:underline">
+                    {review.author.displayName}
+                  </p>
+                  <p class="timecode truncate text-xs">
+                    @{review.author.username}
+                  </p>
+                </a>
+              {/if}
               <span
                 class="bg-accent/15 text-accent shrink-0 rounded-md px-2.5 py-1 font-mono font-bold tabular-nums">
                 {review.rating}<span class="text-accent/60 text-xs">/10</span>

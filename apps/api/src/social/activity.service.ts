@@ -1,26 +1,36 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import {
+  type ActivityDomain,
   type ActivityEventDto,
   type ActivityFeedDto,
   type ActivityLevel,
   type ActivityType,
   type Domain,
+  type ListVisibility,
+  type ProfileAccess,
   VisibilityFacet,
 } from "@tracklore/shared";
 import { canonicalExternalId } from "../common/external-id.util";
 import { PrismaService } from "../prisma/prisma.service";
-import { resolveFacet } from "./visibility.util";
+import {
+  resolveFacet,
+  resolveOwnVisibility,
+  type ViewerRelation,
+} from "./visibility.util";
 import { VisibilityService } from "./visibility.service";
+
+/** Aggregatable event types: consecutive same-type/same-target events collapse into one, counted. */
+const AGGREGATABLE_TYPES = new Set(["PROGRESS", "LIST_ITEM_ADDED"]);
 
 /** What a domain service passes to record an activity event. */
 export interface EmitActivityInput {
   userId: string;
   type: ActivityType;
-  domain: Domain;
-  /** "MEDIA" | "GAME" | "BOOK" | "MUSIC". */
+  domain: ActivityDomain;
+  /** "MEDIA" | "GAME" | "BOOK" | "MUSIC" | "LIST". */
   targetType: string;
-  /** Internal catalogue item id (MediaItem/GameItem/BookItem/MusicItem). */
+  /** Internal catalogue item id (MediaItem/GameItem/BookItem/MusicItem/List). */
   targetId: string;
   level?: ActivityLevel;
   /** Whether it surfaces on followers' home feed (matrix milestone). */
@@ -174,7 +184,7 @@ export class ActivityService {
     const events: ActivityEventDto[] = aggregated.map((e) => ({
       id: e.id,
       type: e.type as ActivityType,
-      domain: e.domain as Domain,
+      domain: e.domain as ActivityDomain,
       targetType: e.targetType,
       level: e.level as ActivityLevel,
       title: e.title,
@@ -190,19 +200,29 @@ export class ActivityService {
   }
 
   /**
-   * Keeps only events whose actor exposes that domain's Activité to the viewer.
-   * Relation + settings are resolved once per actor and reused across their
-   * events (a feed page spans few actors).
+   * Keeps only events the viewer may see. Two gates depending on the event's
+   * target: a `"LIST"` event's visibility is its own explicit field (own-scope
+   * pattern, like Review — never facet-derived, see `resolveOwnVisibility`);
+   * everything else is gated by the actor's per-domain Activité facet as
+   * before. Relation/settings are resolved once per actor and reused across
+   * their events (a feed page spans few actors).
    */
   private async filterVisible(
     viewerId: string,
     rows: EventRow[],
   ): Promise<EventRow[]> {
-    const cache = new Map<string, (domain: string) => boolean>();
+    const actorCache = new Map<
+      string,
+      { access: ProfileAccess; relation: ViewerRelation } | null
+    >();
+    const settingsCache = new Map<
+      string,
+      Awaited<ReturnType<VisibilityService["getSettingsMap"]>>
+    >();
 
-    const gateFor = async (actorId: string) => {
-      const cached = cache.get(actorId);
-      if (cached) return cached;
+    const actorFor = async (actorId: string) => {
+      const cached = actorCache.get(actorId);
+      if (cached !== undefined) return cached;
 
       const actor = await this.prisma.user.findUnique({
         where: { id: actorId },
@@ -210,35 +230,71 @@ export class ActivityService {
       });
 
       if (!actor) {
-        const deny = () => false;
-        cache.set(actorId, deny);
-        return deny;
+        actorCache.set(actorId, null);
+        return null;
       }
 
-      const [relation, settings] = await Promise.all([
-        this.visibility.getRelation(viewerId, actor),
-        this.visibility.getSettingsMap(actorId),
-      ]);
-
-      const gate = (domain: string) =>
-        resolveFacet(
-          actor.profileAccess,
-          this.visibility.audienceFor(
-            settings,
-            domain as Domain,
-            VisibilityFacet.ACTIVITY,
-          ),
-          relation,
-        );
-      cache.set(actorId, gate);
-      return gate;
+      const relation = await this.visibility.getRelation(viewerId, actor);
+      const entry = {
+        access: actor.profileAccess as ProfileAccess,
+        relation,
+      };
+      actorCache.set(actorId, entry);
+      return entry;
     };
+
+    const listIds = [
+      ...new Set(
+        rows.filter((r) => r.targetType === "LIST").map((r) => r.targetId),
+      ),
+    ];
+    const listVisibility = listIds.length
+      ? new Map(
+          (
+            await this.prisma.list.findMany({
+              where: { id: { in: listIds } },
+              select: { id: true, visibility: true },
+            })
+          ).map((l) => [l.id, l.visibility as ListVisibility]),
+        )
+      : new Map<string, ListVisibility>();
 
     const kept: EventRow[] = [];
 
     for (const row of rows) {
-      const gate = await gateFor(row.userId);
-      if (gate(row.domain)) kept.push(row);
+      const actor = await actorFor(row.userId);
+      if (!actor) continue;
+
+      if (row.targetType === "LIST") {
+        const listVis = listVisibility.get(row.targetId);
+
+        if (
+          listVis &&
+          resolveOwnVisibility(listVis, actor.access, actor.relation)
+        ) {
+          kept.push(row);
+        }
+
+        continue;
+      }
+
+      let settings = settingsCache.get(row.userId);
+
+      if (!settings) {
+        settings = await this.visibility.getSettingsMap(row.userId);
+        settingsCache.set(row.userId, settings);
+      }
+
+      const ok = resolveFacet(
+        actor.access,
+        this.visibility.audienceFor(
+          settings,
+          row.domain as Domain,
+          VisibilityFacet.ACTIVITY,
+        ),
+        actor.relation,
+      );
+      if (ok) kept.push(row);
     }
 
     return kept;
@@ -332,13 +388,28 @@ export class ActivityService {
         };
       }
 
+      case "LIST": {
+        const i = await this.prisma.list.findUnique({
+          where: { id: targetId },
+          select: { title: true },
+        });
+        if (!i) return null;
+        // No cover resolution here (would need a cross-domain item lookup) —
+        // list previews elsewhere (ListService.listMine/listForUser) resolve
+        // their own cover; the feed row just needs the title + link.
+        return { title: i.title, imageUrl: null, href: `/lists/${targetId}` };
+      }
+
       default:
         return null;
     }
   }
 }
 
-/** Collapses consecutive PROGRESS events on the same work into one, counted. */
+/**
+ * Collapses consecutive same-type events on the same target into one,
+ * counted — a PROGRESS binge or several LIST_ITEM_ADDED in a row.
+ */
 function aggregate(rows: EventRow[]): (EventRow & { count: number })[] {
   const out: (EventRow & { count: number })[] = [];
 
@@ -347,8 +418,8 @@ function aggregate(rows: EventRow[]): (EventRow & { count: number })[] {
 
     if (
       last &&
-      last.type === "PROGRESS" &&
-      row.type === "PROGRESS" &&
+      last.type === row.type &&
+      AGGREGATABLE_TYPES.has(row.type) &&
       last.userId === row.userId &&
       last.targetId === row.targetId
     ) {

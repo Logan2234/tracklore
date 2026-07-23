@@ -8,12 +8,14 @@ import { AuthModule } from "./auth/auth.module";
 import { JwtAuthGuard } from "./auth/guards/jwt-auth.guard";
 import { BooksModule } from "./books/books.module";
 import { CatalogModule } from "./catalog/catalog.module";
+import { CommentsModule } from "./comments/comments.module";
 import { CommonModule } from "./common/common.module";
 import { RuntimeConfigModule } from "./config/config.module";
 import { GamesModule } from "./games/games.module";
 import { HealthModule } from "./health/health.module";
 import { ImportModule } from "./import/import.module";
 import { LibraryModule } from "./library/library.module";
+import { ListsModule } from "./lists/list.module";
 import { MailModule } from "./mail/mail.module";
 import { MusicModule } from "./music/music.module";
 import { NotificationModule } from "./notifications/notification.module";
@@ -46,6 +48,8 @@ import { UsersModule } from "./users/users.module";
     HealthModule,
     SocialModule,
     ReviewsModule,
+    CommentsModule,
+    ListsModule,
   ],
   controllers: [],
   providers: [

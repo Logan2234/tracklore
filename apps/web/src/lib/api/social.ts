@@ -1,17 +1,13 @@
 import type {
   FollowRequestDto,
+  GhostSwitchImpactDto,
   RelationshipDto,
   SocialProfileDto,
   UpdateVisibilitySettingsDto,
-  UserSearchResultDto,
   UserSummaryDto,
   VisibilitySettingsDto,
 } from "@tracklore/shared";
 import { request } from "./core";
-
-export function searchUsers(q: string): Promise<UserSearchResultDto[]> {
-  return request(`/social/search?q=${encodeURIComponent(q)}`);
-}
 
 export function getProfile(username: string): Promise<SocialProfileDto> {
   return request(`/social/users/${encodeURIComponent(username)}`);
@@ -53,14 +49,6 @@ export function rejectFollowRequest(id: string): Promise<void> {
   return request(`/social/requests/${id}/reject`, { method: "POST" });
 }
 
-export function getMyFollowers(): Promise<UserSummaryDto[]> {
-  return request("/social/me/followers");
-}
-
-export function getMyFollowing(): Promise<UserSummaryDto[]> {
-  return request("/social/me/following");
-}
-
 export function getUserFollowers(username: string): Promise<UserSummaryDto[]> {
   return request(`/social/users/${encodeURIComponent(username)}/followers`);
 }
@@ -77,4 +65,9 @@ export function updatePrivacySettings(
   body: UpdateVisibilitySettingsDto,
 ): Promise<VisibilitySettingsDto> {
   return request("/social/me/privacy", { method: "PATCH", body });
+}
+
+/** Live counts of what switching to Figurant mode would immediately clean up. */
+export function getGhostSwitchImpact(): Promise<GhostSwitchImpactDto> {
+  return request("/social/me/privacy/ghost-impact");
 }

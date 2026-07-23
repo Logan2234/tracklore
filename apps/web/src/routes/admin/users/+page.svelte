@@ -1,27 +1,55 @@
 <script lang="ts">
+  import { page } from "$app/state";
   import {
+    ApiError,
     deleteAdminUser,
-    getAdminUsers,
+    getAdminUserComments,
     getAdminUserExport,
+    getAdminUserFollowers,
+    getAdminUserFollowing,
+    getAdminUserLists,
+    getAdminUserReportsAgainst,
+    getAdminUserReviews,
+    getAdminUsers,
     getAdminUserSessions,
     resendAdminUserVerification,
     revokeAdminUserSession,
     revokeAllAdminUserSessions,
     sendAdminUserPasswordReset,
     updateAdminUserRole,
-    ApiError,
   } from "$lib/api/client";
-  import { page } from "$app/state";
   import { auth } from "$lib/auth.svelte";
+  import Avatar from "$lib/components/Avatar.svelte";
+  import AvatarLightbox from "$lib/components/AvatarLightbox.svelte";
   import Banner from "$lib/components/Banner.svelte";
   import Combobox from "$lib/components/Combobox.svelte";
   import ConfirmationModal from "$lib/components/ConfirmationModal.svelte";
   import Icon from "$lib/components/Icon.svelte";
+  import Modal from "$lib/components/Modal.svelte";
   import PageHeader from "$lib/components/PageHeader.svelte";
   import { toast } from "$lib/toast.svelte";
-  import type { AdminUserDto, SessionDto } from "@tracklore/shared";
+  import type {
+    AdminUserCommentDto,
+    AdminUserDto,
+    MyListDto,
+    MyReviewDto,
+    ReportDto,
+    SessionDto,
+    UserSummaryDto,
+  } from "@tracklore/shared";
 
   type Filter = "all" | "admin" | "unverified" | "never";
+
+  const STATUS_LABELS: Record<ReportDto["status"], string> = {
+    PENDING: "En attente",
+    RESOLVED: "Résolu",
+    DISMISSED: "Rejeté",
+  };
+  const STATUS_COLORS: Record<ReportDto["status"], string> = {
+    PENDING: "border-accent/40 bg-accent/10 text-accent",
+    RESOLVED: "border-success/40 bg-success/10 text-success",
+    DISMISSED: "border-border bg-surface-2 text-dim",
+  };
 
   let users = $state<AdminUserDto[] | null>(null);
   let loading = $state(true);
@@ -75,6 +103,37 @@
   let deleting = $state(false);
   let deleteError = $state("");
 
+  // --- social activity shortcuts ---
+  type ActivityKind =
+    "reviews" | "comments" | "followers" | "following" | "lists" | "reports";
+  let activityLoading = $state(false);
+  let reviews = $state<MyReviewDto[]>([]);
+  let comments = $state<AdminUserCommentDto[]>([]);
+  let followers = $state<UserSummaryDto[]>([]);
+  let following = $state<UserSummaryDto[]>([]);
+  let lists = $state<MyListDto[]>([]);
+  let reportsAgainst = $state<ReportDto[]>([]);
+  let activeModal = $state<ActivityKind | null>(null);
+  let avatarLightbox = $state(false);
+
+  const ACTIVITY_SECTIONS: { kind: ActivityKind; label: string }[] = [
+    { kind: "reviews", label: "Reviews" },
+    { kind: "comments", label: "Commentaires" },
+    { kind: "following", label: "Abonnements" },
+    { kind: "followers", label: "Abonnés" },
+    { kind: "lists", label: "Listes" },
+    { kind: "reports", label: "Signalements reçus" },
+  ];
+
+  function activityCount(kind: ActivityKind): number {
+    if (kind === "reviews") return reviews.length;
+    if (kind === "comments") return comments.length;
+    if (kind === "following") return following.length;
+    if (kind === "followers") return followers.length;
+    if (kind === "lists") return lists.length;
+    return reportsAgainst.length;
+  }
+
   async function load() {
     loading = true;
     error = null;
@@ -96,6 +155,13 @@
     resetMessage = "";
     roleError = "";
     exportError = "";
+    reviews = [];
+    comments = [];
+    followers = [];
+    following = [];
+    lists = [];
+    reportsAgainst = [];
+    activityLoading = true;
     try {
       sessions = await getAdminUserSessions(user.id);
     } catch {
@@ -103,10 +169,30 @@
     } finally {
       sessionsLoading = false;
     }
+    try {
+      const [r, c, fers, fing, l, rep] = await Promise.all([
+        getAdminUserReviews(user.id).catch(() => []),
+        getAdminUserComments(user.id).catch(() => []),
+        getAdminUserFollowers(user.id).catch(() => []),
+        getAdminUserFollowing(user.id).catch(() => []),
+        getAdminUserLists(user.id).catch(() => []),
+        getAdminUserReportsAgainst(user.id).catch(() => []),
+      ]);
+      reviews = r;
+      comments = c;
+      followers = fers;
+      following = fing;
+      lists = l;
+      reportsAgainst = rep;
+    } finally {
+      activityLoading = false;
+    }
   }
 
   function closeDrawer() {
     selected = null;
+    activeModal = null;
+    avatarLightbox = false;
   }
 
   async function revoke(sessionId: string) {
@@ -321,10 +407,7 @@
                 : ''}">
               <td class="px-4 py-3">
                 <div class="flex items-center gap-3">
-                  <span
-                    class="border-border bg-surface-2 font-display text-fg flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-bold">
-                    {u.displayName.charAt(0).toUpperCase()}
-                  </span>
+                  <Avatar seed={u.username} size={36} />
                   <div class="min-w-0">
                     <div class="flex items-center gap-2">
                       <span class="text-fg truncate font-semibold"
@@ -387,11 +470,29 @@
       aria-labelledby="drawer-title"
       class="card relative z-10 flex h-full w-full max-w-sm flex-col overflow-y-auto rounded-none border-y-0 border-r-0 p-5">
       <div class="mb-4 flex items-start justify-between gap-2">
-        <div class="min-w-0">
-          <h2 id="drawer-title" class="font-display truncate text-lg font-bold">
-            {selected.displayName}
-          </h2>
-          <p class="text-dim truncate text-xs">{selected.email}</p>
+        <div class="flex min-w-0 items-center gap-3">
+          <button
+            type="button"
+            aria-label="Voir l'avatar en grand"
+            onclick={() => (avatarLightbox = true)}
+            class="cursor-zoom-in">
+            <Avatar seed={selected.username} size={48} />
+          </button>
+          <div class="min-w-0">
+            <h2
+              id="drawer-title"
+              class="font-display truncate text-lg font-bold">
+              {selected.displayName}
+            </h2>
+            <p class="text-dim truncate text-xs">
+              @{selected.username} · {selected.email}
+            </p>
+            <a
+              href="/u/{selected.username}"
+              class="text-accent mt-0.5 inline-block text-xs hover:underline">
+              Voir le profil public →
+            </a>
+          </div>
         </div>
         <button
           class="text-dim hover:bg-surface-2 hover:text-fg shrink-0 rounded-full p-1.5"
@@ -400,6 +501,12 @@
           <Icon name="x" class="h-5 w-5" />
         </button>
       </div>
+
+      {#if avatarLightbox}
+        <AvatarLightbox
+          seed={selected.username}
+          onClose={() => (avatarLightbox = false)} />
+      {/if}
 
       <!-- Identité -->
       <section class="mb-5">
@@ -479,6 +586,35 @@
         {/if}
       </section>
 
+      <!-- Activité sociale -->
+      <section class="mb-5">
+        <h3
+          class="text-dim mb-2 flex items-center gap-2 text-[0.65rem] font-bold tracking-wider uppercase">
+          Activité sociale
+          <span class="bg-border h-px flex-1"></span>
+        </h3>
+        {#if activityLoading}
+          <div class="skeleton h-24 rounded-lg"></div>
+        {:else}
+          <ul
+            class="border-border divide-border divide-y overflow-hidden rounded-lg border">
+            {#each ACTIVITY_SECTIONS as s (s.kind)}
+              <li>
+                <button
+                  type="button"
+                  disabled={activityCount(s.kind) === 0}
+                  onclick={() => (activeModal = s.kind)}
+                  class="hover:bg-surface-2 flex w-full items-center justify-between px-3 py-2 text-left text-sm disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent">
+                  <span class="text-fg">{s.label}</span>
+                  <span class="text-dim text-xs font-semibold"
+                    >{activityCount(s.kind)}</span>
+                </button>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </section>
+
       <!-- Données -->
       <section class="mb-5">
         <h3
@@ -495,7 +631,9 @@
             Exporter
           </button>
           <a
-            href="/admin/push?email={encodeURIComponent(selected.email)}"
+            href="/admin/communications?tab=push&email={encodeURIComponent(
+              selected.email,
+            )}"
             class="btn btn-ghost btn-sm flex-1 text-center">
             <Icon name="bell" class="mr-1 inline h-3.5 w-3.5" />
             Push test
@@ -549,6 +687,110 @@
       </section>
     </div>
   </div>
+{/if}
+
+{#if activeModal === "reviews"}
+  <Modal title="Reviews" onclose={() => (activeModal = null)}>
+    <ul class="space-y-2">
+      {#each reviews as r (r.id)}
+        <li class="border-border rounded-lg border p-3 text-sm">
+          {#if r.target?.href}
+            <a href={r.target.href} class="font-semibold hover:underline"
+              >{r.target.title}</a>
+          {:else}
+            <span class="font-semibold"
+              >{r.target?.title ?? "Œuvre supprimée"}</span>
+          {/if}
+          <span class="text-dim ml-2 text-xs">{r.rating}/10</span>
+          {#if r.text}
+            <p class="text-dim mt-1 line-clamp-2 text-xs">{r.text}</p>
+          {/if}
+        </li>
+      {/each}
+    </ul>
+  </Modal>
+{:else if activeModal === "comments"}
+  <Modal title="Commentaires" onclose={() => (activeModal = null)}>
+    <ul class="space-y-2">
+      {#each comments as c (c.id)}
+        <li class="border-border rounded-lg border p-3 text-sm">
+          {#if c.href}
+            <a href={c.href} class="hover:underline">{c.excerpt}</a>
+          {:else}
+            <p>{c.excerpt}</p>
+          {/if}
+          <p class="text-dim mt-1 text-xs">
+            {dateFmt.format(new Date(c.createdAt))}
+          </p>
+        </li>
+      {/each}
+    </ul>
+  </Modal>
+{:else if activeModal === "followers" || activeModal === "following"}
+  <Modal
+    title={activeModal === "followers" ? "Abonnés" : "Abonnements"}
+    onclose={() => (activeModal = null)}>
+    <ul class="space-y-1">
+      {#each activeModal === "followers" ? followers : following as u (u.id)}
+        <li>
+          <a
+            href="/u/{u.username}"
+            class="hover:bg-surface-2 flex items-center gap-3 rounded-lg px-2 py-2">
+            <Avatar seed={u.username} size={36} />
+            <span class="min-w-0">
+              <span class="text-fg block truncate text-sm font-semibold"
+                >{u.displayName}</span>
+              <span class="text-dim block truncate text-xs">@{u.username}</span>
+            </span>
+          </a>
+        </li>
+      {/each}
+    </ul>
+  </Modal>
+{:else if activeModal === "lists"}
+  <Modal title="Listes" onclose={() => (activeModal = null)}>
+    <ul class="space-y-2">
+      {#each lists as l (l.id)}
+        <li class="border-border rounded-lg border p-3 text-sm">
+          <div class="flex items-center gap-2">
+            <span class="text-fg font-semibold">{l.title}</span>
+            <span class="text-dim text-xs">· {l.itemCount} élément(s)</span>
+          </div>
+          <p class="text-dim mt-0.5 text-xs">
+            {l.kind} · {l.visibility}
+          </p>
+        </li>
+      {/each}
+    </ul>
+  </Modal>
+{:else if activeModal === "reports"}
+  <Modal title="Signalements reçus" onclose={() => (activeModal = null)}>
+    <ul class="space-y-2">
+      {#each reportsAgainst as r (r.id)}
+        <li class="border-border rounded-lg border p-3 text-sm">
+          <div class="flex items-center gap-2">
+            <span
+              class="rounded-full border px-2 py-0.5 text-xs font-bold {STATUS_COLORS[
+                r.status
+              ]}">{STATUS_LABELS[r.status]}</span>
+            <span class="text-dim ml-auto text-xs"
+              >{dateFmt.format(new Date(r.createdAt))}</span>
+          </div>
+          {#if r.target}
+            {#if r.target.href}
+              <a href={r.target.href} class="mt-1.5 block hover:underline"
+                >{r.target.label}</a>
+            {:else}
+              <p class="mt-1.5">{r.target.label}</p>
+            {/if}
+          {/if}
+          {#if r.reason}
+            <p class="text-dim mt-1 text-xs">« {r.reason} »</p>
+          {/if}
+        </li>
+      {/each}
+    </ul>
+  </Modal>
 {/if}
 
 {#if showRevokeAllConfirm && selected}
